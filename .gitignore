@@ -1,0 +1,11 @@
+.vs/
+*.sln
+*.db
+*.opendb
+*.vcxproj
+*.vcxproj.filters
+x64
+Debug
+build
+Release
+intermediate
