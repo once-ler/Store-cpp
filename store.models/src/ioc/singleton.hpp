@@ -124,8 +124,9 @@ namespace store {
     };
 
     class IOCContainer {
-      static int s_nextTypeId;
+      // static int s_nextTypeId;
     public:
+      static int s_nextTypeId;
       //one typeid per type
       template<typename T>
       static int GetTypeID() {

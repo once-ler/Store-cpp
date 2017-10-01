@@ -9,6 +9,8 @@ using namespace store::interfaces;
 namespace ioc1 = store::ioc1;
 namespace ioc0 = store::ioc0;
 
+int ioc1::IOCContainer::s_nextTypeId = 0;
+
 int main() {
   struct Droid : Model {
     string name;
@@ -62,13 +64,14 @@ int main() {
     container0.RegisterClass<ParticipantExtended>();
     auto o = container0.GetInstance<ParticipantExtended>();
   }
-
+  
   {
     ioc1::IOCContainer container1;
-    container1.RegisterInstance<Model, Droid>();
-    // container1.RegisterFactory<ParticipantExtended>();
     
-    // auto name = container1.GetObject<ParticipantExtended>()->name;
+    container1.RegisterInstance<Model, Droid>();
+    container1.RegisterFactory<Participant, ParticipantExtended>();
+    
+    // container1.GetObject<ParticipantExtended>()->name;
     // auto ra = container1.GetObject<RebelAlliance>();
   }
 
