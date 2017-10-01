@@ -12,7 +12,6 @@ namespace store {
   namespace ioc {
     struct IDisposable {};
     struct ISimpleContainer : IDisposable {
-      virtual boost::any Get(boost::any serviceType) {};
       virtual boost::any GetStore(string typeOfStore) {};
       boost::any GetType(string typeName) {};
       boost::any Get(string typeName) {};
@@ -33,13 +32,14 @@ namespace store {
       map<string, function<boost::any()>> _registrationsInstanceByName;
       
 
-      template<typename T> T Get() {};
-      template<typename TService> void Register() {};
+      // template<typename T> T Get() {};
+      // template<typename T> T Get(T serviceType) {};
+      // template<typename TService> void Register() {};
       // template<typename TService> void Register(string typeName, TService type) {};
       // template<typename TService> void Register(function<TService()> instanceCreator) {};
       // template<typename TService, typename TImpl = TService> void Register() {};
-      template<typename TService> void Singleton(TService instance) {};
-      template<typename TService> void Singleton(Func<TService> instanceCreator) {};
+      // template<typename TService> void Singleton(TService instance) {};
+      // template<typename TService> void Singleton(Func<TService> instanceCreator) {};
 
     public:
       /// <summary>
@@ -108,8 +108,10 @@ namespace store {
       /// </summary>
       /// <typeparam name="TService"></typeparam>
       /// <param name="instance"></param>
-      public void Singleton<TService>(TService instance) {
-        _registrations.Add(typeof(TService), () = > instance);
+      template<typename TService>
+      void Singleton(boost::any instance) {
+        // _registrations.Add(typeof(TService), () = > instance);
+        _registrations[TService] = instance;
       }
 
       /// <summary>
@@ -117,9 +119,14 @@ namespace store {
       /// </summary>
       /// <typeparam name="TService"></typeparam>
       /// <param name="instanceCreator"></param>
-      public void Singleton<TService>(Func<TService> instanceCreator) {
-        var lazy = new Lazy<TService>(instanceCreator);
-        Register(() = > lazy.Value);
+      template<typename TService>
+      void Singleton(function<boost::any()> instanceCreator) {
+        // var lazy = new Lazy<TService>(instanceCreator);
+        // Register(() = > lazy.Value);
+        _registrations[TService] = []() {
+          // TODO
+          return 0;
+        };
       }
 
       /// <summary>
@@ -127,8 +134,11 @@ namespace store {
       /// </summary>
       /// <typeparam name="T"></typeparam>
       /// <returns></returns>
-      public T Get<T>() {
-        return (T)Get(typeof(T));
+      // Probably don't need this.
+      template<typename T>
+      T Get<T>() {
+        // return (T)Get(typeof(T));
+        return T;
       }
 
       /// <summary>
@@ -136,7 +146,9 @@ namespace store {
       /// </summary>
       /// <param name="serviceType"></param>
       /// <returns></returns>
-      public object Get(Type serviceType) {
+      template<typename Type>
+      boost::any Get(Type serviceType) {
+        /*
         Func<object> creator;
         if (_registrations.TryGetValue(serviceType, out creator)) {
           return creator();
@@ -147,6 +159,12 @@ namespace store {
         }
 
         throw new InvalidOperationException("No registration for " + serviceType);
+        */
+        auto f1 = _registrations.find(serviceType);
+        if (f1 != _registrations.end())  return f1();
+        
+        // TODO: Create instance
+        return nullptr;
       }
 
       /// <summary>
@@ -154,7 +172,8 @@ namespace store {
       /// </summary>
       /// <param name="typeOfStore"></param>
       /// <returns></returns>
-      public dynamic GetStore(string typeOfStore) {
+      public boost::any GetStore(string typeOfStore) override {
+        /*
         IList<Type> typesToRegister = new List<Type>();
 
         var a = _registrations.Where(d = > {
@@ -182,6 +201,8 @@ namespace store {
         if (a.Count() > 0) return a.FirstOrDefault().Key;
 
         return null;
+        */
+        vector<> typesToRegister;
       }
 
       /// <summary>

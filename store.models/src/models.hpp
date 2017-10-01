@@ -18,6 +18,8 @@ namespace store {
     /// "PostgreSQL" -> new DBContext{ server = "127.0.0.1", port = 5432, database = "unicorns", userId = "foo", password = "bar", commandTimeout = 30000 }
     /// </summary>
     struct DBContext {
+      DBContext() = default;
+      ~DBContext() = default;
       string server;
       int port;
       string database;
@@ -31,6 +33,8 @@ namespace store {
     /// Models include Membership, Senior Leadership, Research Program, Disease Management Group, etc.
     /// </summary>
     struct IModel {
+      IModel() = default;
+      ~IModel() = default;
     protected:
     };
 
@@ -39,6 +43,7 @@ namespace store {
     /// </summary>
     struct Model : public IModel {
       Model() = default;
+      ~Model() = default;
       Model(const string& _id, const string& _name, const string& _ts) : id(_id), name(_name), ts(_ts) {}
       string id;
       string name;
@@ -52,6 +57,7 @@ namespace store {
     template<typename T>
     struct History : public Model {
       History() = default;
+      ~History() = default;
       History(T _source) : source(_source) {};
       T source;
     };
@@ -64,7 +70,9 @@ namespace store {
     struct Record : public Model {
       T current;
       vector<History<T>> history;
+      
       Record() = default;
+      ~Record() = default;
       Record(string id, string name, Primitive::dateTime ts, T _current, vector<History<T>> _history) : Model(id, name, ts), current(_current), history(_history) {}
     };
 
@@ -75,6 +83,7 @@ namespace store {
     /// </summary>
     struct VersionControl : public Model {
       VersionControl() = default;
+      ~VersionControl() = default;
       VersionControl(string id, string name, Primitive::dateTime ts) : Model(id, name, ts) {}
     };
 
@@ -83,6 +92,7 @@ namespace store {
     /// </summary>
     struct Participant : public Model {
       Participant() = default;
+      ~Participant() = default;
       Participant(string id, string name, Primitive::dateTime ts, boost::any _party) : Model{ id, name, ts }, party(_party) {};
       boost::any party;
     };
@@ -90,9 +100,10 @@ namespace store {
     /// <summary>
     /// Affiliation is what it says.
     /// </summary>
-    template<typename T, T = Participant>
+    template<typename T>
     struct Affiliation : public Model {
       Affiliation() = default;
+      ~Affiliation() = default;
       Affiliation(string id, string name, Primitive::dateTime ts, vector<T> _roster) : Model(id, name, ts), roster(_roster) {}
       vector<T> roster;
     };

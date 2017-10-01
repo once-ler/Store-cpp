@@ -1,9 +1,13 @@
 #include "models.hpp";
 #include "interfaces.hpp"
+#include "ioc/singleton.hpp"
 
 using namespace std;
 using namespace store::models;
 using namespace store::interfaces;
+
+namespace ioc1 = store::ioc1;
+namespace ioc0 = store::ioc0;
 
 int main() {
   struct Droid : Model {
@@ -36,6 +40,9 @@ int main() {
   r0.history = { h0 };
 
   struct ParticipantExtended : public Participant {
+    ParticipantExtended() = default;
+    ~ParticipantExtended() = default;
+
     ParticipantExtended(string id, string name, store::primitive::dateTime ts, boost::any party) : Participant{ id, name, ts, party } {}
   };
 
@@ -49,5 +56,20 @@ int main() {
   vector<ParticipantExtended> goodRoster2 = { p1 };
 
   rogue1.roster = goodRoster2;
+
+  {
+    ioc0::IOCContainer container0;
+    container0.RegisterClass<ParticipantExtended>();
+    auto o = container0.GetInstance<ParticipantExtended>();
+  }
+
+  {
+    ioc1::IOCContainer container1;
+    container1.RegisterInstance<Model, Droid>();
+    // container1.RegisterFactory<ParticipantExtended>();
+    
+    // auto name = container1.GetObject<ParticipantExtended>()->name;
+    // auto ra = container1.GetObject<RebelAlliance>();
+  }
 
 }
