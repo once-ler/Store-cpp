@@ -1,15 +1,24 @@
 #include "models.hpp";
 #include "interfaces.hpp"
+#include "ioc/simple_container.hpp"
 #include "ioc/singleton.hpp"
 
 using namespace std;
 using namespace store::models;
 using namespace store::interfaces;
 
+namespace ioc = store::ioc;
 namespace ioc1 = store::ioc1;
 namespace ioc0 = store::ioc0;
 
 int ioc1::IOCContainer::s_nextTypeId = 0;
+
+namespace test {
+  template<typename T>
+  bool AreEqual(const T& a, const T& b) {
+    return &a == &b;
+  }
+}
 
 int main() {
   struct Droid : Model {
@@ -66,13 +75,17 @@ int main() {
   }
   
   {
-    ioc1::IOCContainer container1;
+    ioc::SimpleContainer container1;
+    container1.RegisterSingletonClass<RogueOne>();
+
+    auto a = container1.GetInstance<RogueOne>();
+
+    auto b = container1.GetInstance<RogueOne>();
+
+    auto same = test::AreEqual(a, b);
     
-    container1.RegisterInstance<Model, Droid>();
-    container1.RegisterFactory<Participant, ParticipantExtended>();
-    
-    // container1.GetObject<ParticipantExtended>()->name;
-    // auto ra = container1.GetObject<RebelAlliance>();
+    cout << same << endl;
+
   }
 
 }
