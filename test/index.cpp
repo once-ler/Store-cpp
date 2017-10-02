@@ -1,17 +1,13 @@
 #include "models.hpp";
 #include "interfaces.hpp"
 #include "ioc/simple_container.hpp"
-#include "ioc/singleton.hpp"
+#include "ioc/service_provider.hpp"
 
 using namespace std;
 using namespace store::models;
 using namespace store::interfaces;
 
 namespace ioc = store::ioc;
-namespace ioc1 = store::ioc1;
-namespace ioc0 = store::ioc0;
-
-int ioc1::IOCContainer::s_nextTypeId = 0;
 
 namespace test {
   template<typename T>
@@ -68,12 +64,7 @@ int main() {
 
   rogue1.roster = goodRoster2;
 
-  {
-    ioc0::IOCContainer container0;
-    container0.RegisterClass<ParticipantExtended>();
-    auto o = container0.GetInstance<ParticipantExtended>();
-  }
-  
+  // Should be the same object.
   {
     ioc::SimpleContainer container1;
     container1.RegisterSingletonClass<RogueOne>();
@@ -82,10 +73,43 @@ int main() {
 
     auto b = container1.GetInstance<RogueOne>();
 
-    auto same = test::AreEqual(a, b);
+    auto same = test::AreEqual(*(a.get()), *(b.get()));
     
     cout << same << endl;
 
+    auto sameShared = test::AreEqual(*a, *b);
+
+    cout << sameShared << endl;
   }
 
+  // Should not be the same object.
+  {
+    ioc::SimpleContainer container1;
+    container1.RegisterClass<RogueOne>();
+
+    auto a = container1.GetInstance<RogueOne>();
+
+    auto b = container1.GetInstance<RogueOne>();
+
+    auto same = test::AreEqual(*(a.get()), *(b.get()));
+
+    cout << same << endl;
+
+    auto sameShared = test::AreEqual(*a, *b);
+
+    cout << sameShared << endl;
+  }
+
+  // Use singleton provider.
+  {
+    ioc::ServiceProvider->RegisterSingletonClass<RogueOne>();
+
+    auto a = ioc::ServiceProvider->GetInstance<RogueOne>();
+
+    auto b = ioc::ServiceProvider->GetInstance<RogueOne>();
+
+    auto sameShared = test::AreEqual(*a, *b);
+
+    cout << sameShared << endl;    
+  }
 }
