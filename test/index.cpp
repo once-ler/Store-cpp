@@ -2,10 +2,12 @@
 #include "interfaces.hpp"
 #include "ioc/simple_container.hpp"
 #include "ioc/service_provider.hpp"
+#include "base_client.hpp"
 
 using namespace std;
 using namespace store::models;
 using namespace store::interfaces;
+using namespace store::storage;
 
 namespace ioc = store::ioc;
 
@@ -18,7 +20,6 @@ namespace test {
 
 int main() {
   struct Droid : Model {
-    string name;
     string model;
   };
 
@@ -111,5 +112,17 @@ int main() {
     auto sameShared = test::AreEqual(*a, *b);
 
     cout << sameShared << endl;    
+  }
+
+  {
+    BaseClient b;
+    struct MockClient : BaseClient {
+      template<typename T>
+      vector<Record<T>> list() {
+        vector<Record<Droid>> droids = { { "r2d2", "r2d2", "", Droid{}, { Droid{} } } };
+        return droids;
+      }
+    };
+
   }
 }

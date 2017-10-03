@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <vector>
+#include <functional>
 #include "models.hpp"
 #include "enumerations.hpp"
 
@@ -11,6 +12,16 @@ using namespace store::enumerations;
 
 namespace store {
   namespace interfaces {
+
+    template<typename T>
+    struct test {      
+      function<vector<Record<T>>(string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc)> ListFunc;
+    protected:
+      vector<Record<T>> list(string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {
+        return ListFunc(version, offset, limit, sortKey, sortDirection);
+      }
+    };
+
     /// <summary>
     /// Class that creates a new copy of a "database" from a master "database" or from an existing "database".
     /// "Database" is an notion, it is up to you to implement what a "database" is.
@@ -70,7 +81,7 @@ namespace store {
       /// <param name="sortDirection">The sort direction of sort key used for the records to list.</param>
       /// <returns>List of IModel records.</returns>
       virtual vector<Record<IModel>> list(string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {}
-
+      
       /// <summary>
       /// Fetch a limited number of IModel records for a VersionControl.
       /// Targeted use by GraphQL RootType Query.
