@@ -13,15 +13,6 @@ using namespace store::enumerations;
 namespace store {
   namespace interfaces {
 
-    template<typename T>
-    struct test {      
-      function<vector<Record<T>>(string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc)> ListFunc;
-    protected:
-      vector<Record<T>> list(string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {
-        return ListFunc(version, offset, limit, sortKey, sortDirection);
-      }
-    };
-
     /// <summary>
     /// Class that creates a new copy of a "database" from a master "database" or from an existing "database".
     /// "Database" is an notion, it is up to you to implement what a "database" is.
@@ -67,8 +58,13 @@ namespace store {
     /// For example, IStore{Membership} and IStore{Grants} share the same access to VersionControl.
     /// </summary>
     /// <typeparam name="T">A type that implements IModel.</typeparam>
-    // template<typename T, T = IModel>
+    template<typename T, typename U = boost::any>
     struct IStore {
+      using ListFunc = function<vector<Record<T>(string, int, int, string, SortDirection)>>;
+      using ListAnyFunc = function<vector<U(string, string, int, int, string, string)>>;
+
+      ListFunc listFunc;
+      ListAnyFunc listAnyFunc;
     protected:
       /// <summary>
       /// Fetch a limited number of IModel records for a VersionControl.
@@ -80,7 +76,9 @@ namespace store {
       /// <param name="sortKey">The field name to use when performing a sort.</param>
       /// <param name="sortDirection">The sort direction of sort key used for the records to list.</param>
       /// <returns>List of IModel records.</returns>
-      virtual vector<Record<IModel>> list(string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {}
+      vector<Record<T>> list(string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {
+        return listFunc(version, offset, limit, sortKey, sortDirection);
+      }
       
       /// <summary>
       /// Fetch a limited number of IModel records for a VersionControl.
@@ -92,8 +90,11 @@ namespace store {
       /// <param name="limit">The total number of records to list.</param>
       /// <param name="sortKey">The field name to use when performing a sort.</param>
       /// <param name="sortDirection">The sort direction of sort key used for the records to list.</param>
-      /// <returns>List of IModel records.</returns>
-      virtual vector<boost::any> list(string version, string typeOfStore, int offset, int limit, string sortKey = "id", string sortDirection = "Asc") {}
+      /// <returns>List of IModel records.  Typically should be boost::any.</returns>
+      template<typename U>
+      vector<U> list(string version, string typeOfStore, int offset, int limit, string sortKey = "id", string sortDirection = "Asc") {
+        return listAnyFunc(version, typeOfStore, offset, limit, sortKey, sortDirection);
+      }
 
       /// <summary>
       /// Provided a run-time dynamic object, convert it to a statically typed Record of an IModel.
@@ -103,7 +104,7 @@ namespace store {
       /// <typeparam name="U">U should be a type that derives from Model.</typeparam>
       /// <param name="d">The dynamic object.</param>
       /// <returns>One record of IModel.</returns>
-      virtual Record<IModel> makeRecord(boost::any d) {};
+      Record<T> makeRecord(U d) {};
 
       /// <summary>
       /// Provided a JSON object string, convert it to a statically typed Record of an IModel.
@@ -113,7 +114,7 @@ namespace store {
       /// <typeparam name="U">U should be a type that derives from Model.</typeparam>
       /// <param name="jsonString">A valid JSON object string.</param>
       /// <returns>One record of IModel.</returns>
-      virtual Record<IModel> makeRecord(string jsonString) {};
+      Record<T> makeRecord(string jsonString) {};
 
       // <summary>
       /// Create a new IModel by combining an existing IModel with another IModel.
@@ -123,7 +124,7 @@ namespace store {
       /// <param name="dest">The IModel to merge into.</param>
       /// <param name="source">The IModel that may contain only subset of attributes.</param>
       /// <returns>A new IModel with any updated attribute values from the source.</returns>
-      virtual IModel merge(IModel dest, IModel source) {}
+      T merge(T dest, T source) {}
 
       /// <summary>
       /// Fetch one Record{IModel} record with the provided key/value for a VersionControl.
@@ -135,9 +136,11 @@ namespace store {
       /// <param name="value">The value for the key field to search.</param>
       /// <param name="typeOfParty">Provided a type, the "party" attribute of a Participant will be attempted to convert to that type.</param>
       /// <returns>One record of IModel or just IModel if exists.  If no IModel exists, error will be thrown.</returns>
-      virtual IModel one(string version, string field, string value, IModel typeOfParty) {}
+      template<typename U>
+      U one(string version, string field, string value, U typeOfParty) {}
 
-      virtual Record<IModel> one_record(string version, string field, string value, IModel typeOfParty) {}
+      template<typename U>
+      Record<U> one_record(string version, string field, string value, U typeOfParty) {}
 
       /// <summary>
       /// 
@@ -146,8 +149,9 @@ namespace store {
       /// <param name="typeOfStore"></param>
       /// <param name="field"></param>
       /// <param name="value"></param>
-      /// <returns></returns>
-      virtual boost::any one(string version, string typeOfStore, string field, string value) {}
+      /// <returns>U would be boost::any</returns>
+      template<typename U>
+      U one(string version, string typeOfStore, string field, string value) {}
 
       /// <summary>
       /// The user elects to replace the current record with one found in the history collection.
@@ -159,7 +163,7 @@ namespace store {
       /// <returns>Record{IModel} of the attempted replacement of the current IModel with one an historical one.</returns>
       /// Note: If there was an error in creating, Exception will be thrown.
       /// It is up to you to catch it.
-      virtual Record<IModel> replaceFromHistory(string version, string recordId, string historyId) {}
+      Record<T> replaceFromHistory(string version, string recordId, string historyId) {}
 
       /// <summary>
       /// Persist the IModel to the store for a VerionControl.
@@ -174,9 +178,9 @@ namespace store {
       /// <returns>The same Record{IModel} if successful.  Exception will be thrown is failure.</returns>
       /// Note: If there was an error in creating, Exception will be thrown.
       /// It is up to you to catch it.
-      virtual IModel save(string version, IModel doc) {}
+      T save(string version, IModel doc) {}
 
-      virtual Record<IModel> save_record(string version, IModel doc) {}
+      Record<T> save_record(string version, T doc) {}
 
       /// <summary>
       /// Fetch IModel records for a VersionControl that meets the search criteria.
@@ -192,7 +196,7 @@ namespace store {
       /// <param name="sortKey">The field name to use when performing a sort.</param>
       /// <param name="sortDirection">The sort direction of sort key used for the records to search.</param>
       /// <returns>Collection of Record{IModel} if successful.  Empty collection if failure.</returns>
-      virtual vector<Record<IModel>> search(string version, string field, string search, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {}
+      vector<Record<T>> search(string version, string field, string search, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {}
 
       /// <summary>
       /// Fetch IModel records for a VersionControl that meets the search criteria.
@@ -209,7 +213,8 @@ namespace store {
       /// <param name="sortKey">The field name to use when performing a sort.</param>
       /// <param name="sortDirection">The sort direction of sort key used for the records to search.</param>
       /// <returns>Collection of Record{IModel} if successful.  Empty collection if failure.</returns>
-      virtual vector<boost::any> search(string version, string typeOfStore, string field, string search, int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "Asc") {}
+      template<typename U>
+      vector<U> search(string version, string typeOfStore, string field, string search, int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "Asc") {}
 
       /// <summary>
       /// Count IModel records for a VersionControl that meets the search criteria.
@@ -218,7 +223,7 @@ namespace store {
       /// <param name="field">The key field to search.  If nested, use dot notation.</param>
       /// <param name="search">The value for the key field to search.</param>
       /// <returns>Count of records matching search criteria.</returns>
-      virtual long count(string version, string field = "", string search = "") {}
+      long count(string version, string field = "", string search = "") {}
 
       /// <summary>
       /// Associates a Model to an Affiliation object.
@@ -233,7 +238,8 @@ namespace store {
       /// <param name="partyId">The id that uniquely identifies the Model referenced in the "party" attribute of the Participant.</param>
       /// <returns></returns>
       /// Affiliation<Participant>
-      virtual Record<boost::any> associate(string version, string recordId, string partyId) {}
+      template<typename U>
+      Record<Affiliation<U>> associate(string version, string recordId, string partyId) {}
 
       /// <summary>
       /// Disassociates a Model from an Affiliation object.
@@ -244,7 +250,8 @@ namespace store {
       /// <param name="partyId">The id that uniquely identifies the Model referenced in the "party" attribute of the Participant.</param>
       /// <returns></returns>
       /// Affiliation<Participant>
-      virtual Record<boost::any> disassociate(string version, string recordId, string partyId) {}
+      template<typename U>
+      Record<Affiliation<U>> disassociate(string version, string recordId, string partyId) {}
     };
   }  
 }

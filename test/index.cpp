@@ -115,14 +115,7 @@ int main() {
   }
 
   {
-    BaseClient b;
-    struct MockClient : BaseClient {
-      template<typename T>
-      vector<Record<T>> list() {
-        vector<Record<Droid>> droids = { { "r2d2", "r2d2", "", Droid{}, { Droid{} } } };
-        return droids;
-      }
-    };
+    
 
   }
 }

@@ -14,7 +14,8 @@ using namespace store::models;
 
 namespace store {
   namespace storage {
-    struct BaseClient : public IStore {
+    template<typename T>
+    struct BaseClient : public IStore<T> {
       DBContext dbContext;
 
       BaseClient() = default;
