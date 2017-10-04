@@ -17,19 +17,18 @@ namespace test {
     return &a == &b;
   }
 
-  template<typename T>
   struct Widget : Model {
     template<typename U>
-    T ONE(U o) { return o; };
+    U ONE(U o) { return o; };
   };
 
   template<typename T>
-  struct Widget2 : public Widget<T> {
+  struct Widget2 : public Widget {
     T ONE(T o) override { return o; };
   };
 
-  template<typename T>
-  class MockClient : public BaseClient<T> {
+  template<typename T = Widget>
+  class WidgetClient : public BaseClient<T> {
     
   };
 }
@@ -135,25 +134,35 @@ int main() {
   }
 
   {
-
     IStore<RogueOne> istore0;
 
-    // using ListFunc = function<vector<Record<T>(string, int, int, string, SortDirection)>>;
-    auto v = istore0.list([&rogue1](string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {
+    auto f = istore0.list<Record<RogueOne>>([&rogue1](string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {
       Record<RogueOne> o = {
-        "0", "0", "2017-10-04", rogue1, { rogue1 }
+        "0", "test", "2017-10-04", rogue1, { rogue1 }
       };
 
       auto o1 = o;
       return vector<Record<RogueOne>>{ o, o1 };
-    }, "master", 0, 10, "id", SortDirection::Asc);
-  
-    cout << v.size() << endl;
+    });
     
+    auto v = f("master", 0, 10, "id", SortDirection::Desc);
+  
+    cout << v.size() << " " << v.at(0).name  << endl;
+    
+    auto v1 = istore0.list<Record<RogueOne>>([&rogue1](string version, string typeOfStore, int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "asc") {
+      Record<RogueOne> o = {
+        "0", "test", "2017-10-04", rogue1,{ rogue1 }
+      };
+
+      auto o1 = o;
+      o1.name = "test2";
+      return vector<Record<RogueOne>>{ o, o1 };
+    }, "master", "RogueOne", 0, 10, "id", "Asc");
+
+    cout << v1.size() << " " << v1.at(1).name << endl;
   }
 
   {
-
     using RcdOfRogueOne = Record<RogueOne>;
 
     IStore<RogueOne> istore0;
@@ -169,6 +178,14 @@ int main() {
     cout << r.id << endl;
   }
 
+  {
+    using namespace test;
 
+    ioc::ServiceProvider->RegisterSingletonClass<WidgetClient<Widget>>();
+
+    auto widgetClient = ioc::ServiceProvider->GetInstance<WidgetClient<Widget>>();
+
+    
+  }
 
 }
