@@ -15,16 +15,15 @@ using namespace store::models;
 namespace store {
   namespace storage {
     template<typename T>
-    struct BaseClient : public IStore<T> {
+    class BaseClient : public IStore<T> {
+    public:  
       DBContext dbContext;
 
       BaseClient() = default;
       ~BaseClient() = default;
       BaseClient(DBContext _dbContext) : dbContext(_dbContext) {}
-
-    protected:
       
-
+    protected:
     };
   }
 }

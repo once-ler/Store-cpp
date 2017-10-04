@@ -16,6 +16,27 @@ namespace test {
   bool AreEqual(const T& a, const T& b) {
     return &a == &b;
   }
+
+  template<typename T>
+  struct Widget : Model {
+    template<typename U>
+    T ONE(U o) { return o; };
+  };
+
+  template<typename T>
+  struct Widget2 : public Widget<T> {
+    T ONE(T o) override { return o; };
+  };
+
+  template<typename T>
+  class MockClient : public BaseClient<T> {
+    
+  };
+}
+
+template<typename F, typename ... Args>
+void aFunction(F f, const Args... args) {
+  f(args...);
 }
 
 int main() {
@@ -53,7 +74,6 @@ int main() {
 
     ParticipantExtended(string id, string name, store::primitive::dateTime ts, boost::any party) : Participant{ id, name, ts, party } {}
   };
-
 
   struct RogueOne : Affiliation<ParticipantExtended> {};
 
@@ -115,7 +135,40 @@ int main() {
   }
 
   {
-    
 
+    IStore<RogueOne> istore0;
+
+    // using ListFunc = function<vector<Record<T>(string, int, int, string, SortDirection)>>;
+    auto v = istore0.list([&rogue1](string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {
+      Record<RogueOne> o = {
+        "0", "0", "2017-10-04", rogue1, { rogue1 }
+      };
+
+      auto o1 = o;
+      return vector<Record<RogueOne>>{ o, o1 };
+    }, "master", 0, 10, "id", SortDirection::Asc);
+  
+    cout << v.size() << endl;
+    
   }
+
+  {
+
+    using RcdOfRogueOne = Record<RogueOne>;
+
+    IStore<RogueOne> istore0;
+    Droid droid2;
+    auto r = istore0.makeRecord([&rogue1, &droid2](Droid d) {
+      RcdOfRogueOne o = {
+        "1234", "0", "2017-10-04", rogue1,{ rogue1 }
+      };
+
+      return o;
+    }, droid2);
+
+    cout << r.id << endl;
+  }
+
+
+
 }
