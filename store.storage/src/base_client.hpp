@@ -21,7 +21,9 @@ namespace store {
       BaseClient(DBContext _dbContext) : dbContext(_dbContext) {}
       
     protected:
-      
+      void test() {
+        
+      }
     };
   }
 }

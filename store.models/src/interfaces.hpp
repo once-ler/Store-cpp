@@ -191,8 +191,10 @@ namespace store {
       /// Note: If there was an error in creating, Exception will be thrown.
       /// It is up to you to catch it.
       template<typename U, typename F>
-      U Save(F func, string version, U doc) {
-        return func(version, doc);
+      decltype(auto) Save(F func) {
+        return [=](string verison, U doc) {
+          return func(version, doc);
+        };
       }
 
       /// <summary>

@@ -48,7 +48,7 @@ namespace store {
       }
 
       template <class T, typename... Ts>
-      void RegisterClass() {
+      void register_class() {
         auto createType = [this]() -> T * {
           return new T(GetInstance<Ts>()...);
         };

@@ -5,6 +5,7 @@
 #include "ioc/simple_container.hpp"
 #include "ioc/service_provider.hpp"
 #include "base_client.hpp"
+#include "pg_client.hpp"
 
 using namespace std;
 using namespace store::models;
@@ -72,7 +73,7 @@ namespace test {
         // Define the callback.
         auto f = this->List<U>([](string version, int offset, int limit, string sortKey, string sortDirection) {
           auto sql = string_format("select current from %s.%s order by current->>'%s' %s offset %d limit %d", version.c_str(), resolve_type_to_string<U>().c_str(), sortKey.c_str(), sortDirection.c_str(), offset, limit);
-
+          
           cout << "sql: " << sql << endl;
 
           vector<json> fake_json;
@@ -84,7 +85,7 @@ namespace test {
           for_each(fake_parsed_response.begin(), fake_parsed_response.end(), [&](const string& d) { fake_json.push_back(move(json::parse(d))); });
 
           for_each(fake_json.begin(), fake_json.end(), [&](const json& j) { U o = j; fake_pocos.push_back(move(o)); });
-
+          
           return fake_pocos;
         });
 
@@ -160,7 +161,7 @@ int main() {
   // Should not be the same object.
   {
     ioc::SimpleContainer container1;
-    container1.RegisterClass<RogueOne>();
+    container1.register_class<RogueOne>();
 
     auto a = container1.GetInstance<RogueOne>();
 
@@ -209,5 +210,10 @@ int main() {
     auto v = mockClient->list<Droid>();
   }
   
-
+  {
+    DBContext dbContext;
+    pgsql::Client<RogueOne> pgClient{ dbContext };
+    Droid d{};
+    pgClient.save<Droid>(d);
+  }
 }
