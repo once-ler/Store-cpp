@@ -1,5 +1,7 @@
+#include "json.hpp"
 #include "models.hpp";
 #include "interfaces.hpp"
+#include "extensions.hpp"
 #include "ioc/simple_container.hpp"
 #include "ioc/service_provider.hpp"
 #include "base_client.hpp"
@@ -8,29 +10,95 @@ using namespace std;
 using namespace store::models;
 using namespace store::interfaces;
 using namespace store::storage;
+using namespace store::extensions;
 
 namespace ioc = store::ioc;
 
+using json = nlohmann::json;
+
 namespace test {
+  namespace fixtures {
+    struct Droid : Model {
+      
+    };
+
+    // Must be in type's namespace.
+    void to_json(json& j, const Droid& p) {
+      j = json{ { "id", p.id },{ "name", p.name },{ "ts", p.ts } };
+    }
+
+    void from_json(const json& j, Droid& p) {
+      p.id = j.value("id", "");
+      p.name = j.value("name", "");
+      p.ts = j.value("ts", "");
+    }
+
+    struct ParticipantExtended : public Participant {
+      ParticipantExtended() = default;
+      ~ParticipantExtended() = default;
+
+      ParticipantExtended(string id, string name, store::primitive::dateTime ts, boost::any party) : Participant{ id, name, ts, party } {}
+    };
+
+    struct RebelAlliance : Affiliation<Participant> {
+    
+    };
+
+    struct RogueOne : Affiliation<ParticipantExtended> {
+    
+    };
+
+    struct Widget : Model {
+      template<typename U>
+      U ONE(U o) { return o; };
+    };
+
+    template<typename T>
+    struct Widget2 : public Widget {
+      T ONE(T o) override { return o; };
+    };
+
+    template<typename T>
+    class MockClient : public BaseClient<T> {
+    public:
+      
+      template<typename U>
+      void test_type_name() {
+        cout << resolve_type_to_string<U>(false) << endl;
+      }
+
+      template<typename U>
+      vector<U> list(string version = "master", int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "Asc") {
+        // Define the callback.
+        auto f = this->List<U>([](string version, int offset, int limit, string sortKey, string sortDirection) {
+          auto sql = string_format("select current from %s.%s order by current->>'%s' %s offset %d limit %d", version.c_str(), resolve_type_to_string<U>().c_str(), sortKey.c_str(), sortDirection.c_str(), offset, limit);
+
+          cout << "sql: " << sql << endl;
+
+          vector<json> fake_json;
+          vector<U> fake_pocos;
+          vector<string> fake_parsed_response = {
+            R"({ "id": "0" })", R"({ "id": "1" })", R"({ "id": "2" })", R"({ "id": "3" })", R"({ "id": "4" })", R"({ "id": "5" })", R"({ "id": "6" })", R"({ "id": "7" })", R"({ "id": "8" })", R"({ "id": "9" })"
+          };
+         
+          for_each(fake_parsed_response.begin(), fake_parsed_response.end(), [&](const string& d) { fake_json.push_back(move(json::parse(d))); });
+
+          for_each(fake_json.begin(), fake_json.end(), [&](const json& j) { U o = j; fake_pocos.push_back(move(o)); });
+
+          return fake_pocos;
+        });
+
+        return f(version, offset, limit, sortKey, sortDirection);
+      }
+
+    };
+
+  }
+
   template<typename T>
   bool AreEqual(const T& a, const T& b) {
     return &a == &b;
-  }
-
-  struct Widget : Model {
-    template<typename U>
-    U ONE(U o) { return o; };
-  };
-
-  template<typename T>
-  struct Widget2 : public Widget {
-    T ONE(T o) override { return o; };
-  };
-
-  template<typename T = Widget>
-  class WidgetClient : public BaseClient<T> {
-    
-  };
+  }  
 }
 
 template<typename F, typename ... Args>
@@ -39,14 +107,10 @@ void aFunction(F f, const Args... args) {
 }
 
 int main() {
-  struct Droid : Model {
-    string model;
-  };
+  using namespace test::fixtures;
 
   Droid c3po, k2so;
   
-  struct RebelAlliance : Affiliation<Participant> {};
-
   Participant p0;
   p0.id = "1234";
   p0.name = "c3po";
@@ -66,15 +130,6 @@ int main() {
   Record<Droid> r0;
   r0.current = c3po;
   r0.history = { h0 };
-
-  struct ParticipantExtended : public Participant {
-    ParticipantExtended() = default;
-    ~ParticipantExtended() = default;
-
-    ParticipantExtended(string id, string name, store::primitive::dateTime ts, boost::any party) : Participant{ id, name, ts, party } {}
-  };
-
-  struct RogueOne : Affiliation<ParticipantExtended> {};
 
   RogueOne rogue1;
   
@@ -134,58 +189,25 @@ int main() {
   }
 
   {
-    IStore<RogueOne> istore0;
+    MockClient<Widget> mockClient;
+    mockClient.test_type_name<RogueOne>();
+    auto v = mockClient.list<Droid>();
 
-    auto f = istore0.list<Record<RogueOne>>([&rogue1](string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {
-      Record<RogueOne> o = {
-        "0", "test", "2017-10-04", rogue1, { rogue1 }
-      };
-
-      auto o1 = o;
-      return vector<Record<RogueOne>>{ o, o1 };
-    });
-    
-    auto v = f("master", 0, 10, "id", SortDirection::Desc);
-  
-    cout << v.size() << " " << v.at(0).name  << endl;
-    
-    auto v1 = istore0.list<Record<RogueOne>>([&rogue1](string version, string typeOfStore, int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "asc") {
-      Record<RogueOne> o = {
-        "0", "test", "2017-10-04", rogue1,{ rogue1 }
-      };
-
-      auto o1 = o;
-      o1.name = "test2";
-      return vector<Record<RogueOne>>{ o, o1 };
-    }, "master", "RogueOne", 0, 10, "id", "Asc");
-
-    cout << v1.size() << " " << v1.at(1).name << endl;
+    // Should be 10.
+    cout << "# of Droids: " << v.size() << endl;
   }
 
-  {
-    using RcdOfRogueOne = Record<RogueOne>;
-
-    IStore<RogueOne> istore0;
-    Droid droid2;
-    auto r = istore0.makeRecord([&rogue1, &droid2](Droid d) {
-      RcdOfRogueOne o = {
-        "1234", "0", "2017-10-04", rogue1,{ rogue1 }
-      };
-
-      return o;
-    }, droid2);
-
-    cout << r.id << endl;
-  }
-
+  // Should also work using IOC.
   {
     using namespace test;
 
-    ioc::ServiceProvider->RegisterSingletonClass<WidgetClient<Widget>>();
+    ioc::ServiceProvider->RegisterSingletonClass<MockClient<RogueOne>>();
 
-    auto widgetClient = ioc::ServiceProvider->GetInstance<WidgetClient<Widget>>();
+    auto mockClient = ioc::ServiceProvider->GetInstance<MockClient<RogueOne>>();
 
-    
+    mockClient->test_type_name<RogueOne>();
+    auto v = mockClient->list<Droid>();
   }
+  
 
 }

@@ -59,6 +59,7 @@ namespace store {
     /// <typeparam name="T">A type that implements IModel.</typeparam>
     template<typename T>
     struct IStore {
+    protected:
       /// <summary>
       /// Fetch a limited number of IModel records for a VersionControl.
       /// Typically, this array will be serialized as a JSON array and sent to a client in a web application.
@@ -70,9 +71,9 @@ namespace store {
       /// <param name="sortDirection">The sort direction of sort key used for the records to list.</param>
       /// <returns>List of IModel records.</returns>
       template<typename U, typename F>
-      decltype(auto) list(F func) {
-        return [&func, this](string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {
-          return std::move(func(version, offset, limit, sortKey, sortDirection));
+      decltype(auto) ListDeprecate(F func) {
+        return [=](string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {
+          return move(func(version, offset, limit, sortKey, sortDirection));
         };
       }
       
@@ -88,8 +89,10 @@ namespace store {
       /// <param name="sortDirection">The sort direction of sort key used for the records to list.</param>
       /// <returns>List of IModel records.  Typically should be boost::any.</returns>
       template<typename U, typename F>
-      vector<U> list(F func, string version, string typeOfStore, int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "Asc") {
-        return func(version, typeOfStore, offset, limit, sortKey, sortDirection);
+      decltype(auto) List(F func) {
+        return [=](string version, int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "Asc") {
+          return move(func(version, offset, limit, sortKey, sortDirection));
+        };
       }
 
       /// <summary>
@@ -101,7 +104,7 @@ namespace store {
       /// <param name="d">The dynamic object.</param>
       /// <returns>One record of IModel.</returns>
       template<typename U, typename F>
-      Record<T> makeRecord(F func, U d) {
+      Record<T> MakeRecord(F func, U d) {
         return func(d);
       };
 
@@ -114,7 +117,7 @@ namespace store {
       /// <param name="jsonString">A valid JSON object string.</param>
       /// <returns>One record of IModel.</returns>
       template<typename F>
-      Record<T> makeRecord(F func, string jsonString) {
+      Record<T> MakeRecord(F func, string jsonString) {
         return func(jsonString);
       };
 
@@ -127,7 +130,7 @@ namespace store {
       /// <param name="source">The IModel that may contain only subset of attributes.</param>
       /// <returns>A new IModel with any updated attribute values from the source.</returns>
       template<typename F>
-      T merge(F func, T dest, T source) {
+      T Merge(F func, T dest, T source) {
         return func(dest, source);
       }
 
@@ -142,7 +145,7 @@ namespace store {
       /// <param name="typeOfParty">Provided a type, the "party" attribute of a Participant will be attempted to convert to that type.</param>
       /// <returns>One record of IModel or just IModel if exists.  If no IModel exists, error will be thrown.</returns>      
       template<typename U, typename F>
-      U one(F func, string version, string field, string value) {
+      U One(F func, string version, string field, string value) {
         return func(version, field, value);
       }
 
@@ -155,7 +158,7 @@ namespace store {
       /// <param name="value"></param>
       /// <returns>U would be boost::any</returns>
       template<typename U, typename F>
-      U one(F func, string version, string typeOfStore, string field, string value) {
+      U One(F func, string version, string typeOfStore, string field, string value) {
         return func(version, typeOfStore, field, value);
       }
 
@@ -170,7 +173,7 @@ namespace store {
       /// Note: If there was an error in creating, Exception will be thrown.
       /// It is up to you to catch it.
       template<typename F>
-      Record<T> replaceFromHistory(F func, string version, string recordId, string historyId) {
+      Record<T> ReplaceFromHistory(F func, string version, string recordId, string historyId) {
         return func(version, recordId, historyId);
       }
 
@@ -188,7 +191,7 @@ namespace store {
       /// Note: If there was an error in creating, Exception will be thrown.
       /// It is up to you to catch it.
       template<typename U, typename F>
-      U save(F func, string version, U doc) {
+      U Save(F func, string version, U doc) {
         return func(version, doc);
       }
 
@@ -207,7 +210,7 @@ namespace store {
       /// <param name="sortDirection">The sort direction of sort key used for the records to search.</param>
       /// <returns>Collection of Record{IModel} if successful.  Empty collection if failure.</returns>
       template<typename U, typename F>
-      vector<U> search(F func, string version, string field, string search, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {
+      vector<U> Search(F func, string version, string field, string search, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {
         return func(version, field, search, offset, limit, sortKey, sortDirection);
       }
 
@@ -227,7 +230,7 @@ namespace store {
       /// <param name="sortDirection">The sort direction of sort key used for the records to search.</param>
       /// <returns>Collection of Record{IModel} if successful.  Empty collection if failure.</returns>
       template<typename U, typename F>
-      vector<U> search(F func, string version, string typeOfStore, string field, string search, int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "Asc") {
+      vector<U> Search(F func, string version, string typeOfStore, string field, string search, int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "Asc") {
         return func(version, typeOfStore, field, search, offset, limit, sortKey, sortDirection);
       }
 
@@ -239,7 +242,7 @@ namespace store {
       /// <param name="search">The value for the key field to search.</param>
       /// <returns>Count of records matching search criteria.</returns>
       template<typename F>
-      long count(F func, string version, string field = "", string search = "") {
+      long Count(F func, string version, string field = "", string search = "") {
         return func(version, field, search);
       }
 
@@ -257,7 +260,7 @@ namespace store {
       /// <returns></returns>
       /// Affiliation<Participant>
       template<typename U, typename F>
-      Record<Affiliation<U>> associate(F func, string version, string recordId, string partyId) {
+      Record<Affiliation<U>> Associate(F func, string version, string recordId, string partyId) {
         return func(version, recordId, partyId);
       }
 
@@ -271,7 +274,7 @@ namespace store {
       /// <returns></returns>
       /// Affiliation<Participant>
       template<typename U, typename F>
-      Record<Affiliation<U>> disassociate(F func, string version, string recordId, string partyId) {
+      Record<Affiliation<U>> Disassociate(F func, string version, string recordId, string partyId) {
         return func(version, recordId, partyId);
       }
     };

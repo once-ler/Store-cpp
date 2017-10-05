@@ -1,10 +1,7 @@
 #pragma once
 
 #include <iostream>
-#include <memory>
-#include <functional>
-#include <map>
-#include <vector>
+#include <typeinfo>
 #include "interfaces.hpp"
 #include "models.hpp"
 
@@ -24,6 +21,7 @@ namespace store {
       BaseClient(DBContext _dbContext) : dbContext(_dbContext) {}
       
     protected:
+      
     };
   }
 }
