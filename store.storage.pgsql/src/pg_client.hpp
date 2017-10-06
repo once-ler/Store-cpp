@@ -31,13 +31,39 @@ namespace store {
         }
         
         template<typename U>
-        U save(U doc) {
-          // auto f = this->List([](U doc) {
+        U save(string version, U doc) {
+          auto f = this->Save<U>([this](string version, U doc) {
 
-          // });
+            auto onQueryExecuted = [this](const boost::system::error_code& ec, Result result) {
+              if (!ec) {
+                while (result.next()) {
+                  char* str;
 
-          // return f(doc);
-          return doc;
+                  str = result.get<char*>(0);
+                  std::cout << "STR0: " << str << std::endl;
+                  std::cout << result.getColumn<char*>(0) << std::endl;
+                  str = result.get<char*>(1);
+                  std::cout << "STR1: " << str << std::endl;
+                  str = result.get<char*>(2);
+                  std::cout << "STR2: " << str << std::endl;
+                  str = result.get<char*>(3);
+                  std::cout << "STR3: " << str << std::endl;
+                }
+              } else {
+                std::cout << ec << std::endl;
+              }
+
+              // Connection::ioService().service().stop();
+            };
+
+            connection->queryParams("select * from v$12345678.droid", std::move(onQueryExecuted), Connection::ResultFormat::TEXT);
+
+            Connection::ioService().thread().join();
+
+            return doc;
+          });
+
+          return f(version, doc);
         }
 
       };

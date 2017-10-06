@@ -192,7 +192,7 @@ namespace store {
       /// It is up to you to catch it.
       template<typename U, typename F>
       decltype(auto) Save(F func) {
-        return [=](string verison, U doc) {
+        return [=](string version, U doc) {
           return func(version, doc);
         };
       }

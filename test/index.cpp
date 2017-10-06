@@ -214,6 +214,6 @@ int main() {
     DBContext dbContext;
     pgsql::Client<RogueOne> pgClient{ dbContext };
     Droid d{};
-    pgClient.save<Droid>(d);
+    pgClient.save<Droid>("master", d);
   }
 }
