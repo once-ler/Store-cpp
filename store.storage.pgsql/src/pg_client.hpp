@@ -32,9 +32,9 @@ namespace store {
         
         template<typename U>
         U save(string version, U doc) {
-          auto f = this->Save<U>([this](string version, U doc) {
+          auto f = this->Save([this, &doc](string version) {
 
-            auto onQueryExecuted = [this](const boost::system::error_code& ec, Result result) {
+            auto onQueryExecuted = [this, &doc](const boost::system::error_code& ec, Result result) {
               if (!ec) {
                 while (result.next()) {
                   char* str;
@@ -63,7 +63,7 @@ namespace store {
             return doc;
           });
 
-          return f(version, doc);
+          return f(version);
         }
 
       };

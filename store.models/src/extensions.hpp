@@ -24,8 +24,9 @@ namespace store {
     }
 
     template<typename T, typename U>
-    bool is_derived_from(U derived, T base) {
-      return std::is_base_of<base, derived>::value;
+    bool is_derived_from() {
+      // U derived, T base
+      return std::is_base_of<T, U>::value;
     }
 
     template<typename ... Args>

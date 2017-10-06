@@ -70,7 +70,7 @@ namespace store {
       /// <param name="sortKey">The field name to use when performing a sort.</param>
       /// <param name="sortDirection">The sort direction of sort key used for the records to list.</param>
       /// <returns>List of IModel records.</returns>
-      template<typename U, typename F>
+      template<typename F>
       decltype(auto) ListDeprecate(F func) {
         return [=](string version, int offset = 0, int limit = 10, string sortKey = "id", SortDirection sortDirection = SortDirection::Asc) {
           return move(func(version, offset, limit, sortKey, sortDirection));
@@ -88,7 +88,7 @@ namespace store {
       /// <param name="sortKey">The field name to use when performing a sort.</param>
       /// <param name="sortDirection">The sort direction of sort key used for the records to list.</param>
       /// <returns>List of IModel records.  Typically should be boost::any.</returns>
-      template<typename U, typename F>
+      template<typename F>
       decltype(auto) List(F func) {
         return [=](string version, int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "Asc") {
           return move(func(version, offset, limit, sortKey, sortDirection));
@@ -190,10 +190,10 @@ namespace store {
       /// <returns>The same Record{IModel} if successful.  Exception will be thrown is failure.</returns>
       /// Note: If there was an error in creating, Exception will be thrown.
       /// It is up to you to catch it.
-      template<typename U, typename F>
-      decltype(auto) Save(F func) {
-        return [=](string version, U doc) {
-          return func(version, doc);
+      template<typename F>
+      decltype(auto) Save(F&& func) {
+        return [=](string version) {
+          return move(func(version));
         };
       }
 

@@ -1,5 +1,5 @@
 #include "json.hpp"
-#include "models.hpp";
+#include "models.hpp"
 #include "interfaces.hpp"
 #include "extensions.hpp"
 #include "ioc/simple_container.hpp"
@@ -71,7 +71,7 @@ namespace test {
       template<typename U>
       vector<U> list(string version = "master", int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "Asc") {
         // Define the callback.
-        auto f = this->List<U>([](string version, int offset, int limit, string sortKey, string sortDirection) {
+        auto f = this->List([](string version, int offset, int limit, string sortKey, string sortDirection) {
           auto sql = string_format("select current from %s.%s order by current->>'%s' %s offset %d limit %d", version.c_str(), resolve_type_to_string<U>().c_str(), sortKey.c_str(), sortDirection.c_str(), offset, limit);
           
           cout << "sql: " << sql << endl;

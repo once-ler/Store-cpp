@@ -6,6 +6,14 @@
 *.vcxproj.filters
 x64
 Debug
-build
 Release
 intermediate
+**/log/
+**/bin/
+**/lib/
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/Makefile
+**/build/
+**/internal/
