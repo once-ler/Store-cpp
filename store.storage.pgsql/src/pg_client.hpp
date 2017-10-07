@@ -3,12 +3,17 @@
 #include <iostream>
 #include <memory>
 #include "json.hpp"
-#include "include/connection.hpp"
-#include "include/utility.hpp"
+// #include "include/connection.hpp"
+// #include "include/utility.hpp"
 #include "base_client.hpp"
 
+#include "postgres-connection.h"
+#include "postgres-exceptions.h"
+
 using namespace std;
-using namespace postgrespp;
+// using namespace postgrespp;
+using namespace db::postgres;
+
 using namespace store::interfaces;
 using namespace store::storage;
 
@@ -21,12 +26,13 @@ namespace store {
       template<typename T>
       class Client : public BaseClient<T> {
       private:
-        shared_ptr<Connection> connection;
+        // shared_ptr<Connection> connection;
+        Connection cnx;
       public:
         using BaseClient<T>::BaseClient;
 
         Client(DBContext _dbContext) : BaseClient<T>(_dbContext) {
-          this->connection = Connection::create("host=127.0.0.1 port=5432 dbname=pccrms connect_timeout=10");
+          cnx.connect("host=127.0.0.1 port=5432 dbname=pccrms connect_timeout=10");
           
         }
         
@@ -34,31 +40,16 @@ namespace store {
         U save(string version, U doc) {
           auto f = this->Save([this, &doc](string version) {
 
-            auto onQueryExecuted = [this, &doc](const boost::system::error_code& ec, Result result) {
-              if (!ec) {
-                while (result.next()) {
-                  char* str;
+            auto &resp = cnx.execute(R"SQL(
+              select id, name, ts, current from master.droid limit 10;
+            )SQL");
 
-                  str = result.get<char*>(0);
-                  std::cout << "STR0: " << str << std::endl;
-                  std::cout << result.getColumn<char*>(0) << std::endl;
-                  str = result.get<char*>(1);
-                  std::cout << "STR1: " << str << std::endl;
-                  str = result.get<char*>(2);
-                  std::cout << "STR2: " << str << std::endl;
-                  str = result.get<char*>(3);
-                  std::cout << "STR3: " << str << std::endl;
-                }
-              } else {
-                std::cout << ec << std::endl;
-              }
+            for (auto &row: resp) {
+              std::cout << "- " << row.as<string>(0) << " " << row.as<string>(1)
+                << ", " << row.as<string>(2) << ", " << row.as<string>(3) << endl;
+            }
 
-              // Connection::ioService().service().stop();
-            };
-
-            connection->queryParams("select * from v$12345678.droid", std::move(onQueryExecuted), Connection::ResultFormat::TEXT);
-
-            Connection::ioService().thread().join();
+            cnx.close();
 
             return doc;
           });
