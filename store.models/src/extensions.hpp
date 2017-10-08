@@ -4,8 +4,10 @@
 #include <type_traits>
 #include <typeinfo>
 #include <cstdio>
+#include <boost/core/demangle.hpp>
 
 using namespace std;
+using namespace boost::core;
 
 namespace store {
   namespace extensions {
@@ -14,6 +16,7 @@ namespace store {
     string resolve_type_to_string(bool lowercase = true) {
       const auto& ti = typeid(U);
       string n = ti.name(), d;
+      n = demangle(n.c_str());
       auto l = n.substr(n.find_last_of(':') + 1);
       
       if (!lowercase) return l;

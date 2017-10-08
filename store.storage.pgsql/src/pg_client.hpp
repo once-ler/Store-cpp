@@ -46,7 +46,7 @@ namespace store {
 
             for (auto &row: resp) {
               std::cout << "- " << row.as<string>(0) << " " << row.as<string>(1)
-                << ", " << row.as<string>(2) << ", " << row.as<string>(3) << endl;
+                << ", " << row.as<timestamp_t>(2) << ", " << row.as<string>(3) << endl;
             }
 
             cnx.close();
