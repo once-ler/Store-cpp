@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <typeinfo>
 #include <cstdio>
+#include <algorithm>
 #include <boost/core/demangle.hpp>
 
 using namespace std;
@@ -38,6 +39,17 @@ namespace store {
       std::unique_ptr<char[]> buf(new char[size]);
       snprintf(buf.get(), size, format.c_str(), args ...);
       return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+    }
+
+    bool invalid_char(char c) {  
+      // return !(c>=0 && c <128);
+      return c < 2;   
+    }
+
+    string strip_controls(string str) {
+      str.erase(remove_if(str.begin(),str.end(), invalid_char), str.end());
+
+      return move(str);
     }
 
   }
