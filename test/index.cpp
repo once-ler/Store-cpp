@@ -2,6 +2,7 @@
 #include "models.hpp"
 #include "interfaces.hpp"
 #include "extensions.hpp"
+#include "primitive.hpp"
 #include "ioc/simple_container.hpp"
 #include "ioc/service_provider.hpp"
 #include "base_client.hpp"
@@ -12,6 +13,7 @@ using namespace store::models;
 using namespace store::interfaces;
 using namespace store::storage;
 using namespace store::extensions;
+namespace Primitive = store::primitive;
 
 namespace ioc = store::ioc;
 
@@ -19,6 +21,19 @@ using json = nlohmann::json;
 
 namespace test {
   namespace fixtures {
+    struct Events {
+      int64_t id;
+      json actor;
+      timestamptz_t timestamp;
+      Primitive::inet ip_address;
+      string key;
+      Primitive::uuid process_id;
+      Primitive::uuid session_id;
+      int connection_id;
+      string aggregate_root;
+      json data;
+    };
+
     struct Droid : Model {
       Droid() = default;
       ~Droid() = default;
