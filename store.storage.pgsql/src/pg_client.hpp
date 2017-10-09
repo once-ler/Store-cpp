@@ -28,50 +28,91 @@ namespace store {
       template<typename T>
       class Client : public BaseClient<T> {
       private:
-        // shared_ptr<Connection> connection;
-        Connection cnx;
       public:
         using BaseClient<T>::BaseClient;
 
         Client(DBContext _dbContext) : BaseClient<T>(_dbContext) {
-          cnx.connect("host=127.0.0.1 port=5432 dbname=pccrms connect_timeout=10 user=editor password=editor");
-          
+          connectionInfo = string_format("application_name=%s host=%s port=%d dbname=%s connect_timeout=%d user=%s password=%s", dbContext.applicationName.c_str(), dbContext.server.c_str(), dbContext.port, dbContext.database.c_str(), dbContext.connectTimeout, dbContext.user.c_str(), dbContext.password.c_str());
         }
         
         template<typename U>
         U save(string version, U doc) {
-          auto f = this->Save([this, &doc](string version) {
-
-            string sql = string_format(R"SQL(
-              insert into master.droid (id, name,ts,current)
-              values ('%s', '%s', now(), '%s')
-              on conflict (id) do update set ts = now(), current = EXCLUDED.current, history = EXCLUDED.history
-            )SQL", "2", "c3po", R"({"id": "2", "name": "c3po", "ts": "2017-10-09T14:44:59.684Z"})");
-
-            cout << sql << endl;
-
-            cnx.execute(sql.c_str());
-
-            auto &resp = cnx.execute(R"SQL(
-              select id, name, ts, current from master.droid limit 10;
-            )SQL");
-
-            for (auto &row: resp) {
+          auto func = this->Save([this, &doc](string version) {
+            Connection cnx;
+            try {
+              json j = doc;
               
-              std::cout << "- " << row.as<string>(0) << " " << row.as<string>(1)
-                << ", " << row.as<timestamp_t>(2) << ", " << strip_controls(row.as<string>(3)) << endl;
+              string sql = string_format(R"SQL(
+                insert into %s.%s (id, name,ts,current)
+                values ('%s', '%s', now(), '%s')
+                on conflict (id) do update set ts = now(), current = EXCLUDED.current, history = EXCLUDED.history
+              )SQL", version.c_str(), resolve_type_to_string<U>().c_str(), j.value("id", "").c_str(), j.value("name", "").c_str(), j.dump().c_str());
 
-              json j = json::parse(strip_controls(row.as<string>(3)));
-              cout << j.dump(2) << endl;
+              cout << sql << endl;
+
+              cnx.connect(connectionInfo.c_str());
+
+              cnx.execute(sql.c_str());
+
+            } catch (ConnectionException e) {
+              std::cerr << "Oops... Cannot connect...";
+            } catch (ExecutionException e) {
+              std::cerr << "Oops... " << e.what();
+            } catch (exception e) {
+              std::cerr << e.what();
             }
-
-            cnx.close();
 
             return doc;
           });
 
-          return f(version);
+          return func(version);
         }
+
+        template<typename U>
+        vector<U> list(string version = "master", int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "Asc") {
+          
+          auto func = this->List([this](string version, int offset, int limit, string sortKey, string sortDirection) {
+            Connection cnx;
+            vector<json> jsons;
+            vector<U> pocos;
+
+            try {
+              auto sql = string_format("select current from %s.%s order by current->>'%s' %s offset %d limit %d",
+                version.c_str(),
+                resolve_type_to_string<U>().c_str(),
+                sortKey.c_str(),
+                sortDirection.c_str(),
+                offset,
+                limit
+              );
+
+              cout << "sql: " << sql << endl;
+
+              cnx.connect(connectionInfo.c_str());
+              auto& resp = cnx.execute(sql.c_str());
+
+              for (auto &row : resp) {
+                json j = json::parse(strip_soh(row.as<string>(0)));
+                jsons.push_back(move(j));
+              }
+
+              for_each(jsons.begin(), jsons.end(), [&](const json& j) { U o = j; pocos.push_back(move(o)); });
+            } catch (ConnectionException e) {
+              std::cerr << "Oops... Cannot connect...";
+            } catch (ExecutionException e) {
+              std::cerr << "Oops... " << e.what();
+            } catch (exception e) {
+              std::cerr << e.what();
+            }
+
+            return pocos;
+          });
+
+          return func(version, offset, limit, sortKey, sortDirection);
+        }
+
+      protected:
+        string connectionInfo;
 
       };
 

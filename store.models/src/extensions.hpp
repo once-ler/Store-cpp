@@ -42,13 +42,16 @@ namespace store {
     }
 
     bool invalid_char(char c) {  
-      // return !(c>=0 && c <128);
-      return c < 2;   
+      return !(c>=0 && c <128);
     }
 
-    string strip_controls(string str) {
+    string strip_unicode(string str) {
       str.erase(remove_if(str.begin(),str.end(), invalid_char), str.end());
+      return move(str);
+    }
 
+    string strip_soh(string str) {
+      str.erase(remove_if(str.begin(), str.begin() + 1, [](char c) { return c == 1; }), str.begin() + 1);
       return move(str);
     }
 

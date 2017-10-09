@@ -20,18 +20,22 @@ using json = nlohmann::json;
 namespace test {
   namespace fixtures {
     struct Droid : Model {
-      
+      Droid() = default;
+      ~Droid() = default;
+      string model;
+      Droid(string id, string name, store::primitive::dateTime ts, string _model) : Model(id, name, ts), model(_model) {}
     };
 
     // Must be in type's namespace.
     void to_json(json& j, const Droid& p) {
-      j = json{ { "id", p.id },{ "name", p.name },{ "ts", p.ts } };
+      j = json{ { "id", p.id },{ "name", p.name },{ "ts", p.ts },{ "model", p.model } };
     }
 
     void from_json(const json& j, Droid& p) {
       p.id = j.value("id", "");
       p.name = j.value("name", "");
       p.ts = j.value("ts", "");
+      p.model = j.value("model", "");
     }
 
     struct ParticipantExtended : public Participant {
@@ -211,9 +215,14 @@ int main() {
   }
   
   {
-    DBContext dbContext;
+    DBContext dbContext{ "store_pq", "127.0.0.1", 5432, "pccrms", "editor", "editor", 10 };
     pgsql::Client<RogueOne> pgClient{ dbContext };
-    Droid d{};
+    Droid d{ "3", "c3po", "", "old" };
     pgClient.save<Droid>("master", d);
+
+    auto& v = pgClient.list<Droid>("master", 0, 10, "id", "Asc");
+    for (const auto& o : v) {
+      cout << o.id << " " << o.name << endl;
+    }
   }
 }
