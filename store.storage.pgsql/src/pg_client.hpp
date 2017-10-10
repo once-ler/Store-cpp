@@ -68,6 +68,20 @@ namespace store {
           return func(version);
         }
 
+        void save(const string& sql) {
+          Connection cnx;
+          try {
+            cnx.connect(connectionInfo.c_str());
+            cnx.execute(sql.c_str());
+          } catch (ConnectionException e) {
+            std::cerr << "Oops... Cannot connect...";
+          } catch (ExecutionException e) {
+            std::cerr << "Oops... " << e.what();
+          } catch (exception e) {
+            std::cerr << e.what();
+          }
+        }
+
         template<typename U>
         vector<U> list(string version = "master", int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "Asc") {
           

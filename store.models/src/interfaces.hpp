@@ -190,13 +190,13 @@ namespace store {
       /// <returns>The same Record{IModel} if successful.  Exception will be thrown is failure.</returns>
       /// Note: If there was an error in creating, Exception will be thrown.
       /// It is up to you to catch it.
-      template<typename F>
+      template<typename F, typename... A>
       decltype(auto) Save(F&& func) {
-        return [=](string version) {
-          return move(func(version));
+        return [=](string version, const A... args) {
+          return move(func(version, args...));
         };
       }
-
+      
       /// <summary>
       /// Fetch IModel records for a VersionControl that meets the search criteria.
       /// Note:

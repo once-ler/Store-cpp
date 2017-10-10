@@ -232,8 +232,17 @@ int main() {
   {
     DBContext dbContext{ "store_pq", "127.0.0.1", 5432, "pccrms", "editor", "editor", 10 };
     pgsql::Client<RogueOne> pgClient{ dbContext };
-    Droid d{ "3", "c3po", "", "old" };
+    Droid d{ "4", "c3po", "", "old" };
     pgClient.save<Droid>("master", d);
+
+    // Arbitrary
+    string sql = string_format(R"SQL(
+      insert into %s.%s (id, name,ts,current)
+      values ('%s', '%s', now(), '%s')
+      on conflict (id) do update set ts = now(), current = EXCLUDED.current, history = EXCLUDED.history
+    )SQL", "master", "droid", "5", "k2so", R"({ "id": "5", "name": "k2so", "ts": "" })");
+
+    pgClient.save(sql);
 
     auto& v = pgClient.list<Droid>("master", 0, 10, "id", "Asc");
     for (const auto& o : v) {
