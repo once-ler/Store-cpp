@@ -1,3 +1,4 @@
+#include <set>
 #include "json.hpp"
 #include "models.hpp"
 #include "interfaces.hpp"
@@ -230,6 +231,9 @@ int main() {
   }
   
   {
+    using namespace store::storage::pgsql;
+
+    // Struct
     DBContext dbContext{ "store_pq", "127.0.0.1", 5432, "pccrms", "editor", "editor", 10 };
     pgsql::Client<RogueOne> pgClient{ dbContext };
     Droid d{ "4", "c3po", "", "old" };
@@ -243,6 +247,10 @@ int main() {
     )SQL", "master", "droid", "5", "k2so", R"({ "id": "5", "name": "k2so", "ts": "" })");
 
     pgClient.save(sql);
+
+    // Params
+    // (version, { Fields... }, Params...)
+    pgClient.save<Droid>("master", { "id", "name", "current" }, "6", "r2d2", serializeToJsonb(d));
 
     auto& v = pgClient.list<Droid>("master", 0, 10, "id", "Asc");
     for (const auto& o : v) {

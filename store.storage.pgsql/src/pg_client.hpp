@@ -25,6 +25,17 @@ namespace store {
   namespace storage {
     namespace pgsql {
 
+      template<typename U>
+      string serializeToJsonb(const U& o) noexcept {
+        json j;
+        try {
+          j = o
+        } catch (...) {
+            // No op.
+          }
+          return move(db::postgres::toJsonb(j.dump()));
+      }
+
       template<typename T>
       class Client : public BaseClient<T> {
       private:
@@ -66,6 +77,11 @@ namespace store {
           });
 
           return func(version);
+        }
+
+        template<typename U, typename... Params>
+        int64_t save(const string& version, const std::initializer_list<std::string>& fields, Params... params) {
+          
         }
 
         void save(const string& sql) {
