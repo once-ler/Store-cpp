@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include "json.hpp"
 // #include "include/connection.hpp"
 // #include "include/utility.hpp"
@@ -29,11 +30,11 @@ namespace store {
       string serializeToJsonb(const U& o) noexcept {
         json j;
         try {
-          j = o
+          j = o;
         } catch (...) {
-            // No op.
-          }
-          return move(db::postgres::toJsonb(j.dump()));
+          // No op.
+        }
+        return move(db::postgres::toJsonb(j.dump()));
       }
 
       template<typename T>
@@ -81,7 +82,29 @@ namespace store {
 
         template<typename U, typename... Params>
         int64_t save(const string& version, const std::initializer_list<std::string>& fields, Params... params) {
+          stringstream ss;
+
+          ss << "insert into " << version << "." << resolve_type_to_string<U>() << "(";
+
+          auto it = fields.begin();
+          while (it != fields.end() - 1) {
+            ss << *it << ",";
+            ++it;
+          }
+          ss << *it;
           
+          ss << ") values \n(";
+          
+          int i = 0;
+          while (i < fields.size() - 1) {
+            ss << "$" << i + 1 << ",";
+            ++i;
+          }
+          ss << "$" << fields.size();
+
+          ss << ");";
+          cout << ss.str();
+          return 0;
         }
 
         void save(const string& sql) {
