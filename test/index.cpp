@@ -250,7 +250,7 @@ int main() {
 
     // Params
     // (version, { Fields... }, Params...)
-    pgClient.save<Droid>("master", { "id", "name", "current" }, "6", "r2d2", serializeToJsonb(d));
+    pgClient.insertOne<Droid>("master", { "id", "name", "current" }, "7", "r2d2", serializeToJsonb(d));
 
     auto& v = pgClient.list<Droid>("master", 0, 10, "id", "Asc");
     for (const auto& o : v) {

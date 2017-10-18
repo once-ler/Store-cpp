@@ -81,10 +81,10 @@ namespace store {
         }
 
         template<typename U, typename... Params>
-        int64_t save(const string& version, const std::initializer_list<std::string>& fields, Params... params) {
+        int64_t insertOne(const string& version, const std::initializer_list<std::string>& fields, Params... params) {
           stringstream ss;
 
-          ss << "insert into " << version << "." << resolve_type_to_string<U>() << "(";
+          ss << "insert into " << version << "." << resolve_type_to_string<U>().c_str() << " (";
 
           auto it = fields.begin();
           while (it != fields.end() - 1) {
@@ -104,6 +104,19 @@ namespace store {
 
           ss << ");";
           cout << ss.str();
+
+          Connection cnx;
+          try {
+            cnx.connect(connectionInfo.c_str());
+            cnx.execute(ss.str().c_str(), params...);
+          } catch (ConnectionException e) {
+            std::cerr << "Oops... Cannot connect...";
+          } catch (ExecutionException e) {
+            std::cerr << "Oops... " << e.what();
+          } catch (exception e) {
+            std::cerr << e.what();
+          }
+
           return 0;
         }
 
