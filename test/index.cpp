@@ -22,10 +22,26 @@ using json = nlohmann::json;
 
 namespace test {
   namespace fixtures {
+    /*
+    DROP TABLE events;
+
+    CREATE TABLE events (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMP default now(),
+    actor JSONB,
+    ip_address TEXT,
+    key TEXT,
+    process_id TEXT,
+    session_id TEXT,
+    connection_id INTEGER,
+    aggregate_root TEXT,
+    data JSONB NOT NULL
+    );
+    */
     struct Events {
       int64_t id;
+      int64_t  timestamp;
       json actor;
-      timestamptz_t timestamp;
       Primitive::inet ip_address;
       string key;
       Primitive::uuid process_id;
@@ -34,6 +50,34 @@ namespace test {
       string aggregate_root;
       json data;
     };
+
+    void to_json(json& j, const Events& p) {
+      j = json{
+        { "id", p.id },
+        { "timestamp", p.timestamp },
+        { "actor", p.actor },
+        { "ip_address", p.ip_address },
+        { "key", p.key },
+        { "process_id", p.process_id },
+        { "session_id", p.session_id },
+        { "connection_id", p.connection_id },
+        { "aggregate_root", p.aggregate_root },
+        { "data", p.data }
+      };
+    }
+
+    void from_json(const json& j, Events& p) {
+      p.id = j.value("id", 0);
+      p.timestamp = j.value("timestamp", 0);
+      p.actor = j.value("actor", json(nullptr));
+      p.ip_address = j.value("ip_address", "");
+      p.key = j.value("key", "");
+      p.process_id = j.value("process_uuid", "");
+      p.session_id = j.value("session_id", "");
+      p.connection_id = j.value("connection_id", 0);
+      p.aggregate_root = j.value("aggregate_root", "");
+      p.data = j.value("data", json(nullptr));
+    }
 
     struct Droid : Model {
       Droid() = default;
@@ -232,7 +276,7 @@ int main() {
   
   {
     using namespace store::storage::pgsql;
-
+    
     // Struct
     DBContext dbContext{ "store_pq", "127.0.0.1", 5432, "pccrms", "editor", "editor", 10 };
     pgsql::Client<RogueOne> pgClient{ dbContext };
@@ -249,12 +293,15 @@ int main() {
     pgClient.save(sql);
 
     // Params
-    // (version, { Fields... }, Params...)
+    // (version, { Fields... }, Params...)    
     pgClient.insertOne<Droid>("master", { "id", "name", "current" }, "7", "r2d2", serializeToJsonb(d));
 
     auto& v = pgClient.list<Droid>("master", 0, 10, "id", "Asc");
     for (const auto& o : v) {
       cout << o.id << " " << o.name << endl;
     }
+    
+    pgClient.insertOne<Events>("public", { "actor", "ip_address", "key", "process_id", "session_id", "connection_id", "aggregate_root", "data" }, serializeToJsonb(d), "127.0.0.1", "DROID", "1a6ee016-7a7a-437e-8458-8fed3676d45f", "f959cf99-96a2-4645-ba41-3717da12f3aa", 1, "REBEL_ALLIANCE", serializeToJsonb(d));
+        
   }
 }

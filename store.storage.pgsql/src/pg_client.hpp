@@ -90,21 +90,18 @@ namespace store {
           while (it != fields.end() - 1) {
             ss << *it << ",";
             ++it;
-          }
-          ss << *it;
-          
+          }          
+          ss << *it;          
           ss << ") values \n(";
           
           int i = 0;
           while (i < fields.size() - 1) {
             ss << "$" << i + 1 << ",";
             ++i;
-          }
+          }          
           ss << "$" << fields.size();
-
           ss << ");";
-          cout << ss.str();
-
+          
           Connection cnx;
           try {
             cnx.connect(connectionInfo.c_str());

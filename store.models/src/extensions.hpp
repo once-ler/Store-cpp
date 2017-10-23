@@ -24,7 +24,7 @@ namespace store {
 
       d.resize(n.size());
       transform(l.begin(), l.end(), d.begin(), ::tolower);
-      return d;
+      return move(d);
     }
 
     template<typename T, typename U>
