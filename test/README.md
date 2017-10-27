@@ -297,3 +297,58 @@ var events3 = await session.Events
   var event2 = await session.Events.LoadAsync(eventId)
     .ConfigureAwait(false);
 ```
+
+Reference:
+https://github.com/altairsix/eventsource
+
+Event sourcing is the idea that rather than storing the current state of a domain model into the database, you can instead store the sequence of events (or facts) and then rebuild the domain model from those facts.
+
+git is a great analogy. each commit becomes an event and when you clone or pull the repo, git uses that sequence of commits (events) to rebuild the project file structure (the domain model).
+
+__Event__ (RxwebTask)
+observable
+
+Events represent domain events and should be expressed in the past tense such as CustomerMoved, OrderShipped, or EmailAddressChanged. These are irrefutable facts that have completed in the past.
+
+Try to avoid sticking derived values into the events as (a) events are long lived and bugs in the events will cause you great grief and (b) business rules change over time, sometimes retroactively.
+
+__Aggregate__
+observable -> aggregate
+observable -> transform -> resource -> aggregate
+
+http-post -> event<adt_a08> -> store<event<adt_a08>> -> aggregate<adt_a08> -> store<aggregate<hl7>>
+  -> transform<adt_a08> -> event<encounter> -> store<event<encounter>> -> aggregate<encounter> -> store<aggregate<encounter>>
+                        -> event<observation> -> store<event<observation>> -> aggregate<observation> -> store<aggregate<observation>>
+                        -> event<patient> -> store<event<patient>> -> aggregate<patient> -> store<aggregate<patient>>
+
+http-post -> observable -> store -> aggregate -> store -> observable -> transform -> observable -> store -> aggregate -> store
+
+The Aggregate (often called Aggregate Root) represents the domain modeled by the bounded context and represents the current state of our domain model.
+
+__Repository__
+
+Provides the data access layer to store and retrieve events into a persistent store.
+
+__Store__
+
+Represents the underlying data storage mechanism. eventsource only supports dynamodb out of the box, but there's no reason future versions could not support other database technologies like MySQL, Postgres or Mongodb.
+
+__Serializer__
+
+Specifies how events should be serialized. eventsource currently uses simple JSON serialization although I have some thoughts to support avro in the future.
+
+__CommandHandler__ (RxwebMiddleware)
+http-post -> observable 
+
+CommandHandlers are responsible for accepting (or rejecting) commands and emitting events. By convention, the struct that implements Aggregate should also implement CommandHandler.
+
+__Command__ (RxwebTask)
+observable
+
+An active verb that represents the mutation one wishes to perform on the aggregate.
+
+__Dispatcher__
+on_next
+
+Responsible for retrieving or instantiates the aggregate, executes the command, and saving the the resulting event(s) back to the repository.
+
