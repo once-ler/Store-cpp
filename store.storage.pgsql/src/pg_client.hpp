@@ -3,6 +3,7 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <algorithm>
 #include "json.hpp"
 // #include "include/connection.hpp"
 // #include "include/utility.hpp"
@@ -38,8 +39,7 @@ namespace store {
       }
 
       template<typename T>
-      class Client : public BaseClient<T> {
-      private:
+      class Client : public BaseClient<T> {      
       public:
         using BaseClient<T>::BaseClient;
 
@@ -176,6 +176,13 @@ namespace store {
 
       protected:
         string connectionInfo;
+
+      private:
+        template<typename U, typename F>
+        vector<shared_ptr<U>>& mapEvents(F func) {
+          vector<shared_ptr<U>> results;
+          tranform(this->Events.pending.begin(), this->Events.pending.end(), back_inserter(results), func);
+        }
 
       };
 

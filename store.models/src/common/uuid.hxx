@@ -32,11 +32,14 @@
 
 /* required C API header */
 #include <stdlib.h>
+#include "uuid.h"
+/*
 #ifdef _MSC_VER
 #include <uuid_msvc.h>
 #else
 #include "uuid.h"
 #endif
+*/
 
 /* UUID object class */
 class uuid {

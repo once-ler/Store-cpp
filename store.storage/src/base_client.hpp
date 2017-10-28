@@ -4,10 +4,12 @@
 #include <typeinfo>
 #include "interfaces.hpp"
 #include "models.hpp"
+#include "eventstore.hpp"
 
 using namespace std;
 using namespace store::interfaces;
 using namespace store::models;
+using namespace store::events;
 
 namespace store {
   namespace storage {
@@ -15,6 +17,7 @@ namespace store {
     class BaseClient : public IStore<T> {
     public:  
       DBContext dbContext;
+      EventStore Events;
 
       BaseClient() = default;
       ~BaseClient() = default;

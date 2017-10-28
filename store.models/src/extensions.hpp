@@ -12,7 +12,7 @@ Just clone https://github.com/sean-/ossp-uuid.git and do usual install.
 Windows:
 Clone https://github.com/htaox/ossp_uuid.git and build with VS2015.
 */
-#include <uuid.h>
+// #include <uuid.h>
 #include "common/uuid.hxx"
 
 using namespace std;

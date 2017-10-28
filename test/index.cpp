@@ -8,6 +8,7 @@
 #include "ioc/service_provider.hpp"
 #include "base_client.hpp"
 #include "pg_client.hpp"
+#include "test_events.hpp"
 
 using namespace std;
 using namespace store::models;
