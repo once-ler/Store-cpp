@@ -115,8 +115,8 @@ public void handle(Command command) throws Exception {
 
 Reference: https://raw.githubusercontent.com/JasperFx/marten/master/src/Marten/Schema/SQL/mt_stream.sql
 ```sql
-DROP TABLE IF EXISTS {databaseSchema}.mt_streams CASCADE;
-CREATE TABLE {databaseSchema}.mt_streams (
+DROP TABLE IF EXISTS master.mt_streams CASCADE;
+CREATE TABLE master.mt_streams (
 	id					uuid CONSTRAINT pk_mt_streams PRIMARY KEY,
 	type				varchar(100) NULL,
 	version				integer NOT NULL,
@@ -125,14 +125,14 @@ CREATE TABLE {databaseSchema}.mt_streams (
 	snapshot_version	integer	
 );
 
-DROP SEQUENCE IF EXISTS {databaseSchema}.mt_events_sequence;
-CREATE SEQUENCE {databaseSchema}.mt_events_sequence;
+DROP SEQUENCE IF EXISTS master.mt_events_sequence;
+CREATE SEQUENCE master.mt_events_sequence;
 
-DROP TABLE IF EXISTS {databaseSchema}.mt_events;
-CREATE TABLE {databaseSchema}.mt_events (
+DROP TABLE IF EXISTS master.mt_events;
+CREATE TABLE master.mt_events (
 	seq_id		bigint CONSTRAINT pk_mt_events PRIMARY KEY,
 	id		uuid NOT NULL,
-	stream_id	uuid REFERENCES {databaseSchema}.mt_streams ON DELETE CASCADE,
+	stream_id	uuid REFERENCES master.mt_streams ON DELETE CASCADE,
 	version		integer NOT NULL,
 	data		jsonb NOT NULL,
 	type 		varchar(100) NOT NULL,
@@ -141,10 +141,17 @@ CREATE TABLE {databaseSchema}.mt_events (
 	CONSTRAINT pk_mt_events_id_unique UNIQUE(id)
 );
 
-ALTER SEQUENCE {databaseSchema}.mt_events_sequence OWNED BY {databaseSchema}.mt_events.seq_id;
+ALTER SEQUENCE master.mt_events_sequence OWNED BY master.mt_events.seq_id;
 
+select uuid_generate_v4();
 
-CREATE OR REPLACE FUNCTION {databaseSchema}.mt_append_event(stream uuid, stream_type varchar, event_ids uuid[], event_types varchar[], bodies jsonb[]) RETURNS int[] AS $$
+select master.mt_append_event('06606420-0bc4-4661-8f4a-9a04ef7caea1', 'FOO_ED', '{"25bc6c1a-1beb-4dd9-b0ed-15094c579f01"}', '{"BAR_ED"}', array['{"sender":"pablo","body":"they are on to us"}']::jsonb[]);
+
+select master.mt_append_event('06606420-0bc4-4661-8f4a-9a04ef7caea1', 'FOO_ED', '{"7a7e431a-d6d6-46a8-8c34-21e52368de70", "95f3d695-e826-4305-b76d-fb5046b650e9"}', '{"BAR_ED", "BAR_ED"}', array['{"sender":"pablo","body":"they are on to us"}', '{"sender":"samantha","body":"they are on to us 2"}']::jsonb[]);
+
+select master.mt_append_event('06606420-0bc4-4661-8f4a-9a04ef7caea1', 'FOO_ED', array[uuid_generate_v4(), uuid_generate_v4()]::uuid[], '{"BAR_ED", "BAR_ED"}', array['{"sender":"pablo","body":"they are on to us"}', '{"sender":"samantha","body":"they are on to us 2"}']::jsonb[]);
+
+CREATE OR REPLACE FUNCTION master.mt_append_event(stream uuid, stream_type varchar, event_ids uuid[], event_types varchar[], bodies jsonb[]) RETURNS int[] AS $$
 DECLARE
 	event_version int;
 	event_type varchar;
@@ -154,10 +161,10 @@ DECLARE
 	seq int;
 	return_value int[];
 BEGIN
-	select version into event_version from {databaseSchema}.mt_streams where id = stream;
+	select version into event_version from master.mt_streams where id = stream;
 	if event_version IS NULL then
 		event_version = 0;
-		insert into {databaseSchema}.mt_streams (id, type, version, timestamp) values (stream, stream_type, 0, now());
+		insert into master.mt_streams (id, type, version, timestamp) values (stream, stream_type, 0, now());
 	end if;
 
 
@@ -166,14 +173,14 @@ BEGIN
 
 	foreach event_id in ARRAY event_ids
 	loop
-	    seq := nextval('{databaseSchema}.mt_events_sequence');
+	    seq := nextval('master.mt_events_sequence');
 		return_value := array_append(return_value, seq);
 
 	    event_version := event_version + 1;
 		event_type = event_types[index];
 		body = bodies[index];
 
-		insert into {databaseSchema}.mt_events 
+		insert into master.mt_events 
 			(seq_id, id, stream_id, version, data, type) 
 		values 
 			(seq, event_id, stream, event_version, body, event_type);
@@ -182,7 +189,7 @@ BEGIN
 		index := index + 1;
 	end loop;
 
-	update {databaseSchema}.mt_streams set version = event_version, timestamp = now() where id = stream;
+	update master.mt_streams set version = event_version, timestamp = now() where id = stream;
 
 	return return_value;
 END
@@ -191,17 +198,17 @@ $$ LANGUAGE plpgsql;
 
 
 
-DROP TABLE IF EXISTS {databaseSchema}.mt_event_progression CASCADE;
-CREATE TABLE {databaseSchema}.mt_event_progression (
+DROP TABLE IF EXISTS master.mt_event_progression CASCADE;
+CREATE TABLE master.mt_event_progression (
 	name				varchar CONSTRAINT pk_mt_event_progression PRIMARY KEY,
 	last_seq_id			bigint NULL
 );
 
 
 
-CREATE OR REPLACE FUNCTION {databaseSchema}.mt_mark_event_progression(name varchar, last_encountered bigint) RETURNS VOID LANGUAGE plpgsql AS $function$
+CREATE OR REPLACE FUNCTION master.mt_mark_event_progression(name varchar, last_encountered bigint) RETURNS VOID LANGUAGE plpgsql AS $function$
 BEGIN
-INSERT INTO {databaseSchema}.mt_event_progression (name, last_seq_id) VALUES (name, last_encountered)
+INSERT INTO master.mt_event_progression (name, last_seq_id) VALUES (name, last_encountered)
   ON CONFLICT ON CONSTRAINT pk_mt_event_progression
   DO UPDATE SET last_seq_id = last_encountered;
 
