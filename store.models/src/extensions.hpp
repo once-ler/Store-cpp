@@ -6,6 +6,14 @@
 #include <cstdio>
 #include <algorithm>
 #include <boost/core/demangle.hpp>
+/*
+linux:
+Just clone https://github.com/sean-/ossp-uuid.git and do usual install.
+Windows:
+Clone https://github.com/htaox/ossp_uuid.git and build with VS2015.
+*/
+#include <uuid.h>
+#include "common/uuid.hxx"
 
 using namespace std;
 using namespace boost::core;
@@ -55,5 +63,14 @@ namespace store {
       return move(str);
     }
 
+    inline string generate_uuid(int vers = UUID_MAKE_V4) {
+      uuid id;
+      id.make(vers);
+      const char* sid = id.string();
+      std::string r(sid);
+      delete sid;
+
+      return std::move(r);
+    }
   }
 }
