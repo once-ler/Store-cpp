@@ -24,9 +24,9 @@ using json = nlohmann::json;
 namespace test {
   namespace fixtures {
     /*
-    DROP TABLE events;
+    DROP TABLE TestEvent;
 
-    CREATE TABLE events (
+    CREATE TABLE TestEvent (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMP default now(),
     actor JSONB,
@@ -39,7 +39,7 @@ namespace test {
     data JSONB NOT NULL
     );
     */
-    struct Events {
+    struct TestEvent {
       int64_t id;
       int64_t  timestamp;
       json actor;
@@ -52,7 +52,7 @@ namespace test {
       json data;
     };
 
-    void to_json(json& j, const Events& p) {
+    void to_json(json& j, const TestEvent& p) {
       j = json{
         { "id", p.id },
         { "timestamp", p.timestamp },
@@ -67,7 +67,7 @@ namespace test {
       };
     }
 
-    void from_json(const json& j, Events& p) {
+    void from_json(const json& j, TestEvent& p) {
       p.id = j.value("id", 0);
       p.timestamp = j.value("timestamp", 0);
       p.actor = j.value("actor", json(nullptr));
@@ -173,6 +173,11 @@ void aFunction(F f, const Args... args) {
 }
 
 int main() {
+  {
+    test::events::test_events();
+    return 0;
+  }
+
   using namespace test::fixtures;
 
   Droid c3po, k2so;
@@ -302,7 +307,7 @@ int main() {
       cout << o.id << " " << o.name << endl;
     }
     
-    pgClient.insertOne<Events>("public", { "actor", "ip_address", "key", "process_id", "session_id", "connection_id", "aggregate_root", "data" }, serializeToJsonb(d), "127.0.0.1", "DROID", "1a6ee016-7a7a-437e-8458-8fed3676d45f", "f959cf99-96a2-4645-ba41-3717da12f3aa", 1, "REBEL_ALLIANCE", serializeToJsonb(d));
+    pgClient.insertOne<TestEvent>("public", { "actor", "ip_address", "key", "process_id", "session_id", "connection_id", "aggregate_root", "data" }, serializeToJsonb(d), "127.0.0.1", "DROID", "1a6ee016-7a7a-437e-8458-8fed3676d45f", "f959cf99-96a2-4645-ba41-3717da12f3aa", 1, "REBEL_ALLIANCE", serializeToJsonb(d));
         
   }
 }

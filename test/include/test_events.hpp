@@ -73,11 +73,11 @@ namespace test {
 
       DBContext dbContext{ "store_pq", "127.0.0.1", 5432, "pccrms", "editor", "editor", 10 };
       pgsql::Client<IEvent> pgClient{ dbContext };
+      
+      // pgClient.events.Append<Droid>(droidEvent);
+      // pgClient.events.Append<Human>(humanEvent);
 
-      pgClient.Events.Append<Droid>(droidEvent);
-      pgClient.Events.Append<Human>(humanEvent);
-
-
+      // pgClient.events.Save();
 
       auto new_uuid = generate_uuid();
       // TODO: Need EventSource prototype.

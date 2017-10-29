@@ -8,12 +8,10 @@ using json = nlohmann::json;
 
 namespace store {
   namespace events {
-
-    struct EventStore {
-      vector<IEvent> pending;
-
-      template<typename T>
-      void Append(Event<T> doc) {
+    class EventStore {
+    public:
+      template<typename U>
+      void Append(Event<U> doc) {
         json j = doc.model;
 
         IEvent ie{ doc.seqId, doc.id, doc.streamId, doc.version, j, doc.type, doc.timestamp };
@@ -24,7 +22,8 @@ namespace store {
         throw("Not implemented error");
         return -1;
       }
-
-    };
+    protected:
+      vector<IEvent> pending;
+    };    
   }
 }

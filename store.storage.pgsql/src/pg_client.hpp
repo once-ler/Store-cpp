@@ -5,16 +5,15 @@
 #include <sstream>
 #include <algorithm>
 #include "json.hpp"
-// #include "include/connection.hpp"
-// #include "include/utility.hpp"
 #include "base_client.hpp"
 #include "extensions.hpp"
 
 #include "postgres-connection.h"
 #include "postgres-exceptions.h"
 
+#include "eventstore.hpp"
+
 using namespace std;
-// using namespace postgrespp;
 using namespace db::postgres;
 
 using namespace store::interfaces;
@@ -26,7 +25,7 @@ using json = nlohmann::json;
 namespace store {
   namespace storage {
     namespace pgsql {
-
+      
       template<typename U>
       string serializeToJsonb(const U& o) noexcept {
         json j;
@@ -42,11 +41,30 @@ namespace store {
       class Client : public BaseClient<T> {      
       public:
         using BaseClient<T>::BaseClient;
+        
+        class PgEventStore : public BaseEventStore {
+        public:
+          explicit PgEventStore(shared_ptr<BaseClient<T>> session_) : BaseEventStore(session_) {
+
+          }
+
+          int Save() override {
+            cout << this->pending.size() << endl;
+
+            return 0;
+          }
+        private:
+          shared_ptr<BaseClient<T>> session;
+        };
 
         Client(DBContext _dbContext) : BaseClient<T>(_dbContext) {
           connectionInfo = string_format("application_name=%s host=%s port=%d dbname=%s connect_timeout=%d user=%s password=%s", dbContext.applicationName.c_str(), dbContext.server.c_str(), dbContext.port, dbContext.database.c_str(), dbContext.connectTimeout, dbContext.user.c_str(), dbContext.password.c_str());
+        
+          // events = PgEventStore{ this };
         }
         
+        PgEventStore events{make_shared<Client<T>>(this)};
+
         template<typename U>
         U save(string version, U doc) {
           auto func = this->Save([this, &doc](string version) {
@@ -173,7 +191,6 @@ namespace store {
 
           return func(version, offset, limit, sortKey, sortDirection);
         }
-
       protected:
         string connectionInfo;
 
@@ -184,7 +201,7 @@ namespace store {
           tranform(this->Events.pending.begin(), this->Events.pending.end(), back_inserter(results), func);
         }
 
-      };
+      };     
 
     }
   }
