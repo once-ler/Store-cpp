@@ -18,7 +18,21 @@ namespace store {
         pending.push_back(move(ie));
       }
 
+      /// <summary>
+      /// Default version is "master".
+      /// </summary>
+      /// <returns></returns>
       virtual int Save() {
+        throw("Not implemented error");
+        return -1;
+      }
+
+      /// <summary>
+      /// User defines name of version.
+      /// </summary>
+      /// <param name="version">The VersionControl identifier for this IModel.</param>
+      /// <returns></returns>
+      virtual int Save(const string& version) {
         throw("Not implemented error");
         return -1;
       }

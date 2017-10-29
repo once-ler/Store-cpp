@@ -64,20 +64,21 @@ namespace test {
       
       Event<Droid> droidEvent;
       droidEvent.streamId = streamMap[StreamType::Droid];
+      droidEvent.type = "DROID";
       droidEvent.data = r2;
 
       Event<Human> humanEvent;
       humanEvent.streamId = streamMap[StreamType::Human];
+      humanEvent.type = "HUMAN";
       humanEvent.data = han;
-
 
       DBContext dbContext{ "store_pq", "127.0.0.1", 5432, "pccrms", "editor", "editor", 10 };
       pgsql::Client<IEvent> pgClient{ dbContext };
       
-      // pgClient.events.Append<Droid>(droidEvent);
-      // pgClient.events.Append<Human>(humanEvent);
+      pgClient.events.Append<Droid>(droidEvent);
+      pgClient.events.Append<Human>(humanEvent);
 
-      // pgClient.events.Save();
+      pgClient.events.Save();
 
       auto new_uuid = generate_uuid();
       // TODO: Need EventSource prototype.

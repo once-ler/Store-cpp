@@ -12,6 +12,7 @@
 #include "postgres-exceptions.h"
 
 #include "eventstore.hpp"
+#include "common/group_by.hpp"
 
 using namespace std;
 using namespace db::postgres;
@@ -42,28 +43,64 @@ namespace store {
       public:
         using BaseClient<T>::BaseClient;
         
-        class PgEventStore : public BaseEventStore {
+        class PgEventStore : public EventStore {
         public:
-          explicit PgEventStore(shared_ptr<BaseClient<T>> session_) : BaseEventStore(session_) {
-
-          }
+          explicit PgEventStore(Client<T>* session_) : session(session_) {}
 
           int Save() override {
             cout << this->pending.size() << endl;
+            cout << this->session->dbContext.server << endl;
+
+            auto& const streams = groupBy(pending.begin(), pending.end(), [](IEvent& e) { return e.streamId; });
+
+            for (const auto& o : streams) {
+              cout << o.second.size() << endl;
+
+              auto streamId = o.first;
+              auto stream = o.second;
+              auto eventIds = mapEvents<string>(stream, [](const IEvent& e) { return generate_uuid(); });
+              auto eventTypes = mapEvents<string>(stream, [](const IEvent& e) { return e.type; });
+              auto bodies = mapEvents<string>(stream, [](const IEvent& e) { return e.data.dump(); });
+
+              Connection cnx;
+              try {
+                cnx.connect(session->connectionInfo.c_str());
+                // cnx.execute("select master.mt_append_event($1, $2, $3, $4, $5, $6)", streamId, eventTypes.at(0), eventIds, eventTypes, bodies);
+              } catch (ConnectionException e) {
+                std::cerr << "Oops... Cannot connect...";
+              } catch (ExecutionException e) {
+                std::cerr << "Oops... " << e.what();
+              } catch (exception e) {
+                std::cerr << e.what();
+              }
+            }
+
+            auto eventIds = mapEvents<string>(pending, [](const IEvent& e) { return generate_uuid(); });
+            auto eventTypes = mapEvents<string>(pending, [](const IEvent& e) { return e.type; });
+            auto bodies = mapEvents<string>(pending, [](const IEvent& e) { return e.data.dump(); });
+
+            /*
+            
+            */
 
             return 0;
           }
         private:
-          shared_ptr<BaseClient<T>> session;
+          Client<T>* session;
+
+          template<typename U, typename F>
+          vector<U> mapEvents(vector<IEvent> events, F func) {
+            vector<U> results;
+            transform(events.begin(), events.end(), back_inserter(results), func);
+            return results;
+          }
         };
 
         Client(DBContext _dbContext) : BaseClient<T>(_dbContext) {
           connectionInfo = string_format("application_name=%s host=%s port=%d dbname=%s connect_timeout=%d user=%s password=%s", dbContext.applicationName.c_str(), dbContext.server.c_str(), dbContext.port, dbContext.database.c_str(), dbContext.connectTimeout, dbContext.user.c_str(), dbContext.password.c_str());
-        
-          // events = PgEventStore{ this };
         }
         
-        PgEventStore events{make_shared<Client<T>>(this)};
+        PgEventStore events{ this };
 
         template<typename U>
         U save(string version, U doc) {
@@ -195,11 +232,6 @@ namespace store {
         string connectionInfo;
 
       private:
-        template<typename U, typename F>
-        vector<shared_ptr<U>>& mapEvents(F func) {
-          vector<shared_ptr<U>> results;
-          tranform(this->Events.pending.begin(), this->Events.pending.end(), back_inserter(results), func);
-        }
 
       };     
 
