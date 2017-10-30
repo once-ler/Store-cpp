@@ -62,7 +62,7 @@ namespace store {
               auto eventTypes = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.type); });
               auto bodies = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.data.dump()); });
 
-              auto stmt = string_format("select master.mt_append_event(%s, %s, {%s}, {%s}, array[%s]::jsonb)",
+              auto stmt = string_format("select master.mt_append_event(%s, %s, array[%s]::uuid[], array[%s]::varchar[], array[%s]::jsonb[])",
                 wrapString(streamId).c_str(),
                 eventTypes.at(0).c_str(),
                 join(eventIds.begin(), eventIds.end(), string(",")).c_str(),
@@ -73,7 +73,9 @@ namespace store {
               Connection cnx;
               try {
                 cnx.connect(session->connectionInfo.c_str());
-                cnx.execute(stmt.c_str());
+                // resp is [current_version, ...sequence num]
+                auto& resp = cnx.execute(stmt.c_str()).asArray<int>(0);
+                cout << "Done" << endl;
               } catch (ConnectionException e) {
                 std::cerr << "Oops... Cannot connect...";
               } catch (ExecutionException e) {
@@ -86,10 +88,6 @@ namespace store {
             auto eventIds = mapEvents<string>(pending, [](const IEvent& e) { return generate_uuid(); });
             auto eventTypes = mapEvents<string>(pending, [](const IEvent& e) { return e.type; });
             auto bodies = mapEvents<string>(pending, [](const IEvent& e) { return e.data.dump(); });
-
-            /*
-            
-            */
 
             return 0;
           }
