@@ -58,14 +58,22 @@ namespace store {
 
               auto streamId = o.first;
               auto stream = o.second;
-              auto eventIds = mapEvents<string>(stream, [](const IEvent& e) { return generate_uuid(); });
-              auto eventTypes = mapEvents<string>(stream, [](const IEvent& e) { return e.type; });
-              auto bodies = mapEvents<string>(stream, [](const IEvent& e) { return e.data.dump(); });
+              auto eventIds = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(generate_uuid()); });
+              auto eventTypes = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.type); });
+              auto bodies = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.data.dump()); });
+
+              auto stmt = string_format("select master.mt_append_event(%s, %s, {%s}, {%s}, array[%s]::jsonb)",
+                wrapString(streamId).c_str(),
+                eventTypes.at(0).c_str(),
+                join(eventIds.begin(), eventIds.end(), string(",")).c_str(),
+                join(eventTypes.begin(), eventTypes.end(), string(",")).c_str(),
+                join(bodies.begin(), bodies.end(), string(",")).c_str()
+              );
 
               Connection cnx;
               try {
                 cnx.connect(session->connectionInfo.c_str());
-                // cnx.execute("select master.mt_append_event($1, $2, $3, $4, $5, $6)", streamId, eventTypes.at(0), eventIds, eventTypes, bodies);
+                cnx.execute(stmt.c_str());
               } catch (ConnectionException e) {
                 std::cerr << "Oops... Cannot connect...";
               } catch (ExecutionException e) {

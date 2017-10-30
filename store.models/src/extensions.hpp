@@ -49,6 +49,26 @@ namespace store {
       return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
     }
 
+    // std::string s=join(array.begin(), array.end(), std::string(","));
+    template <class T, class A>
+    T join(const A &begin, const A &end, const T &t) {
+      T result;
+      for (A it = begin;
+        it != end;
+        it++) {
+        if (!result.empty())
+          result.append(t);
+        result.append(*it);
+      }
+      return result;
+    }
+
+    inline string wrapString(string s, const string& ch = "'") {
+      s.insert(0, ch);
+      s.insert(s.size(), ch);
+      return move(s);
+    }
+
     bool invalid_char(char c) {  
       return !(c>=0 && c <128);
     }
