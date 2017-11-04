@@ -12,7 +12,7 @@
 #include "postgres-exceptions.h"
 
 #include "eventstore.hpp"
-#include "common/group_by.hpp"
+#include "group_by.hpp"
 
 using namespace std;
 using namespace db::postgres;

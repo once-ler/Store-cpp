@@ -5,6 +5,7 @@
 #include "interfaces.hpp"
 #include "models.hpp"
 #include "event.hpp"
+#include "background_worker.hpp";
 
 using namespace std;
 using namespace store::interfaces;
@@ -22,13 +23,6 @@ namespace store {
       ~BaseClient() = default;
       BaseClient(DBContext _dbContext) : dbContext(_dbContext) {}      
     protected:
-      class BaseSubcriber : IHandler {
-
-      };
-      class BaseSubscriberFactory : IFactory {
-
-      };
-
       /* Example of a EventStore. */
       class BaseEventStore : public EventStore {
       public:

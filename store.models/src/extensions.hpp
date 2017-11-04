@@ -13,7 +13,7 @@ Windows:
 Clone https://github.com/htaox/ossp_uuid.git and build with VS2015.
 */
 // #include <uuid.h>
-#include "common/uuid.hxx"
+#include "uuid.hxx"
 
 using namespace std;
 using namespace boost::core;
