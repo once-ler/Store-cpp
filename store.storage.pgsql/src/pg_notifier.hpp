@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <functional>
 #include <libpq-fe.h>
 #include "socket.hpp"
 
@@ -20,6 +21,14 @@ static void exit_nicely(PGconn *conn) {
   PQfinish(conn);
   exit(1);
 }
+
+struct PGNotifyResult {
+  string channel;
+  string data;
+  int pid;
+};
+
+using Callback = function<void(PGNotifyResult)>;
 
 class ClientHandler {
 public:
@@ -88,6 +97,10 @@ public:
         fprintf(stderr,
           "ASYNC NOTIFY of '%s' received %s from backend PID %d\n",
           notify->relname, notify->extra, notify->be_pid);
+
+        PGNotifyResult result{ notify->relname, notify->extra, notify->be_pid };
+        callback(result);
+
         PQfreemem(notify);
         nnotifies++;
       }
