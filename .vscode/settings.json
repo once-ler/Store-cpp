@@ -1,0 +1,6 @@
+{
+  "files.associations": {
+    "*.plsql": "plsql",
+    "exception": "cpp"
+  }
+}

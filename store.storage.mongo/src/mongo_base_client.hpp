@@ -27,12 +27,17 @@ mongocxx::instance inst{};
 
 namespace store {
   namespace storage {
-    namespace mongodb {
-      using bsoncxx::builder::stream::open_array;
+    namespace mongo {
       using bsoncxx::builder::stream::close_array;
+      using bsoncxx::builder::stream::close_document;
+      using bsoncxx::builder::stream::document;
+      using bsoncxx::builder::stream::finalize;
+      using bsoncxx::builder::stream::open_array;
+      using bsoncxx::builder::stream::open_document;
 
       class BaseClient {
       public:
+        const string version = "0.2.0";
         BaseClient() = default;
         explicit BaseClient(
           const string& url,
@@ -79,6 +84,39 @@ namespace store {
           filter_ << "_id" << _id;
 
           return upsertImpl<bsoncxx::v_noabi::document::value>(doc, filter_, collectionName);
+        }
+
+        // https://stackoverflow.com/questions/13994498/how-to-store-unsigned-long-long-uint64-t-values-in-a-mongodb-document
+        long long getNextSequenceValue(const string& sequenceName, const string& collectionName = "") {
+          auto filter_ = document{} << "_id" << sequenceName << finalize;
+
+          auto update_ = document{}
+              << "$inc" << open_document << "sequence_value" << 1 << close_document
+            << finalize;
+
+          mongocxx::options::find_one_and_update options;
+          options.upsert(true);
+          options.return_document(mongocxx::options::return_document::k_after);
+          options.bypass_document_validation(true);
+          options.max_time(std::chrono::milliseconds(5000));
+
+          try {
+            mongocxx::client client{ mongocxx::uri{ url_ } };
+            auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].find_one_and_update(filter_.view(), update_.view(), options );
+            
+            /*
+            auto v = result->view()["sequence_value"];
+            if (v) {
+              auto x = v.get_int32();
+              auto z = x.value;
+              auto y = x.value;;
+            }
+            */
+            
+            return result->view()["sequence_value"].get_int32().value;
+          } catch (const exception& e) {
+            return -1;
+          }
         }
 
       private:

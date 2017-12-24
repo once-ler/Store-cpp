@@ -1,0 +1,33 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "taskName": "Build Mongo Test",
+            "type": "shell",
+            "command": "g++",
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "args": ["-std=c++14", "-g", "-Wall", "-fno-stack-protector",
+                "-I", "/usr/local/include",
+                "-I", "/usr/local/include/bsoncxx/v_noabi",
+                "-I", "/usr/local/include/mongocxx/v_noabi",
+                "-I", "${workspaceRoot}/store.storage.mongo/src",
+                "${workspaceRoot}/store.storage.mongo/test/index.cpp",
+                "-o", "${workspaceRoot}/store.storage.mongo/test/testing",
+                "-L", "/usr/local/lib",
+                "-l", "mongocxx",
+                "-l", "bsoncxx"             
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "panel": "new"
+            }
+        }
+    ]
+    
+}
