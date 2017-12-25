@@ -22,8 +22,11 @@
 using namespace std;
 using namespace bsoncxx::builder::stream;
 
+#ifndef MONGO_INIT_ONCE
+#define MONGO_INIT_ONCE
 //Call init() once
 mongocxx::instance inst{};
+#endif
 
 namespace store {
   namespace storage {
@@ -37,7 +40,7 @@ namespace store {
 
       class BaseClient {
       public:
-        const string version = "0.2.0";
+        const string version = "0.2.1";
         BaseClient() = default;
         explicit BaseClient(
           const string& url,
@@ -86,12 +89,11 @@ namespace store {
           return upsertImpl<bsoncxx::v_noabi::document::value>(doc, filter_, collectionName);
         }
 
-        // https://stackoverflow.com/questions/13994498/how-to-store-unsigned-long-long-uint64-t-values-in-a-mongodb-document
-        long long getNextSequenceValue(const string& sequenceName, const string& collectionName = "") {
+        int64_t getNextSequenceValue(const string& sequenceName, const string& collectionName = "") {
           auto filter_ = document{} << "_id" << sequenceName << finalize;
 
           auto update_ = document{}
-              << "$inc" << open_document << "sequence_value" << 1 << close_document
+              << "$inc" << open_document << "sequence_value" << (int64_t)1 << close_document
             << finalize;
 
           mongocxx::options::find_one_and_update options;
@@ -103,20 +105,37 @@ namespace store {
           try {
             mongocxx::client client{ mongocxx::uri{ url_ } };
             auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].find_one_and_update(filter_.view(), update_.view(), options );
-            
-            /*
-            auto v = result->view()["sequence_value"];
-            if (v) {
-              auto x = v.get_int32();
-              auto z = x.value;
-              auto y = x.value;;
-            }
-            */
-            
-            return result->view()["sequence_value"].get_int32().value;
+            return result->view()["sequence_value"].get_int64().value;
           } catch (const exception& e) {
             return -1;
           }
+        }
+
+        string getUid(const string& typeName, const string& uid, const string& collectionName = "") {
+          string r_uid = "";
+          auto filter_ = document{} << "type" << typeName << finalize;
+
+          mongocxx::options::find findOptions;
+          findOptions.limit(1);
+          findOptions.projection(document{} << "_id" << 1 << finalize);
+
+          try {
+            mongocxx::client client{ mongocxx::uri{ url_ } };
+            auto cursor = client[database_][collectionName.size() == 0 ? collection_ : collectionName].find(filter_.view(), findOptions );
+            auto iter = (cursor.begin());
+
+            if (iter != cursor.end()) {
+              auto doc = *iter;
+              r_uid = doc["_id"].get_utf8().value.to_string();
+            } else {
+              // Create the first instance.
+              auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(document{} << "_id" << uid << "type" << typeName << finalize);
+              r_uid = result->inserted_id().get_utf8().value.to_string();
+            }
+          } catch (const exception& e) {
+            
+          }
+          return move(r_uid);
         }
 
       private:
