@@ -5,7 +5,8 @@
 #include "interfaces.hpp"
 #include "models.hpp"
 #include "event.hpp"
-#include "background_worker.hpp";
+#include "eventstore.hpp"
+#include "background_worker.hpp"
 
 using namespace std;
 using namespace store::interfaces;

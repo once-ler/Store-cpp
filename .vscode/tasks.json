@@ -16,6 +16,8 @@
                 "-I", "/usr/local/include/mongocxx/v_noabi",
                 "-I", "${workspaceRoot}/store.models/src",
                 "-I", "${workspaceRoot}/store.common/src",
+                "-I", "${workspaceRoot}/store.events/src",
+                "-I", "${workspaceRoot}/store.storage/src",
                 "-I", "${workspaceRoot}/store.storage.mongo/src",
                 "-I", "${workspaceRoot}/../json/src",
                 "${workspaceRoot}/store.storage.mongo/test/index.cpp",
