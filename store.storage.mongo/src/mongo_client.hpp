@@ -38,6 +38,7 @@ namespace store::storage::mongo {
       }
 
       int SaveOne(const string& streamType, const json& streamObj) {
+        int rc = 0;
         MongoBaseClient clientStreams(session->url_, session->database_, eventstreams_);
         MongoBaseClient clientEventsCounter(session->url_, session->database_, events_counter_);
         MongoBaseClient clientEvents(session->url_, session->database_, events_);  
@@ -57,18 +58,25 @@ namespace store::storage::mongo {
 
         auto now = getCurrentTimeMilliseconds();
 
-        IEvent ev;
-        ev.seqId = globalseq;
-        ev.id = nextuid;
-        ev.streamId = uid;
-        ev.version = nextseq;
-        ev.type = streamType;
-        ev.data = streamObj;
-        ev.timestamp = now;
+        IEvent ev{
+          globalseq,
+          nextuid,
+          uid,
+          nextseq,
+          streamType,
+          streamObj,
+          now
+        };
 
-        auto b = makeBsonFromEvent(ev);
+        json j = ev;
 
-        clientEvents.insertOne(b->view());
+        auto b = makeBsonFromJson(j);
+
+        // auto b = makeBsonFromEvent(ev);
+
+        rc += clientEvents.insertOne(b->view());
+
+        return rc;
       }
 
       private:
@@ -76,8 +84,8 @@ namespace store::storage::mongo {
 
       shared_ptr<document> addTimeFields(shared_ptr<document> instream) {
         *instream << "dateCreated" << bsoncxx::types::b_date(std::chrono::system_clock::now())
-          << "dateLocal" << getCurrentTime()
-          << "dateTimezoneOffset" << getTimezoneOffset();
+          << "dateLocal" << getCurrentTimeString()
+          << "dateTimezoneOffset" << getTimezoneOffsetSeconds();
         return instream;
       }
 
@@ -99,6 +107,29 @@ namespace store::storage::mongo {
         auto doc = *builder << finalize;
         
         return make_shared<bsoncxx::document::value>(doc);
+      }
+
+      shared_ptr<bsoncxx::document::value> makeBsonFromJson(const json& o) {
+        auto builder = make_shared<bsoncxx::builder::stream::document>();
+
+        for (auto& x : json::iterator_wrapper(o)) {
+          *builder << x.key();
+
+          if (!o[x.key()].is_primitive()) {
+            *builder << bsoncxx::types::b_document{ bsoncxx::from_json(x.value().dump()) }
+          } else {
+            *builder << x.value();
+          }
+            // cout << o[x.key()].is_object() << endl;
+            // std::cout << "key: " << x.key() << ", value: " << x.value() << '\n';
+        }
+  
+        builder = addTimeFields(builder);
+        
+        auto doc = *builder << finalize;
+        
+        return make_shared<bsoncxx::document::value>(doc);
+
       }
     };
     

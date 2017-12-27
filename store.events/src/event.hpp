@@ -15,8 +15,8 @@ namespace store {
       Primitive::uuid id;
       Primitive::uuid streamId;
       int version;
-      json data;
       string type;
+      json data;      
       int64_t timestamp;
     };
 
@@ -26,8 +26,8 @@ namespace store {
         { "id", p.id },
         { "streamId", p.streamId },
         { "version", p.version },
-        { "data", p.data },
         { "type", p.type },
+        { "data", p.data },        
         { "timestamp", p.timestamp }
       };
     }
@@ -37,8 +37,8 @@ namespace store {
       p.id = j.value("id", "");
       p.streamId = j.value("streamId", "");
       p.version = j.value("version", 0);
-      p.data = j.value("data", json(nullptr));
       p.type = j.value("type", "");
+      p.data = j.value("data", json(nullptr));
       p.timestamp = j.value("timestamp", 0);
     }
 

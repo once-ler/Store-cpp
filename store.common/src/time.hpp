@@ -4,7 +4,7 @@
 #include <chrono>
 
 namespace store::common {
-  string getCurrentTime() {
+  string getCurrentTimeString(bool ISO_8601_fmt = false) {
     std::stringstream ss;
     tm localTime;
     std::chrono::system_clock::time_point t = std::chrono::system_clock::now();
@@ -16,31 +16,34 @@ namespace store::common {
 
     ss << (1900 + localTime.tm_year) << '-'
       << std::setfill('0') << std::setw(2) << (localTime.tm_mon + 1) << '-'
-      << std::setfill('0') << std::setw(2) << localTime.tm_mday << ' '
+      << std::setfill('0') << std::setw(2) << localTime.tm_mday << (ISO_8601_fmt ? 'T' : ' ')
       << std::setfill('0') << std::setw(2) << localTime.tm_hour << ':'
       << std::setfill('0') << std::setw(2) << localTime.tm_min << ':'
       << std::setfill('0') << std::setw(2) << localTime.tm_sec << '.'
       << std::setfill('0') << std::setw(3) << milliseconds;
+    
+    if (ISO_8601_fmt)
+      ss << 'Z';
   
-  return ss.str();
+    return ss.str();
   }
 
   // Reference: https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c
-  int getTimezoneOffset() {
-      time_t gmt, rawtime = time(NULL);
-      struct tm *ptm;
+  int getTimezoneOffsetSeconds() {
+    time_t gmt, rawtime = time(NULL);
+    struct tm *ptm;
 
   #if !defined(WIN32)
-      struct tm gbuf;
-      ptm = gmtime_r(&rawtime, &gbuf);
+    struct tm gbuf;
+    ptm = gmtime_r(&rawtime, &gbuf);
   #else
-      ptm = gmtime(&rawtime);
+    ptm = gmtime(&rawtime);
   #endif
-      // Request that mktime() looksup dst in timezone database
-      ptm->tm_isdst = -1;
-      gmt = mktime(ptm);
+    // Request that mktime() looksup dst in timezone database
+    ptm->tm_isdst = -1;
+    gmt = mktime(ptm);
 
-      return (int)difftime(rawtime, gmt);
+    return (int)difftime(rawtime, gmt);
   }
 
   uint64_t getCurrentTimeMilliseconds() {
