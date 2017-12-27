@@ -34,7 +34,8 @@
                 "/usr/include/x86_64-linux-gnu",
                 "${workspaceRoot}",
                 "/usr/local/include/bsoncxx/v_noabi",
-                "/usr/local/include/mongocxx/v_noabi"
+                "/usr/local/include/mongocxx/v_noabi",
+                "${workspaceRoot}/../json/src"
             ],
             "defines": [],
             "intelliSenseMode": "clang-x64",

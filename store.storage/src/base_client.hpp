@@ -5,6 +5,7 @@
 #include "interfaces.hpp"
 #include "models.hpp"
 #include "event.hpp"
+#include "eventstream.hpp"
 #include "eventstore.hpp"
 #include "background_worker.hpp"
 

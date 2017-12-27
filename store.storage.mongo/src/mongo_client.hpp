@@ -3,7 +3,7 @@
 #include "json.hpp"
 #include "base_client.hpp"
 #include "extensions.hpp"
-#include "eventstore.hpp"
+// #include "eventstore.hpp"
 #include "time.hpp"
 #include "mongo_base_client.hpp"
 
@@ -22,6 +22,7 @@ namespace store::storage::mongo {
   template<typename T>
   class MongoClient : public BaseClient<T>, public MongoBaseClient {          
   public:
+    const string version = "0.2.0";
     using BaseClient<T>::BaseClient;
     
     class MongoEventStore : public EventStore {
@@ -37,44 +38,44 @@ namespace store::storage::mongo {
 
       }
 
-      int SaveOne(const string& streamType, const json& streamObj) {
+      int SaveOne(const string& streamType, const json& streamObj) {        
         int rc = 0;
         MongoBaseClient clientStreams(session->url_, session->database_, eventstreams_);
         MongoBaseClient clientEventsCounter(session->url_, session->database_, events_counter_);
-        MongoBaseClient clientEvents(session->url_, session->database_, events_);  
-
+        
         // Get the stream id that represents the Type.
         auto new_uuid = generate_uuid();
-        auto uid = clientStreams.getUid(streamType, new_uuid);
+        auto streamId = clientStreams.getUid(streamType, new_uuid);
 
         // Get the global events counter.
         auto globalseq = clientEventsCounter.getNextSequenceValue(all_events_);
 
         // Get version id that represents the lastest Type.
-        auto nextseq = clientEventsCounter.getNextSequenceValue(streamType);
+        auto nextver = clientEventsCounter.getNextSequenceValue(streamType);
 
         // Random uuid for the event.
         auto nextuid = generate_uuid();
 
         auto now = getCurrentTimeMilliseconds();
 
-        IEvent ev{
+        rc += saveOneEvent(
           globalseq,
           nextuid,
-          uid,
-          nextseq,
+          streamId,
           streamType,
+          nextver,
           streamObj,
           now
-        };
+        );
 
-        json j = ev;
-
-        auto b = makeBsonFromJson(j);
-
-        // auto b = makeBsonFromEvent(ev);
-
-        rc += clientEvents.insertOne(b->view());
+        rc += saveOneEventStream(
+          streamId,
+          streamType,
+          nextver,
+          now,
+          streamObj,
+          nextver
+        );
 
         return rc;
       }
@@ -89,39 +90,26 @@ namespace store::storage::mongo {
         return instream;
       }
 
-      shared_ptr<bsoncxx::document::value> makeBsonFromEvent(IEvent ev) {
-        auto builder = make_shared<bsoncxx::builder::stream::document>();
-
-        *builder
-          << "_id" << ev.id
-          << "seqId" << ev.seqId
-          << "id" << ev.id
-          << "streamId" << ev.streamId
-          << "version" << ev.version
-          << "type" << ev.type
-          << "data" << bsoncxx::types::b_document{ bsoncxx::from_json(ev.data.dump()) }
-          << "timestamp" << ev.timestamp;
-
-        builder = addTimeFields(builder);
-        
-        auto doc = *builder << finalize;
-        
-        return make_shared<bsoncxx::document::value>(doc);
-      }
-
       shared_ptr<bsoncxx::document::value> makeBsonFromJson(const json& o) {
         auto builder = make_shared<bsoncxx::builder::stream::document>();
 
         for (auto& x : json::iterator_wrapper(o)) {
-          *builder << x.key();
-
-          if (!o[x.key()].is_primitive()) {
-            *builder << bsoncxx::types::b_document{ bsoncxx::from_json(x.value().dump()) }
+          auto k = x.key();
+          auto v = x.value();
+          auto p = o[k];
+          if (!p.is_primitive()) {
+            *builder << k << bsoncxx::types::b_document{ bsoncxx::from_json(v.dump()) };
+          } else if (p.is_number_integer()) {
+            *builder << k << bsoncxx::types::b_int64{v};
+          } else if (p.is_number_float()) {
+            *builder << k << bsoncxx::types::b_double{v};
           } else {
-            *builder << x.value();
-          }
-            // cout << o[x.key()].is_object() << endl;
-            // std::cout << "key: " << x.key() << ", value: " << x.value() << '\n';
+            auto str = o[k].get<string>();
+            *builder << k << str;
+            if (k == "id") {
+              *builder << "_id" << str;
+            }
+          }          
         }
   
         builder = addTimeFields(builder);
@@ -129,7 +117,54 @@ namespace store::storage::mongo {
         auto doc = *builder << finalize;
         
         return make_shared<bsoncxx::document::value>(doc);
+      }
 
+      int saveOneEvent(        
+        int64_t globalseq,
+        const string& nextuid,
+        const string& streamId,
+        const string& streamType,
+        int64_t nextver,
+        const json& streamObj,
+        int64_t now
+      ) {
+        IEvent ev{
+          globalseq,
+          nextuid,
+          streamId,
+          streamType,
+          nextver,
+          streamObj,
+          now
+        };
+
+        json j = ev;
+        auto b = makeBsonFromJson(j);
+        MongoBaseClient clientEvents(session->url_, session->database_, events_); 
+        return clientEvents.insertOne(b->view());
+      }
+
+      int saveOneEventStream(
+        const string& streamId,
+        const string& streamType,
+        int64_t nextver,
+        int64_t now,
+        const json& snapshot,
+        int64_t snapshotver
+      ) {
+        IEventStream es{
+          streamId,
+          streamType,
+          nextver,
+          now,
+          snapshot,
+          snapshotver
+        };
+
+        json j1 = es;
+        auto b1 = makeBsonFromJson(j1);
+        MongoBaseClient clientStreams(session->url_, session->database_, eventstreams_);
+        return clientStreams.upsertOne(b1->view(), streamId);
       }
     };
     

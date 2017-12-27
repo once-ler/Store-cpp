@@ -38,7 +38,7 @@ namespace store::storage::mongo {
 
   class MongoBaseClient {
   public:
-    const string version = "0.3.0";
+    const string version = "0.4.0";
     MongoBaseClient() = default;
     explicit MongoBaseClient(
       const string& url,
@@ -76,6 +76,18 @@ namespace store::storage::mongo {
     int insertOne(const string& jsonString, const string& collectionName = "") {
       auto doc = bsoncxx::from_json(jsonString);
       return insertOne(doc.view(), collectionName);      
+    }
+
+    int upsertOne(const bsoncxx::document::view_or_value& v, const string& _id, const string& collectionName = "") {
+      auto filter_ = document{} << "_id" << _id << finalize;
+      try {
+        mongocxx::client client{ mongocxx::uri{ url_ } };
+        auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), v, mongocxx::options::update());
+        return 1;
+      } catch (const exception& e) {
+        cout << e.what() << endl;
+        return 0;
+      }
     }
 
     int upsert(

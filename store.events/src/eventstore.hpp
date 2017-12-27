@@ -14,7 +14,7 @@ namespace store {
       void Append(Event<U> doc) {
         json j = doc.model;
 
-        IEvent ie{ doc.seqId, doc.id, doc.streamId, doc.version, j, doc.type, doc.timestamp };
+        IEvent ie{ doc.seqId, doc.id, doc.streamId, doc.type, doc.version, j, doc.timestamp };
         pending.push_back(move(ie));
       }
 
