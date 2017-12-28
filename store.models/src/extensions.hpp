@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <algorithm>
 #include <boost/core/demangle.hpp>
+#include "json.hpp"
 /*
 linux:
 Just clone https://github.com/sean-/ossp-uuid.git and do usual install.
@@ -17,6 +18,8 @@ Clone https://github.com/htaox/ossp_uuid.git and build with VS2015.
 
 using namespace std;
 using namespace boost::core;
+
+using json = nlohmann::json;
 
 namespace store {
   namespace extensions {
@@ -91,6 +94,18 @@ namespace store {
       delete sid;
 
       return std::move(r);
+    }
+
+    template<typename... T>
+    string getPathValueFromJson(const shared_ptr<json>& j, T... args) {
+      vector<string> params = { args... };
+      
+      stringstream path;
+      for (auto& e : params)
+        path << "/" << e;
+      cout << path.str() << endl;
+      json::json_pointer pt(path.str());
+      return j->value(pt, "");
     }
   }
 }
