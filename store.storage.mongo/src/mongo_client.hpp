@@ -22,7 +22,7 @@ namespace store::storage::mongo {
   template<typename T>
   class MongoClient : public BaseClient<T>, public MongoBaseClient {          
   public:
-    const string version = "0.2.0";
+    const string version = "0.2.1";
     using BaseClient<T>::BaseClient;
     
     class MongoEventStore : public EventStore {
@@ -33,6 +33,35 @@ namespace store::storage::mongo {
 
       public:
       explicit MongoEventStore(MongoClient<T>* session_) : session(session_) {}
+
+	  shared_ptr<bsoncxx::document::value> makeBsonFromJson(const json& o) {
+        auto builder = make_shared<bsoncxx::builder::stream::document>();
+
+        for (auto& x : json::iterator_wrapper(o)) {
+          auto k = x.key();
+          auto v = x.value();
+          auto p = o[k];
+          if (!p.is_primitive()) {
+            *builder << k << bsoncxx::types::b_document{ bsoncxx::from_json(v.dump()) };
+          } else if (p.is_number_integer()) {
+            *builder << k << bsoncxx::types::b_int64{v};
+          } else if (p.is_number_float()) {
+            *builder << k << bsoncxx::types::b_double{v};
+          } else {
+            auto str = o[k].get<string>();
+            *builder << k << str;
+            if (k == "id") {
+              *builder << "_id" << str;
+            }
+          }          
+        }
+  
+        builder = addTimeFields(builder);
+        
+        auto doc = *builder << finalize;
+        
+        return make_shared<bsoncxx::document::value>(doc);
+      }
 
       int Save() override {
 
@@ -88,35 +117,6 @@ namespace store::storage::mongo {
           << "dateLocal" << getCurrentTimeString()
           << "dateTimezoneOffset" << getTimezoneOffsetSeconds();
         return instream;
-      }
-
-      shared_ptr<bsoncxx::document::value> makeBsonFromJson(const json& o) {
-        auto builder = make_shared<bsoncxx::builder::stream::document>();
-
-        for (auto& x : json::iterator_wrapper(o)) {
-          auto k = x.key();
-          auto v = x.value();
-          auto p = o[k];
-          if (!p.is_primitive()) {
-            *builder << k << bsoncxx::types::b_document{ bsoncxx::from_json(v.dump()) };
-          } else if (p.is_number_integer()) {
-            *builder << k << bsoncxx::types::b_int64{v};
-          } else if (p.is_number_float()) {
-            *builder << k << bsoncxx::types::b_double{v};
-          } else {
-            auto str = o[k].get<string>();
-            *builder << k << str;
-            if (k == "id") {
-              *builder << "_id" << str;
-            }
-          }          
-        }
-  
-        builder = addTimeFields(builder);
-        
-        auto doc = *builder << finalize;
-        
-        return make_shared<bsoncxx::document::value>(doc);
       }
 
       int saveOneEvent(        
