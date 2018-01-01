@@ -4,6 +4,7 @@
 // #include "extensions.hpp"
 
 using namespace store::models;
+using namespace store::storage::mssql;
 // using namespace store::extensions;
 using json = nlohmann::json;
 

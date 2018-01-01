@@ -1,0 +1,17 @@
+{
+  "files.associations": {
+    "*.plsql": "plsql",
+    "*.sql": "sql",
+    "initializer_list": "cpp",
+    "cstdint": "cpp",
+    "exception": "cpp",
+    "typeindex": "cpp",
+    "typeinfo": "cpp",
+    "optional": "cpp",
+    "type_traits": "cpp",
+    "cmath": "cpp",
+    "cstddef": "cpp",
+    "cstdlib": "cpp",
+    "cstring": "cpp"
+  }
+}
