@@ -3,7 +3,6 @@
 #include "json.hpp"
 #include "base_client.hpp"
 #include "extensions.hpp"
-// #include "eventstore.hpp"
 #include "time.hpp"
 #include "mongo_base_client.hpp"
 
@@ -19,6 +18,7 @@ using json = nlohmann::json;
 using MongoBaseClient = store::storage::mongo::MongoBaseClient;
 
 namespace store::storage::mongo {
+  
   template<typename T>
   class MongoClient : public BaseClient<T>, public MongoBaseClient {          
   public:
@@ -135,8 +135,6 @@ namespace store::storage::mongo {
     explicit MongoClient(const string& url, const string& database, const string& collection) : 
       MongoBaseClient(url, database, collection) {}
 
-    MongoEventStore events{ this };
-    
     shared_ptr<document> addTimeFields(shared_ptr<document> instream) {
       *instream << "dateCreated" << bsoncxx::types::b_date(std::chrono::system_clock::now())
         << "dateLocal" << getCurrentTimeString()
@@ -170,6 +168,8 @@ namespace store::storage::mongo {
       auto doc = *builder << finalize;      
       return make_shared<bsoncxx::document::value>(doc);
 	  }
+
+    MongoEventStore events{ this };
 
   };
 }

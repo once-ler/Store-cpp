@@ -1,0 +1,36 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "taskName": "Build test",
+            "type": "shell",
+            "command": "g++",
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "args": ["-std=c++14", "-g", "-Wall", "-fno-stack-protector",
+                "-I", "/usr/local/include",
+                "-I", "${workspaceRoot}/src",
+                "-I", "${workspaceRoot}/../../tdspp",
+                "-I", "${workspaceRoot}/../../json/src",
+                "-I", "${workspaceRoot}/../store.models/src",
+                "-I", "${workspaceRoot}/../store.storage/src",
+                "-I", "${workspaceRoot}/../store.events/src",
+                "-I", "${workspaceRoot}/../store.common/src",
+                "test/index.cpp",
+                "-o", "test/build/bin/testing",
+                "-L", "/usr/local/lib",
+                "-L", "${workspaceRoot}/../../tdspp",
+                "-l", "tds++",
+                "-l", "ct"             
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "panel": "new"
+            }
+        }
+    ]
+    
+}
