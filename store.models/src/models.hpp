@@ -20,10 +20,10 @@ namespace store {
     struct DBContext {
       DBContext() = default;
       ~DBContext() = default;
-      DBContext(string _server, int _port, string _database)
+      DBContext(const string& _server, int _port, const string& _database)
         : server(_server), port(_port), database(_database) {
       }
-      DBContext(string _applicationName, string _server, int _port, string _database, string _user, string _password, int _connectTimeout)
+      DBContext(const string& _applicationName, const string& _server, int _port, const string& _database, const string& _user, const string& _password, int _connectTimeout)
         : applicationName(_applicationName), server(_server), port(_port), database(_database), user(_user), password(_password), connectTimeout(_connectTimeout){}
       string applicationName = "store";
       string server = "127.0.0.1";

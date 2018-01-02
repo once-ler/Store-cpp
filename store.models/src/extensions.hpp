@@ -96,16 +96,23 @@ namespace store {
       return std::move(r);
     }
 
-    template<typename... T>
-    string getPathValueFromJson(const shared_ptr<json>& j, T... args) {
+    template<typename R, typename... T>
+    R getPathValueFromJson(const shared_ptr<json>& j, T... args) {
       vector<string> params = { args... };
       
       stringstream path;
       for (auto& e : params)
         path << "/" << e;
-      cout << path.str() << endl;
       json::json_pointer pt(path.str());
-      return j->value(pt, "");
+      
+      R r;
+      
+      try {
+        r = j->at(pt);
+      } catch (...) {
+        
+      }
+      return r;
     }
   }
 }
