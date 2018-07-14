@@ -51,7 +51,8 @@ namespace store {
             cout << this->pending.size() << endl;
             cout << this->session->dbContext.server << endl;
 
-            auto& const streams = groupBy(pending.begin(), pending.end(), [](IEvent& e) { return e.streamId; });
+            // auto& const streams = groupBy(pending.begin(), pending.end(), [](IEvent& e) { return e.streamId; });
+            const auto& streams = groupBy(pending.begin(), pending.end(), [](IEvent& e) { return e.streamId; });
 
             for (const auto& o : streams) {
               cout << o.second.size() << endl;
@@ -74,8 +75,9 @@ namespace store {
               try {
                 cnx.connect(session->connectionInfo.c_str());
                 // resp is [current_version, ...sequence num]
-                auto& resp = cnx.execute(stmt.c_str()).asArray<int>(0);
-                cout << "Done" << endl;
+                // https://stackoverflow.com/questions/17947863/error-expected-primary-expression-before-templated-function-that-try-to-us
+                const auto& resp = cnx.execute(stmt.c_str()).template asArray<int>(0);
+                // cout << "Done" << endl;
               } catch (ConnectionException e) {
                 std::cerr << "Oops... Cannot connect...";
               } catch (ExecutionException e) {
@@ -103,7 +105,14 @@ namespace store {
         };
 
         Client(DBContext _dbContext) : BaseClient<T>(_dbContext) {
-          connectionInfo = string_format("application_name=%s host=%s port=%d dbname=%s connect_timeout=%d user=%s password=%s", dbContext.applicationName.c_str(), dbContext.server.c_str(), dbContext.port, dbContext.database.c_str(), dbContext.connectTimeout, dbContext.user.c_str(), dbContext.password.c_str());
+          connectionInfo = string_format("application_name=%s host=%s port=%d dbname=%s connect_timeout=%d user=%s password=%s", 
+            this->dbContext.applicationName.c_str(), 
+            this->dbContext.server.c_str(), 
+            this->dbContext.port, 
+            this->dbContext.database.c_str(), 
+            this->dbContext.connectTimeout, 
+            this->dbContext.user.c_str(), 
+            this->dbContext.password.c_str());
         }
         
         PgEventStore events{ this };
@@ -216,7 +225,7 @@ namespace store {
               auto& resp = cnx.execute(sql.c_str());
 
               for (auto &row : resp) {
-                json j = json::parse(strip_soh(row.as<string>(0)));
+                json j = json::parse(strip_soh(row.template as<string>(0)));
                 jsons.push_back(move(j));
               }
 

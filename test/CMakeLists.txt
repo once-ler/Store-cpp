@@ -19,8 +19,9 @@ find_package(OpenSSL)
 find_package(Threads)
 find_package(Boost 1.62.0 COMPONENTS thread date_time program_options filesystem system regex REQUIRED)
 
-# Install:
-#  sudo apt-get install postgresql-server-dev-9.6
+# Installl libpq.so for ubuntu xenial:
+# sudo apt-get install libpq-dev (10.4)
+# sudo apt-get install postgresql-client-10
 # May also need:
 # sudo apt-get install postgresql-client
 # sudo ln -s /usr/lib/libpq.so.5.4  /usr/lib/libpq.so  # adapt to the actual postgres version
@@ -37,6 +38,9 @@ set(SIMPLE_WEB_SERVER ${PROJECT_SOURCE_DIR}/../../Simple-Web-Server)
 set(SIMPLE_WEBSOCKET_SERVER ${PROJECT_SOURCE_DIR}/../../Simple-WebSocket-Server)
 set(JSON ${PROJECT_SOURCE_DIR}/../../json/src)
 # set(POSTGRESPP ${PROJECT_SOURCE_DIR}/../../postgrespp/postgrespp)
+
+# Must use forked version for jsonb support
+# https://github.com/once-ler/libpqmxx.git
 set(LIBPQMXX ${PROJECT_SOURCE_DIR}/../../libpqmxx/include)
 
 include_directories(
@@ -45,10 +49,14 @@ include_directories(
     ${PostgreSQL_INCLUDE_DIRS}
     /usr/local/include/bsoncxx/v_noabi
     /usr/local/include/mongocxx/v_noabi
+    "${PROJECT_SOURCE_DIR}/include"
     "${PROJECT_SOURCE_DIR}/../src"
     "${PROJECT_SOURCE_DIR}/../store.models/src"
+    "${PROJECT_SOURCE_DIR}/../store.common/src"
+    "${PROJECT_SOURCE_DIR}/../store.events/src"
     "${PROJECT_SOURCE_DIR}/../store.storage/src"
     "${PROJECT_SOURCE_DIR}/../store.storage.pgsql/src"
+    "${PROJECT_SOURCE_DIR}/../store.storage.mongo/src"
     "${PROJECT_SOURCE_DIR}/../test"
     "${JSON}"
     "${LIBPQMXX}"

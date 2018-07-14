@@ -302,7 +302,7 @@ int main() {
     // (version, { Fields... }, Params...)    
     pgClient.insertOne<Droid>("master", { "id", "name", "current" }, "7", "r2d2", serializeToJsonb(d));
 
-    auto& v = pgClient.list<Droid>("master", 0, 10, "id", "Asc");
+    const auto& v = pgClient.list<Droid>("master", 0, 10, "id", "Asc");
     for (const auto& o : v) {
       cout << o.id << " " << o.name << endl;
     }
