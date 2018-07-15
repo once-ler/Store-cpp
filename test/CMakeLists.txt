@@ -21,7 +21,7 @@ find_package(Boost 1.62.0 COMPONENTS thread date_time program_options filesystem
 
 # Installl libpq.so for ubuntu xenial:
 # sudo apt-get install libpq-dev (10.4)
-# sudo apt-get install postgresql-client-10
+# sudo apt-get install postgresql-server-dev-10
 # May also need:
 # sudo apt-get install postgresql-client
 # sudo ln -s /usr/lib/libpq.so.5.4  /usr/lib/libpq.so  # adapt to the actual postgres version
@@ -43,6 +43,10 @@ set(JSON ${PROJECT_SOURCE_DIR}/../../json/src)
 # https://github.com/once-ler/libpqmxx.git
 set(LIBPQMXX ${PROJECT_SOURCE_DIR}/../../libpqmxx/include)
 
+# https://github.com/eztier/tdspp.git
+set(TDSPP ${PROJECT_SOURCE_DIR}/../../tdspp)
+
+
 include_directories(
     /usr/local/include
     # /usr/include/postgresql
@@ -57,15 +61,20 @@ include_directories(
     "${PROJECT_SOURCE_DIR}/../store.storage/src"
     "${PROJECT_SOURCE_DIR}/../store.storage.pgsql/src"
     "${PROJECT_SOURCE_DIR}/../store.storage.mongo/src"
+    "${PROJECT_SOURCE_DIR}/../store.storage.sqlserver/src"
     "${PROJECT_SOURCE_DIR}/../test"
     "${JSON}"
     "${LIBPQMXX}"
+    "${TDSPP}"
     )
 
 # link_directories("${PROJECT_SOURCE_DIR}/../../postgrespp/lib")
 link_directories(${PostgreSQL_LIBRARY_DIRS} "${PROJECT_SOURCE_DIR}/../../libpqmxx/build")
+link_directories(${TDSPP_LIBRARY_DIRS} "${PROJECT_SOURCE_DIR}/../../tdspp")
 
-file(GLOB_RECURSE CPP_SOURCES "${PROJECT_SOURCE_DIR}/../index.cpp")
+# Probably not a good idea to glob.
+# file(GLOB_RECURSE CPP_SOURCES "${PROJECT_SOURCE_DIR}/../index.cpp")
+set(CPP_SOURCES ${PROJECT_SOURCE_DIR}/../test/index.cpp)
 MESSAGE( STATUS "CPP_SOURCES: " ${CPP_SOURCES} )
 
 add_executable(testing ${CPP_SOURCES})
@@ -77,5 +86,9 @@ target_link_libraries(
     libmongocxx.so
     libbsoncxx.so
     liblibpqmxx.so
+    libtds++.so
+    libuuid.so
+    ct
     ${PostgreSQL_LIBRARIES}
+    ${TDSPP_LIBRARY_DIRS}   
 )

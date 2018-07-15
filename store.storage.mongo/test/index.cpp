@@ -2,7 +2,7 @@
 #include "mongo_base_client.hpp"
 #include "mongo_client.hpp"
 #include "models.hpp"
-#include "extensions.hpp"
+// #include "extensions.hpp" // Already defined mongo_client.hpp
 
 using namespace store::models;
 using namespace store::extensions;
