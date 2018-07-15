@@ -1,4 +1,5 @@
 #pragma once
+
 #include "event.hpp"
 #include "json.hpp"
 
@@ -12,10 +13,17 @@ namespace store {
     public:
       template<typename U>
       void Append(Event<U> doc) {
-        json j = doc.model;
-
-        IEvent ie{ doc.seqId, doc.id, doc.streamId, doc.type, doc.version, j, doc.timestamp };
+        IEvent ie{ doc.seqId, doc.id, doc.streamId, doc.type, doc.version, doc.data, doc.timestamp };
         pending.push_back(move(ie));
+      }
+
+      /// <summary>
+      /// The database schema that will be used by the event store.
+      /// This only makes sense for databases that can support schemas.
+      /// </summary>
+      /// <returns></returns>
+      void setDbSchema(string dbSchema_) {
+        dbSchema = dbSchema_;
       }
 
       /// <summary>
@@ -38,6 +46,7 @@ namespace store {
       }
     protected:
       vector<IEvent> pending;
+      string dbSchema = "dwh";
     };    
   }
 }

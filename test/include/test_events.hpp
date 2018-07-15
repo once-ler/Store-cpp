@@ -6,8 +6,10 @@
 #include "primitive.hpp"
 #include "event.hpp"
 #include "models.hpp"
+#include "time.hpp"
 
 using namespace std;
+using namespace store::common;
 using namespace store::models;
 using namespace store::extensions;
 using namespace store::events;
@@ -51,8 +53,17 @@ namespace test {
     int test_events() {      
       using namespace test::events::fixtures;
 
-      Droid r2{ "1", "r2d2", "" };
-      Human han{ "2", "han solo", "" };
+      json dbConfig = {
+        {"applicationName", "store_pq_test"},
+        {"server", "127.0.0.1"},
+        {"port", 5432},
+        {"database", "eventstore"},
+        {"user", "streamer"},
+        {"password", "streamer"}
+      };
+
+      Droid r2{ "1", "r2d2", getCurrentTimeString(true) };
+      Human han{ "2", "han solo", getCurrentTimeString(true) };
       
       enum class StreamType { Droid, Human };
 
@@ -66,15 +77,26 @@ namespace test {
       droidEvent.streamId = streamMap[StreamType::Droid];
       droidEvent.type = "DROID";
       droidEvent.data = r2;
-
+      
       Event<Human> humanEvent;
       humanEvent.streamId = streamMap[StreamType::Human];
       humanEvent.type = "HUMAN";
       humanEvent.data = han;
 
-      DBContext dbContext{ "store_pq", "127.0.0.1", 5432, "pccrms", "editor", "editor", 10 };
+      DBContext dbContext{ 
+        dbConfig.value("applicationName", "store_pq"), 
+        dbConfig.value("server", "127.0.0.1"),
+        dbConfig.value("port", 5432), 
+        dbConfig.value("database", "eventstore"),
+        dbConfig.value("user", "streamer"),
+        dbConfig.value("password", "streamer"),
+        10 
+      };
+
+      // Eventstore schema will be "dwh".
       pgsql::Client<IEvent> pgClient{ dbContext };
       
+      pgClient.events.setDbSchema("dwh");
       pgClient.events.Append<Droid>(droidEvent);
       pgClient.events.Append<Human>(humanEvent);
 

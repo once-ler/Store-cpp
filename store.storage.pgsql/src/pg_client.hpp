@@ -48,22 +48,22 @@ namespace store {
           explicit PgEventStore(Client<T>* session_) : session(session_) {}
 
           int Save() override {
-            cout << this->pending.size() << endl;
-            cout << this->session->dbContext.server << endl;
+            // cout << this->pending.size() << endl;
+            // cout << this->session->dbContext.server << endl;
 
-            // auto& const streams = groupBy(pending.begin(), pending.end(), [](IEvent& e) { return e.streamId; });
             const auto& streams = groupBy(pending.begin(), pending.end(), [](IEvent& e) { return e.streamId; });
 
             for (const auto& o : streams) {
-              cout << o.second.size() << endl;
+              // cout << o.second.size() << endl;
 
               auto streamId = o.first;
               auto stream = o.second;
               auto eventIds = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(generate_uuid()); });
               auto eventTypes = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.type); });
               auto bodies = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.data.dump()); });
-
-              auto stmt = string_format("select master.mt_append_event(%s, %s, array[%s]::uuid[], array[%s]::varchar[], array[%s]::jsonb[])",
+              
+              auto stmt = string_format("select %s.mt_append_event(%s, %s, array[%s]::uuid[], array[%s]::varchar[], array[%s]::jsonb[])",
+                dbSchema.c_str(),
                 wrapString(streamId).c_str(),
                 eventTypes.at(0).c_str(),
                 join(eventIds.begin(), eventIds.end(), string(",")).c_str(),
@@ -77,7 +77,6 @@ namespace store {
                 // resp is [current_version, ...sequence num]
                 // https://stackoverflow.com/questions/17947863/error-expected-primary-expression-before-templated-function-that-try-to-us
                 const auto& resp = cnx.execute(stmt.c_str()).template asArray<int>(0);
-                // cout << "Done" << endl;
               } catch (ConnectionException e) {
                 std::cerr << "Oops... Cannot connect...";
               } catch (ExecutionException e) {
@@ -244,7 +243,7 @@ namespace store {
           return func(version, offset, limit, sortKey, sortDirection);
         }
       protected:
-        string connectionInfo;
+        string connectionInfo;        
 
       private:
 

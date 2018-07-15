@@ -1,14 +1,18 @@
 #pragma once
 
 #include <iostream>
+#include <iomanip>
+#include <sstream>
 #include <chrono>
+
+using namespace std;
 
 namespace store::common {
   string getCurrentTimeString(bool ISO_8601_fmt = false) {
     std::stringstream ss;
     tm localTime;
     std::chrono::system_clock::time_point t = std::chrono::system_clock::now();
-    time_t now = std::chrono::system_clock::to_time_t(t);
+    std::time_t now = std::chrono::system_clock::to_time_t(t);
     localtime_r(&now, &localTime);
 
     const std::chrono::duration<double> tse = t.time_since_epoch();
@@ -30,7 +34,7 @@ namespace store::common {
 
   // Reference: https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c
   int getTimezoneOffsetSeconds() {
-    time_t gmt, rawtime = time(NULL);
+    std::time_t gmt, rawtime = time(NULL);
     struct tm *ptm;
 
   #if !defined(WIN32)
@@ -54,7 +58,7 @@ namespace store::common {
     std::time(&rawtime);
     timeinfo = std::localtime(&rawtime);
 
-    time_t timeSinceEpoch = mktime(timeinfo);
+    std::time_t timeSinceEpoch = mktime(timeinfo);
 
     return 1000 * timeSinceEpoch;
   }
