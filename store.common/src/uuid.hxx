@@ -32,14 +32,11 @@
 
 /* required C API header */
 #include <stdlib.h>
-#include "uuid.h"
-/*
 #ifdef _MSC_VER
 #include <uuid_msvc.h>
 #else
 #include "uuid.h"
 #endif
-*/
 
 /* UUID object class */
 class uuid {
@@ -100,8 +97,6 @@ class uuid_error_t {
     private:
         uuid_rc_t rc;
 };
-
-#endif /* __UUIDXX_HH__ */
 
 /*
 **  OSSP uuid - Universally Unique Identifier
@@ -404,3 +399,4 @@ unsigned long uuid::version(void)
     return uuid_version();
 }
 
+#endif /* __UUIDXX_HH__ */

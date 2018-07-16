@@ -5,14 +5,20 @@
 #include <sstream>
 #include <algorithm>
 #include "json.hpp"
-#include "base_client.hpp"
-#include "extensions.hpp"
-
 #include "postgres-connection.h"
 #include "postgres-exceptions.h"
 
+#if __has_include("base_client.hpp")
+#include "base_client.hpp"
+#include "extensions.hpp"
 #include "eventstore.hpp"
 #include "group_by.hpp"
+#else
+#include "store.storage/src/base_client.hpp"
+#include "store.models/src/extensions.hpp"
+#include "store.events/src/eventstore.hpp"
+#include "store.common/src/group_by.hpp"
+#endif
 
 using namespace std;
 using namespace db::postgres;
@@ -20,6 +26,8 @@ using namespace db::postgres;
 using namespace store::interfaces;
 using namespace store::storage;
 using namespace store::extensions;
+
+namespace Extensions = store::extensions;
 
 using json = nlohmann::json;
 
@@ -62,7 +70,7 @@ namespace store {
               auto eventTypes = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.type); });
               auto bodies = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.data.dump()); });
               
-              auto stmt = string_format("select %s.mt_append_event(%s, %s, array[%s]::uuid[], array[%s]::varchar[], array[%s]::jsonb[])",
+              auto stmt = Extensions::string_format("select %s.mt_append_event(%s, %s, array[%s]::uuid[], array[%s]::varchar[], array[%s]::jsonb[])",
                 dbSchema.c_str(),
                 wrapString(streamId).c_str(),
                 eventTypes.at(0).c_str(),
@@ -104,7 +112,7 @@ namespace store {
         };
 
         Client(DBContext _dbContext) : BaseClient<T>(_dbContext) {
-          connectionInfo = string_format("application_name=%s host=%s port=%d dbname=%s connect_timeout=%d user=%s password=%s", 
+          connectionInfo = Extensions::string_format("application_name=%s host=%s port=%d dbname=%s connect_timeout=%d user=%s password=%s", 
             this->dbContext.applicationName.c_str(), 
             this->dbContext.server.c_str(), 
             this->dbContext.port, 
@@ -123,7 +131,7 @@ namespace store {
             try {
               json j = doc;
               
-              string sql = string_format(R"SQL(
+              string sql = Extensions::string_format(R"SQL(
                 insert into %s.%s (id, name,ts,current)
                 values ('%s', '%s', now(), '%s')
                 on conflict (id) do update set ts = now(), current = EXCLUDED.current, history = EXCLUDED.history
@@ -209,7 +217,7 @@ namespace store {
             vector<U> pocos;
 
             try {
-              auto sql = string_format("select current from %s.%s order by current->>'%s' %s offset %d limit %d",
+              auto sql = Extensions::string_format("select current from %s.%s order by current->>'%s' %s offset %d limit %d",
                 version.c_str(),
                 resolve_type_to_string<U>().c_str(),
                 sortKey.c_str(),

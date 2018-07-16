@@ -6,6 +6,6 @@ using namespace std;
 
 namespace store {
   namespace meta {
-    static const string version = "0.1.17";
+    static const string version = "0.1.18";
   }
 }
