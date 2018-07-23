@@ -1,12 +1,12 @@
 #pragma once
 
 #include "json.hpp"
-#include "pg_client.hpp"
-#include "extensions.hpp"
-#include "primitive.hpp"
-#include "event.hpp"
-#include "models.hpp"
-#include "time.hpp"
+#include "store.storage.pgsql/src/pg_client.hpp"
+#include "store.models/src/extensions.hpp"
+#include "store.models/src/primitive.hpp"
+#include "store.events/src/event.hpp"
+#include "store.models/src/models.hpp"
+#include "store.common/src/time.hpp"
 
 using namespace std;
 using namespace store::common;

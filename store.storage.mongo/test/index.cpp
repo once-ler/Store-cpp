@@ -1,8 +1,7 @@
 #include "json.hpp"
-#include "mongo_base_client.hpp"
-#include "mongo_client.hpp"
-#include "models.hpp"
-// #include "extensions.hpp" // Already defined mongo_client.hpp
+#include "store.storage.mongo/src/mongo_base_client.hpp"
+#include "store.storage.mongo/src/mongo_client.hpp"
+#include "store.models/src/models.hpp"
 
 using namespace store::models;
 using namespace store::extensions;

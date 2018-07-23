@@ -7,18 +7,10 @@
 #include "json.hpp"
 #include "postgres-connection.h"
 #include "postgres-exceptions.h"
-
-#if __has_include("base_client.hpp")
-#include "base_client.hpp"
-#include "extensions.hpp"
-#include "eventstore.hpp"
-#include "group_by.hpp"
-#else
 #include "store.storage/src/base_client.hpp"
 #include "store.models/src/extensions.hpp"
 #include "store.events/src/eventstore.hpp"
 #include "store.common/src/group_by.hpp"
-#endif
 
 using namespace std;
 using namespace db::postgres;

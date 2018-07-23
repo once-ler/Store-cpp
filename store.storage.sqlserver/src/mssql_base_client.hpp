@@ -6,7 +6,7 @@
 #include <typeinfo>
 #include <ctpublic.h>
 #include "tdspp.hh"
-#include "runtime_get_tuple.hpp"
+#include "store.common/src/runtime_get_tuple.hpp"
 
 using namespace store::common;
 

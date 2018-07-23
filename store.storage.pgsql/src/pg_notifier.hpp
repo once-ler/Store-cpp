@@ -7,7 +7,7 @@
 #include <errno.h>
 #include <functional>
 #include <libpq-fe.h>
-#include "socket.hpp"
+#include "store.common/src/socket.hpp"
 
 #if defined(_MSC_VER) || defined(_MSC_EXTENSIONS)
 #define DELTA_EPOCH_IN_MICROSECS  116444736000000000Ui64 // CORRECT

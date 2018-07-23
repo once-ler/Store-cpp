@@ -3,12 +3,7 @@
 #include <boost/any.hpp>
 #include <iostream>
 #include <vector>
-
-#if __has_include("primitive.hpp")
-#include "primitive.hpp"
-#else
 #include "store.models/src/primitive.hpp"
-#endif
 
 using namespace std;
 namespace Primitive = store::primitive;

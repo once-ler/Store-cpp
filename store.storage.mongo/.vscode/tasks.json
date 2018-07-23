@@ -14,12 +14,15 @@
                 "-I", "/usr/local/include",
                 "-I", "/usr/local/include/bsoncxx/v_noabi",
                 "-I", "/usr/local/include/mongocxx/v_noabi",
-                "-I", "${workspaceRoot}/src",
+                "-I", "${workspaceRoot}/../../json/src",
+                // "-I", "${workspaceRoot}/src",
+                "-I", "${workspaceRoot}/../",
                 "test/index.cpp",
                 "-o", "test/testing",
                 "-L", "/usr/local/lib",
                 "-l", "mongocxx",
-                "-l", "bsoncxx"             
+                "-l", "bsoncxx",
+                "-l", "uuid",            
             ],
             "group": "build",
             "presentation": {

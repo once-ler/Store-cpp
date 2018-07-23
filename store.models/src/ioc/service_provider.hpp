@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ioc/simple_container.hpp"
-#include "singleton.hpp"
+#include "store.models/src/ioc/simple_container.hpp"
+#include "store.common/src/singleton.hpp"
 
 using namespace store::common;
 

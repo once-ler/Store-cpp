@@ -1,7 +1,7 @@
 #pragma once
 
 #include "json.hpp"
-#include "primitive.hpp"
+#include "store.models/src/primitive.hpp"
 
 using namespace std;
 namespace Primitive = store::primitive;

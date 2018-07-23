@@ -1,13 +1,13 @@
 #include <set>
 #include "json.hpp"
-#include "models.hpp"
-#include "interfaces.hpp"
-#include "extensions.hpp"
-#include "primitive.hpp"
-#include "ioc/simple_container.hpp"
-#include "ioc/service_provider.hpp"
-#include "base_client.hpp"
-#include "pg_client.hpp"
+#include "store.models/src/models.hpp"
+#include "store.models/src/interfaces.hpp"
+#include "store.models/src/extensions.hpp"
+#include "store.models/src/primitive.hpp"
+#include "store.models/src/ioc/simple_container.hpp"
+#include "store.models/src/ioc/service_provider.hpp"
+#include "store.storage/src/base_client.hpp"
+#include "store.storage.pgsql/src/pg_client.hpp"
 #include "test_events.hpp"
 
 using namespace std;

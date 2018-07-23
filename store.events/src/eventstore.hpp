@@ -1,6 +1,6 @@
 #pragma once
 
-#include "event.hpp"
+#include "store.events/src/event.hpp"
 #include "json.hpp"
 
 using namespace std;

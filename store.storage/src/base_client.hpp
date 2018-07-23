@@ -2,22 +2,12 @@
 
 #include <iostream>
 #include <typeinfo>
-
-#if __has_include("interfaces.hpp")
-#include "interfaces.hpp"
-#include "models.hpp"
-#include "event.hpp"
-#include "eventstream.hpp"
-#include "eventstore.hpp"
-#include "background_worker.hpp"
-#else
 #include "store.models/src/interfaces.hpp"
 #include "store.models/src/models.hpp"
 #include "store.events/src/event.hpp"
 #include "store.events/src/eventstream.hpp"
 #include "store.events/src/eventstore.hpp"
 #include "store.common/src/background_worker.hpp"
-#endif
 
 using namespace std;
 using namespace store::interfaces;

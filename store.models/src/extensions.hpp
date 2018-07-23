@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <sstream>
 #include <type_traits>
 #include <typeinfo>
 #include <cstdio>
@@ -14,7 +15,7 @@ Windows:
 Clone https://github.com/htaox/ossp_uuid.git and build with VS2015.
 */
 // #include <uuid.h>
-#include "uuid.hxx"
+#include "store.common/src/uuid.hxx"
 
 using namespace std;
 using namespace boost::core;

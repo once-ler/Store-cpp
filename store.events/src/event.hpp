@@ -1,12 +1,7 @@
 #pragma once
 
 #include "json.hpp"
-
-#if __has_include("primitive.hpp")
-#include "primitive.hpp"
-#else
 #include "store.models/src/primitive.hpp"
-#endif
 
 using namespace std;
 namespace Primitive = store::primitive;

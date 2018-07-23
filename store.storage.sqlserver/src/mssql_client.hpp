@@ -1,7 +1,7 @@
 #pragma once
 
-#include "mssql_base_client.hpp"
-#include "base_client.hpp"
+#include "store.storage.sqlserver/src/mssql_base_client.hpp"
+#include "store.storage/src/base_client.hpp"
 
 using namespace store::common;
 using namespace store::storage::mssql;

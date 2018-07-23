@@ -1,10 +1,10 @@
 #pragma once
 
 #include "json.hpp"
-#include "base_client.hpp"
-#include "extensions.hpp"
-#include "time.hpp"
-#include "mongo_base_client.hpp"
+#include "store.storage/src/base_client.hpp"
+#include "store.models/src/extensions.hpp"
+#include "store.common/src/time.hpp"
+#include "store.storage.mongo/src/mongo_base_client.hpp"
 
 using namespace std;
 using namespace store::common;

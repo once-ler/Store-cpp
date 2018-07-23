@@ -3,8 +3,8 @@
 #include <iostream>
 #include <vector>
 #include <functional>
-#include "models.hpp"
-#include "enumerations.hpp"
+#include "store.models/src/models.hpp"
+#include "store.models/src/enumerations.hpp"
 
 using namespace std;
 using namespace store::models;
