@@ -4,6 +4,7 @@
 #include <memory>
 #include <sstream>
 #include <algorithm>
+#include <regex>
 #include "json.hpp"
 #include "postgres-connection.h"
 #include "postgres-exceptions.h"
@@ -48,14 +49,9 @@ namespace store {
           explicit PgEventStore(Client<T>* session_) : session(session_) {}
 
           int Save() override {
-            // cout << this->pending.size() << endl;
-            // cout << this->session->dbContext.server << endl;
-
             const auto& streams = groupBy(pending.begin(), pending.end(), [](IEvent& e) { return e.streamId; });
 
             for (const auto& o : streams) {
-              // cout << o.second.size() << endl;
-
               auto streamId = o.first;
               auto stream = o.second;
               auto eventIds = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(generate_uuid()); });
@@ -123,17 +119,11 @@ namespace store {
             try {
               json j = doc;
               
-              string createTable = Extensions::string_format(R"SQL(
-                create table %s.%s (
-                  id varchar(120) primary key,
-                  name character varying(500),
-                  ts timestamp, default current_timestamp,
-                  type varchar(250),
-                  related varchar(120),
-                  current jsonb,
-                  history jsonb
-                )
-              )SQL", version.c_str(), resolve_type_to_string<U>().c_str()); 
+              const auto tableSchema = version;
+              const auto tableName = resolve_type_to_string<U>();
+
+              // Create destination table is it does not exist before saving.
+              createStore(tableSchema, tableName);
 
               string sql = Extensions::string_format(R"SQL(
                 insert into %s.%s (id, name, ts, type, related, current)
@@ -186,11 +176,11 @@ namespace store {
             cnx.connect(connectionInfo.c_str());
             cnx.execute(ss.str().c_str(), params...);
           } catch (ConnectionException e) {
-            std::cerr << "Oops... Cannot connect...";
+            std::cerr << e.what() << std::endl;
           } catch (ExecutionException e) {
-            std::cerr << "Oops... " << e.what();
+            std::cerr << e.what() << std::endl;
           } catch (exception e) {
-            std::cerr << e.what();
+            std::cerr << e.what() << std::endl;
           }
 
           return 0;
@@ -228,8 +218,6 @@ namespace store {
                 limit
               );
 
-              cout << "sql: " << sql << endl;
-
               cnx.connect(connectionInfo.c_str());
               auto& resp = cnx.execute(sql.c_str());
 
@@ -240,11 +228,11 @@ namespace store {
 
               for_each(jsons.begin(), jsons.end(), [&](const json& j) { U o = j; pocos.push_back(move(o)); });
             } catch (ConnectionException e) {
-              std::cerr << "Oops... Cannot connect...";
+              std::cerr << e.what() << std::endl;
             } catch (ExecutionException e) {
-              std::cerr << "Oops... " << e.what();
+              std::cerr << e.what() << std::endl;
             } catch (exception e) {
-              std::cerr << e.what();
+              std::cerr << e.what() << std::endl;
             }
 
             return pocos;
@@ -256,6 +244,51 @@ namespace store {
         string connectionInfo;        
 
       private:
+        void createStore(const string& tableSchema, const string& tableName){
+          
+          string createTable = Extensions::string_format(R"SQL(
+            create table if not exist "%s"."%s" (
+              id varchar(120) primary key,
+              name character varying(500),
+              ts timestamp, default current_timestamp,
+              type varchar(250),
+              related varchar(120),
+              current jsonb,
+              history jsonb
+            );                
+          )SQL", tableSchema.c_str(), tableName.c_str()); 
+
+          vector<string> indxs{"name", "ts", "type", "related", "current", "history"};
+          string createIndexes = std::accumulate(indxs.begin(), indxs.end(),
+            string{}, 
+            [&tableSchema, &tableName](auto m, const auto& name){
+              string ret = m + Extensions::string_format(R"create index if not exists %s_%s_idx on %s.%s ",
+                tableName.c_str(), name.c_str(), tableSchema.c_str(), tableName.c_str());
+              
+              if (regex_match(name, regex("\\bcurrent\\b|\\bhistory\\b")))
+                ret.append("using gin(" + name + " jsonb_ops)");
+              else
+                ret.append("using btree(" + name + ")");
+              
+              ret.append(";");
+              return ret;
+            }
+          );
+
+          try {
+            cnx.connect(connectionInfo.c_str());
+            cnx.execute(createTable.c_str());
+            cnx.execute(createIndexes.c_str());
+
+          } catch (ConnectionException e) {
+            std::cerr << e.what() << std::endl;
+          } catch (ExecutionException e) {
+            std::cerr << e.what() << std::endl;
+          } catch (exception e) {
+            std::cerr << e.what() << std::endl;
+          }
+
+        }
 
       };     
 
