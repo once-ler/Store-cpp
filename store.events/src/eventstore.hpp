@@ -26,6 +26,10 @@ namespace store {
         dbSchema = dbSchema_;
       }
 
+      string getDbSchema() {
+        return dbSchema;
+      }
+
       /// <summary>
       /// Default version is "master".
       /// </summary>

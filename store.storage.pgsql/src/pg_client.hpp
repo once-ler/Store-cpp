@@ -117,19 +117,18 @@ namespace store {
           auto func = this->Save([this, &doc](string version) {
             Connection cnx;
             try {
-              json j = doc;
-              
-              const auto tableSchema = version;
               const auto tableName = resolve_type_to_string<U>();
 
               // Create destination table is it does not exist before saving.
-              createStore(tableSchema, tableName);
+              createStore(version, tableName);
+
+              json j = doc;              
 
               string sql = Extensions::string_format(R"SQL(
                 insert into %s.%s (id, name, ts, type, related, current)
-                values ('%s', '%s', now(), '%s', '%s', %s')
+                values ('%s', '%s', now(), '%s', '%s', '%s')
                 on conflict (id) do update set ts = now(), current = EXCLUDED.current, history = EXCLUDED.history
-              )SQL", version.c_str(), resolve_type_to_string<U>().c_str(), j.value("id", "").c_str(), j.value("name", "").c_str(), j.value("type", "").c_str(), j.value("related", "").c_str(), j.dump().c_str());
+              )SQL", version.c_str(), tableName.c_str(), j.value("id", "").c_str(), j.value("name", "").c_str(), j.value("type", "").c_str(), j.value("related", "").c_str(), j.dump().c_str());
 
               cnx.connect(connectionInfo.c_str());
 
@@ -151,9 +150,14 @@ namespace store {
 
         template<typename U, typename... Params>
         int64_t insertOne(const string& version, const std::initializer_list<std::string>& fields, Params... params) {
+          const auto tableName = resolve_type_to_string<U>();
+
+          // Create destination table is it does not exist before saving.
+          createStore(version, tableName);
+
           stringstream ss;
 
-          ss << "insert into " << version << "." << resolve_type_to_string<U>().c_str() << " (";
+          ss << "insert into " << version << "." << tableName.c_str() << " (";
 
           auto it = fields.begin();
           while (it != fields.end() - 1) {
@@ -245,12 +249,13 @@ namespace store {
 
       private:
         void createStore(const string& tableSchema, const string& tableName){
-          
+          Connection cnx;
+
           string createTable = Extensions::string_format(R"SQL(
-            create table if not exist "%s"."%s" (
+            create table if not exists "%s"."%s" (
               id varchar(120) primary key,
               name character varying(500),
-              ts timestamp, default current_timestamp,
+              ts timestamp default current_timestamp,
               type varchar(250),
               related varchar(120),
               current jsonb,
@@ -262,7 +267,7 @@ namespace store {
           string createIndexes = std::accumulate(indxs.begin(), indxs.end(),
             string{}, 
             [&tableSchema, &tableName](auto m, const auto& name){
-              string ret = m + Extensions::string_format(R"create index if not exists %s_%s_idx on %s.%s ",
+              string ret = m + Extensions::string_format("create index if not exists %s_%s_idx on %s.%s ",
                 tableName.c_str(), name.c_str(), tableSchema.c_str(), tableName.c_str());
               
               if (regex_match(name, regex("\\bcurrent\\b|\\bhistory\\b")))
