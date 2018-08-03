@@ -78,11 +78,11 @@ namespace store {
                 // https://stackoverflow.com/questions/17947863/error-expected-primary-expression-before-templated-function-that-try-to-us
                 const auto& resp = cnx.execute(stmt.c_str()).template asArray<int>(0);
               } catch (ConnectionException e) {
-                std::cerr << "Oops... Cannot connect...";
+                std::cerr << e.what() << std::endl;
               } catch (ExecutionException e) {
-                std::cerr << "Oops... " << e.what();
+                std::cerr << e.what() << std::endl;
               } catch (exception e) {
-                std::cerr << e.what();
+                std::cerr << e.what() << std::endl;
               }
             }
 
@@ -123,24 +123,34 @@ namespace store {
             try {
               json j = doc;
               
-              string sql = Extensions::string_format(R"SQL(
-                insert into %s.%s (id, name,ts,current)
-                values ('%s', '%s', now(), '%s')
-                on conflict (id) do update set ts = now(), current = EXCLUDED.current, history = EXCLUDED.history
-              )SQL", version.c_str(), resolve_type_to_string<U>().c_str(), j.value("id", "").c_str(), j.value("name", "").c_str(), j.dump().c_str());
+              string createTable = Extensions::string_format(R"SQL(
+                create table %s.%s (
+                  id varchar(120) primary key,
+                  name character varying(500),
+                  ts timestamp, default current_timestamp,
+                  type varchar(250),
+                  related varchar(120),
+                  current jsonb,
+                  history jsonb
+                )
+              )SQL", version.c_str(), resolve_type_to_string<U>().c_str()); 
 
-              cout << sql << endl;
+              string sql = Extensions::string_format(R"SQL(
+                insert into %s.%s (id, name, ts, type, related, current)
+                values ('%s', '%s', now(), '%s', '%s', %s')
+                on conflict (id) do update set ts = now(), current = EXCLUDED.current, history = EXCLUDED.history
+              )SQL", version.c_str(), resolve_type_to_string<U>().c_str(), j.value("id", "").c_str(), j.value("name", "").c_str(), j.value("type", "").c_str(), j.value("related", "").c_str(), j.dump().c_str());
 
               cnx.connect(connectionInfo.c_str());
 
               cnx.execute(sql.c_str());
 
             } catch (ConnectionException e) {
-              std::cerr << "Oops... Cannot connect...";
+              std::cerr << e.what() << std::endl;
             } catch (ExecutionException e) {
-              std::cerr << "Oops... " << e.what();
+              std::cerr << e.what() << std::endl;
             } catch (exception e) {
-              std::cerr << e.what();
+              std::cerr << e.what() << std::endl;
             }
 
             return doc;

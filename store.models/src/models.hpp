@@ -50,10 +50,13 @@ namespace store {
     struct Model : public IModel {
       Model() = default;
       ~Model() = default;
-      Model(const string& _id, const string& _name, const string& _ts) : id(_id), name(_name), ts(_ts) {}
+      Model(const string& _id, const string& _name, const string& _ts, const string& _type = {}, const string& _related = {}) : id(_id), name(_name), ts(_ts), type(_type), related(_related) {}
       string id;
       string name;
       Primitive::dateTime ts;
+      // In single hierarchical table, [type] and [related] should be used.
+      string type;
+      string related;
     };
 
     /// <summary>
@@ -80,6 +83,7 @@ namespace store {
       Record() = default;
       ~Record() = default;
       Record(string id, string name, Primitive::dateTime ts, T _current, vector<History<T>> _history) : Model(id, name, ts), current(_current), history(_history) {}
+      Record(string id, string name, Primitive::dateTime ts, string type, string related, T _current, vector<History<T>> _history) : Model(id, name, ts, type, related), current(_current), history(_history) {}
     };
 
     /// <summary>
