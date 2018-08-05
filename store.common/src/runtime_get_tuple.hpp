@@ -1,7 +1,13 @@
 /*
  * reference:
  * https://stackoverflow.com/questions/21062864/optimal-way-to-access-stdtuple-element-in-runtime-by-index
- * */
+ * 
+ * usage: 
+    int main() {
+      std::tuple<int, double, char, double> t{1, 2.3, 4, 5.6};
+      for(int i = 0; i < 4; ++i) apply(t, i, Func{});
+    } 
+ */
 #include <tuple>
 
 namespace store::common::tuples {

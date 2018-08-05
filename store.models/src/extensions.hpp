@@ -115,5 +115,14 @@ namespace store {
       }
       return r;
     }
+
+    map<string, string> getMapFromJson(const json& j) {
+      auto m = map<string, string>{};
+      for (auto& x : json::iterator_wrapper(j)) {
+        m[x.key()] = x.value().get<string>();
+      }
+  
+      return move(m);
+    }
   }
 }

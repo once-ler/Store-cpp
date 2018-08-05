@@ -112,9 +112,26 @@ namespace store {
         
         PgEventStore events{ this };
 
+        string save(const string& sql) {
+          string retval = "Succeeded";
+
+          Connection cnx;
+          try {
+            cnx.connect(connectionInfo.c_str());
+            cnx.execute(sql.c_str());
+          } catch (ConnectionException e) {
+            retval = e.what();
+          } catch (ExecutionException e) {
+            retval = e.what();
+          } catch (exception e) {
+            retval = e.what();
+          }
+
+          return move(retval);
+        }
+
         template<typename A>
         string createStore(const string& tableSchema){
-          string retval = "Succeeded";
           const auto tableName = resolve_type_to_string<A>();
           Connection cnx;
 
@@ -147,18 +164,9 @@ namespace store {
             }
           );
 
-          try {
-            cnx.connect(connectionInfo.c_str());
-            cnx.execute(createTable.c_str());
-            cnx.execute(createIndexes.c_str());
-
-          } catch (ConnectionException e) {
-            retval = e.what();
-          } catch (ExecutionException e) {
-            retval = e.what();
-          } catch (exception e) {
-            retval = e.what();
-          }
+          string retval = this->save(createTable);
+          retval.append(";");
+          retval.append(this->save(createIndexes));
 
           return move(retval);
         }
@@ -166,29 +174,17 @@ namespace store {
         template<typename U>
         U save(string version, U doc) {
           auto func = this->Save([this, &doc](string version) {
-            Connection cnx;
-            try {
-              const auto tableName = resolve_type_to_string<U>();
+            const auto tableName = resolve_type_to_string<U>();
 
-              json j = doc;              
+            json j = doc;              
 
-              string sql = Extensions::string_format(R"SQL(
-                insert into %s.%s (id, name, ts, type, related, current)
-                values ('%s', '%s', now(), '%s', '%s', '%s')
-                on conflict (id) do update set ts = now(), current = EXCLUDED.current, history = EXCLUDED.history
-              )SQL", version.c_str(), tableName.c_str(), j.value("id", "").c_str(), j.value("name", "").c_str(), j.value("type", "").c_str(), j.value("related", "").c_str(), j.dump().c_str());
+            string sql = Extensions::string_format(R"SQL(
+              insert into %s.%s (id, name, ts, type, related, current)
+              values ('%s', '%s', now(), '%s', '%s', '%s')
+              on conflict (id) do update set ts = now(), current = EXCLUDED.current, history = EXCLUDED.history
+            )SQL", version.c_str(), tableName.c_str(), j.value("id", "").c_str(), j.value("name", "").c_str(), j.value("type", "").c_str(), j.value("related", "").c_str(), j.dump().c_str());
 
-              cnx.connect(connectionInfo.c_str());
-
-              cnx.execute(sql.c_str());
-
-            } catch (ConnectionException e) {
-              std::cerr << e.what() << std::endl;
-            } catch (ExecutionException e) {
-              std::cerr << e.what() << std::endl;
-            } catch (exception e) {
-              std::cerr << e.what() << std::endl;
-            }
+            this->save(sql);
 
             return doc;
           });
@@ -197,7 +193,7 @@ namespace store {
         }
 
         template<typename U, typename... Params>
-        int64_t insertOne(const string& version, const std::initializer_list<std::string>& fields, Params... params) {
+        string insertOne(const string& version, const std::initializer_list<std::string>& fields, Params... params) {
           const auto tableName = resolve_type_to_string<U>();
 
           stringstream ss;
@@ -220,33 +216,24 @@ namespace store {
           ss << "$" << fields.size();
           ss << ");";
           
-          Connection cnx;
-          try {
-            cnx.connect(connectionInfo.c_str());
-            cnx.execute(ss.str().c_str(), params...);
-          } catch (ConnectionException e) {
-            std::cerr << e.what() << std::endl;
-          } catch (ExecutionException e) {
-            std::cerr << e.what() << std::endl;
-          } catch (exception e) {
-            std::cerr << e.what() << std::endl;
-          }
-
-          return 0;
+          const auto retval = this->save(ss.str());
+          return move(retval);
         }
 
-        void save(const string& sql) {
-          Connection cnx;
-          try {
-            cnx.connect(connectionInfo.c_str());
-            cnx.execute(sql.c_str());
-          } catch (ConnectionException e) {
-            std::cerr << "Oops... Cannot connect...";
-          } catch (ExecutionException e) {
-            std::cerr << "Oops... " << e.what();
-          } catch (exception e) {
-            std::cerr << e.what();
+        string createStreamId(const std::map<string, string>& streamIds, const string& dbSchema) {
+          string retval;
+          for(auto& e : streamIds) {
+            string sql = store::extensions::string_format(R"SQL(
+              insert into %s.%s (id, type, version)
+              values ('%s', '%s', 0)
+              on conflict (id) do nothing
+            )SQL", dbSchema.c_str(), "mt_streams", e.second.c_str(), e.first.c_str());
+      
+            retval = this->save(sql);
+            retval.append(";");
           }
+
+          return move(retval);
         }
 
         template<typename U>
