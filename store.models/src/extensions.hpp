@@ -98,7 +98,7 @@ namespace store {
     }
 
     template<typename R, typename... T>
-    R getPathValueFromJson(const shared_ptr<json>& j, T... args) {
+    R getPathValueFromJson(const shared_ptr<json>& j, T&&... args) {
       vector<string> params = { args... };
       
       stringstream path;
@@ -114,6 +114,13 @@ namespace store {
         
       }
       return r;
+    }
+
+    template<typename R, typename... T>
+    R getPathValueFromJson(const json& j, T&&... args) {
+      const auto jptr = make_shared<json>(j);
+
+      return getPathValueFromJson<R>(jptr, std::forward<T>(args)...);
     }
 
     map<string, string> getMapFromJson(const json& j) {
