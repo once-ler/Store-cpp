@@ -110,6 +110,7 @@ namespace store {
             this->dbContext.password.c_str());
         }
         
+        // Pass pgsql::Client<A> to friend PgEventStore; event store will share same connection.
         PgEventStore events{ this };
 
         string save(const string& sql) {
