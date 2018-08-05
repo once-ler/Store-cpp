@@ -112,15 +112,63 @@ namespace store {
         
         PgEventStore events{ this };
 
+        template<typename A>
+        string createStore(const string& tableSchema){
+          string retval = "Succeeded";
+          const auto tableName = resolve_type_to_string<A>();
+          Connection cnx;
+
+          string createTable = Extensions::string_format(R"SQL(
+            create table if not exists "%s"."%s" (
+              id varchar(120) primary key,
+              name character varying(500),
+              ts timestamp default current_timestamp,
+              type varchar(250),
+              related varchar(120),
+              current jsonb,
+              history jsonb
+            );                
+          )SQL", tableSchema.c_str(), tableName.c_str()); 
+
+          vector<string> indxs{"name", "ts", "type", "related", "current", "history"};
+          string createIndexes = std::accumulate(indxs.begin(), indxs.end(),
+            string{}, 
+            [&tableSchema, &tableName](auto m, const auto& name){
+              string ret = m + Extensions::string_format("create index if not exists %s_%s_idx on %s.%s ",
+                tableName.c_str(), name.c_str(), tableSchema.c_str(), tableName.c_str());
+              
+              if (regex_match(name, regex("\\bcurrent\\b|\\bhistory\\b")))
+                ret.append("using gin(" + name + " jsonb_ops)");
+              else
+                ret.append("using btree(" + name + ")");
+              
+              ret.append(";");
+              return ret;
+            }
+          );
+
+          try {
+            cnx.connect(connectionInfo.c_str());
+            cnx.execute(createTable.c_str());
+            cnx.execute(createIndexes.c_str());
+
+          } catch (ConnectionException e) {
+            retval = e.what();
+          } catch (ExecutionException e) {
+            retval = e.what();
+          } catch (exception e) {
+            retval = e.what();
+          }
+
+          return move(retval);
+        }
+
         template<typename U>
         U save(string version, U doc) {
           auto func = this->Save([this, &doc](string version) {
             Connection cnx;
             try {
               const auto tableName = resolve_type_to_string<U>();
-
-              // Create destination table is it does not exist before saving.
-              createStore(version, tableName);
 
               json j = doc;              
 
@@ -151,9 +199,6 @@ namespace store {
         template<typename U, typename... Params>
         int64_t insertOne(const string& version, const std::initializer_list<std::string>& fields, Params... params) {
           const auto tableName = resolve_type_to_string<U>();
-
-          // Create destination table is it does not exist before saving.
-          createStore(version, tableName);
 
           stringstream ss;
 
@@ -248,52 +293,6 @@ namespace store {
         string connectionInfo;        
 
       private:
-        void createStore(const string& tableSchema, const string& tableName){
-          Connection cnx;
-
-          string createTable = Extensions::string_format(R"SQL(
-            create table if not exists "%s"."%s" (
-              id varchar(120) primary key,
-              name character varying(500),
-              ts timestamp default current_timestamp,
-              type varchar(250),
-              related varchar(120),
-              current jsonb,
-              history jsonb
-            );                
-          )SQL", tableSchema.c_str(), tableName.c_str()); 
-
-          vector<string> indxs{"name", "ts", "type", "related", "current", "history"};
-          string createIndexes = std::accumulate(indxs.begin(), indxs.end(),
-            string{}, 
-            [&tableSchema, &tableName](auto m, const auto& name){
-              string ret = m + Extensions::string_format("create index if not exists %s_%s_idx on %s.%s ",
-                tableName.c_str(), name.c_str(), tableSchema.c_str(), tableName.c_str());
-              
-              if (regex_match(name, regex("\\bcurrent\\b|\\bhistory\\b")))
-                ret.append("using gin(" + name + " jsonb_ops)");
-              else
-                ret.append("using btree(" + name + ")");
-              
-              ret.append(";");
-              return ret;
-            }
-          );
-
-          try {
-            cnx.connect(connectionInfo.c_str());
-            cnx.execute(createTable.c_str());
-            cnx.execute(createIndexes.c_str());
-
-          } catch (ConnectionException e) {
-            std::cerr << e.what() << std::endl;
-          } catch (ExecutionException e) {
-            std::cerr << e.what() << std::endl;
-          } catch (exception e) {
-            std::cerr << e.what() << std::endl;
-          }
-
-        }
 
       };     
 
