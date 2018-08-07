@@ -12,6 +12,7 @@
 #include "store.models/src/extensions.hpp"
 #include "store.events/src/eventstore.hpp"
 #include "store.common/src/group_by.hpp"
+#include "store.common/src/logger.hpp"
 
 using namespace std;
 using namespace db::postgres;
@@ -33,8 +34,9 @@ namespace store {
         json j;
         try {
           j = o;
-        } catch (...) {
+        } catch (exception e) {
           // No op.
+          logger->info(e.what());
         }
         return move(db::postgres::toJsonb(j.dump()));
       }
@@ -113,6 +115,9 @@ namespace store {
         // Pass pgsql::Client<A> to friend PgEventStore; event store will share same connection.
         PgEventStore events{ this };
 
+        // Default logger.
+        shared_ptr<ILogger> logger = make_shared<ILogger>();
+
         string save(const string& sql) {
           string retval = "Succeeded";
 
@@ -122,12 +127,15 @@ namespace store {
             cnx.execute(sql.c_str());
           } catch (ConnectionException e) {
             retval = e.what();
+            logger->error(e.what());
           } catch (ExecutionException e) {
             retval = e.what();
+            logger->error(e.what());
           } catch (exception e) {
             retval = e.what();
+            logger->error(e.what());
           }
-
+          
           return move(retval);
         }
 
