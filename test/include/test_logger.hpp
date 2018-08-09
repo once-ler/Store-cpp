@@ -2,35 +2,39 @@
 
 #include <boost/filesystem.hpp>
 #include "store.common/src/logger.hpp"
-#include "spdlog/spdlog.h"
 #include "store.storage.pgsql/src/pg_client.hpp"
 #include "json.hpp"
 #include "test_fixtures.hpp"
 
+#include "spdlog/spdlog.h"
+#include "spdlog/async.h"
+#include "spdlog/sinks/rotating_file_sink.h"
+
+using namespace std;
 using namespace store::storage::pgsql;
 using namespace test::fixtures;
 using json = nlohmann::json;
 
 namespace test::logger {
-  class SpdLogger : ILogger {
+  class SpdLogger : public ILogger {
     public:
     explicit SpdLogger(const string& logName_) : ILogger(), logName(logName_) {
-      setupLogging(logName)
+      setupLogging();
     }
 
-    void debug override(const char* msg) {
+    void debug (const char* msg) override {
       spdlog::get(logName)->debug(msg);
     }
 
-    void info override(const char* msg) {
+    void info (const char* msg) override {
       spdlog::get(logName)->info(msg);
     }
 
-    void warn override(const char* msg) {
+    void warn (const char* msg) override {
       spdlog::get(logName)->warn(msg);
     }
 
-    void error override(const char* msg) {
+    void error (const char* msg) override {
       spdlog::get(logName)->error(msg);
     }
 
@@ -60,17 +64,15 @@ namespace test::logger {
         return;
 
       size_t q_size = 1048576; //queue size must be power of 2
-      spdlog::set_async_mode(q_size);
-  
-      std::vector<spdlog::sink_ptr> sinks;
-      sinks.push_back(std::make_shared<spdlog::sinks::daily_file_sink_mt>("log/" + logName, "txt", 0, 0));
-      auto combined_logger = std::make_shared<spdlog::logger>(logName.c_str(), begin(sinks), end(sinks));
-      combined_logger->set_pattern("[%Y-%m-%d %H:%M:%S:%e] [%l] [thread %t] %v");
-      spdlog::register_logger(combined_logger);
+      
+      spdlog::init_thread_pool(q_size, 3);
+      auto asyncRotatingLogger = spdlog::rotating_logger_mt<spdlog::async_factory>(logName.c_str(), string("log/" + logName + ".txt").c_str(), 1048576 * 5, 5);
+      spdlog::register_logger(asyncRotatingLogger);
     }
   };
 
   void test_splog_spec() {
+    json dbConfig = json(nullptr);
     DBContext dbContext{ 
       dbConfig.value("applicationName", "store_pq"), 
       dbConfig.value("server", "127.0.0.1"),

@@ -34,9 +34,8 @@ namespace store {
         json j;
         try {
           j = o;
-        } catch (exception e) {
+        } catch (...) {
           // No op.
-          logger->info(e.what());
         }
         return move(db::postgres::toJsonb(j.dump()));
       }
