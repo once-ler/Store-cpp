@@ -15,12 +15,12 @@
 #include "store.common/src/logger.hpp"
 
 using namespace std;
-using namespace db::postgres;
-
 using namespace store::interfaces;
 using namespace store::storage;
 using namespace store::extensions;
 
+// Don't use db::postgres b/c it defines time_t which will collide with std::time_t if used in other libs.
+namespace Postgres = db::postgres;
 namespace Extensions = store::extensions;
 
 using json = nlohmann::json;
@@ -68,15 +68,15 @@ namespace store {
                 join(bodies.begin(), bodies.end(), string(",")).c_str()
               );
 
-              Connection cnx;
+              Postgres::Connection cnx;
               try {
                 cnx.connect(session->connectionInfo.c_str());
                 // resp is [current_version, ...sequence num]
                 // https://stackoverflow.com/questions/17947863/error-expected-primary-expression-before-templated-function-that-try-to-us
                 const auto& resp = cnx.execute(stmt.c_str()).template asArray<int>(0);
-              } catch (ConnectionException e) {
+              } catch (Postgres::ConnectionException e) {
                 std::cerr << e.what() << std::endl;
-              } catch (ExecutionException e) {
+              } catch (Postgres::ExecutionException e) {
                 std::cerr << e.what() << std::endl;
               } catch (exception e) {
                 std::cerr << e.what() << std::endl;
@@ -120,14 +120,14 @@ namespace store {
         string save(const string& sql) {
           string retval = "Succeeded";
 
-          Connection cnx;
+          Postgres::Connection cnx;
           try {
             cnx.connect(connectionInfo.c_str());
             cnx.execute(sql.c_str());
-          } catch (ConnectionException e) {
+          } catch (Postgres::ConnectionException e) {
             retval = e.what();
             logger->error(e.what());
-          } catch (ExecutionException e) {
+          } catch (Postgres::ExecutionException e) {
             retval = e.what();
             logger->error(e.what());
           } catch (exception e) {
@@ -141,8 +141,7 @@ namespace store {
         template<typename A>
         string createStore(const string& tableSchema){
           const auto tableName = resolve_type_to_string<A>();
-          Connection cnx;
-
+          
           string createTable = Extensions::string_format(R"SQL(
             create table if not exists "%s"."%s" (
               id varchar(120) primary key,
@@ -248,7 +247,7 @@ namespace store {
         vector<U> list(string version = "master", int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "Asc") {
           
           auto func = this->List([this](string version, int offset, int limit, string sortKey, string sortDirection) {
-            Connection cnx;
+            Postgres::Connection cnx;
             vector<json> jsons;
             vector<U> pocos;
 
@@ -271,9 +270,9 @@ namespace store {
               }
 
               for_each(jsons.begin(), jsons.end(), [&](const json& j) { U o = j; pocos.push_back(move(o)); });
-            } catch (ConnectionException e) {
+            } catch (Postgres::ConnectionException e) {
               std::cerr << e.what() << std::endl;
-            } catch (ExecutionException e) {
+            } catch (Postgres::ExecutionException e) {
               std::cerr << e.what() << std::endl;
             } catch (exception e) {
               std::cerr << e.what() << std::endl;

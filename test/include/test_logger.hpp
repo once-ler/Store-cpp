@@ -9,6 +9,7 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/async.h"
 #include "spdlog/sinks/rotating_file_sink.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 
 using namespace std;
 using namespace store::storage::pgsql;
@@ -63,16 +64,26 @@ namespace test::logger {
       if (spdlog::get(logName) != nullptr)
         return;
 
-      size_t q_size = 1048576; //queue size must be power of 2
-      
+      size_t q_size = 1048576; //queue size must be power of 2      
       spdlog::init_thread_pool(q_size, 3);
-      auto asyncRotatingLogger = spdlog::rotating_logger_mt<spdlog::async_factory>(logName.c_str(), string("log/" + logName + ".txt").c_str(), 1048576 * 5, 5);
-      spdlog::register_logger(asyncRotatingLogger);
+
+      auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+      // auto asyncRotatingLogger = spdlog::rotating_logger_mt<spdlog::async_factory>(string("log/" + logName + ".txt").c_str(), 1048576 * 5, 5);
+      auto rotatingSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(string("log/" + logName + ".txt").c_str(), 1048576 * 5, 5);
+      
+      spdlog::logger combinedLogger(logName.c_str(), { consoleSink, rotatingSink });
+
+      combinedLogger.set_pattern("[%Y-%m-%d %H:%M:%S:%e] [%l] [thread %t] %v");
+
+      spdlog::get(logName)->info("Logging started...");
+
+      spdlog::get(logName)->flush();
     }
   };
 
   void test_splog_spec() {
-    json dbConfig = json(nullptr);
+    json dbConfig = {{"applicationName", "store_pq"}};
+    cout << dbConfig.dump(2) << endl;
     DBContext dbContext{ 
       dbConfig.value("applicationName", "store_pq"), 
       dbConfig.value("server", "127.0.0.1"),
@@ -91,8 +102,8 @@ namespace test::logger {
     pgClient.logger = spdLogger;
 
     // Error!
-    Droid droid{};
-    pgClient.save(pgClient.events.getDbSchema(), droid);
+    Droid d{ "4", "c3po", "", "old" };
+    pgClient.save(pgClient.events.getDbSchema(), d);
 
   }
 }
