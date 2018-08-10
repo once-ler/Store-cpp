@@ -18,16 +18,40 @@ namespace store::common {
       spdlog::get(logName)->debug(msg);
     }
 
+    template<typename... Args>
+    void debug(const char *fmt, const Args &... args) {
+      spdlog::get(logName)->debug(fmt, std::forward<const Args&>(args)...);
+    }
+
     void info (const char* msg) override {
       spdlog::get(logName)->info(msg);
+    }
+
+    template<typename... Args>
+    void info(const char *fmt, const Args &... args) {
+      spdlog::get(logName)->info(fmt, std::forward<const Args&>(args)...);
     }
 
     void warn (const char* msg) override {
       spdlog::get(logName)->warn(msg);
     }
 
+    template<typename... Args>
+    void warn(const char *fmt, const Args &... args) {
+      spdlog::get(logName)->warn(fmt, std::forward<const Args&>(args)...);
+    }
+
     void error (const char* msg) override {
       spdlog::get(logName)->error(msg);
+    }
+
+    template<typename... Args>
+    void error(const char *fmt, const Args &... args) {
+      spdlog::get(logName)->error(fmt, std::forward<const Args&>(args)...);
+    }
+
+    void flush() {
+      spdlog::get(logName)->flush();
     }
 
     inline void dropLogging(const string& logName_ = "") noexcept {

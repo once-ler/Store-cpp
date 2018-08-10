@@ -18,6 +18,7 @@ using namespace std;
 using namespace store::interfaces;
 using namespace store::storage;
 using namespace store::extensions;
+using namespace store::common;
 
 // Don't use db::postgres b/c it defines time_t which will collide with std::time_t if used in other libs.
 namespace Postgres = db::postgres;
