@@ -67,17 +67,15 @@ namespace test::logger {
       size_t q_size = 1048576; //queue size must be power of 2      
       spdlog::init_thread_pool(q_size, 3);
 
-      auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-      // auto asyncRotatingLogger = spdlog::rotating_logger_mt<spdlog::async_factory>(string("log/" + logName + ".txt").c_str(), 1048576 * 5, 5);
-      auto rotatingSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(string("log/" + logName + ".txt").c_str(), 1048576 * 5, 5);
-      
-      spdlog::logger combinedLogger(logName.c_str(), { consoleSink, rotatingSink });
-
-      combinedLogger.set_pattern("[%Y-%m-%d %H:%M:%S:%e] [%l] [thread %t] %v");
+      auto asyncRotatingLogger = spdlog::rotating_logger_mt<spdlog::async_factory>(logName, "log/" + logName + ".txt", 1048576 * 5, 5);
+      asyncRotatingLogger->set_pattern("[%Y-%m-%d %H:%M:%S:%e] [%l] [thread %t] %v");
 
       spdlog::get(logName)->info("Logging started...");
 
       spdlog::get(logName)->flush();
+
+      spdlog::flush_every(std::chrono::seconds(3));
+
     }
   };
 
@@ -97,12 +95,19 @@ namespace test::logger {
     pgsql::Client<IEvent> pgClient{ dbContext };
     
     pgClient.events.setDbSchema("dwh");
-    // Set the logger
+    
+    // Set the logger to spdlog
     auto spdLogger = make_shared<SpdLogger>("test_logger");
     pgClient.logger = spdLogger;
 
     // Error!
     Droid d{ "4", "c3po", "", "old" };
+    pgClient.save(pgClient.events.getDbSchema(), d);
+
+    // Set the logger to default
+    auto defaultLogger = make_shared<ILogger>();
+    pgClient.logger = defaultLogger;
+
     pgClient.save(pgClient.events.getDbSchema(), d);
 
   }

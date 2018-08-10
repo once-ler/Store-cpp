@@ -75,11 +75,11 @@ namespace store {
                 // https://stackoverflow.com/questions/17947863/error-expected-primary-expression-before-templated-function-that-try-to-us
                 const auto& resp = cnx.execute(stmt.c_str()).template asArray<int>(0);
               } catch (Postgres::ConnectionException e) {
-                std::cerr << e.what() << std::endl;
+                session->logger->error(e.what());
               } catch (Postgres::ExecutionException e) {
-                std::cerr << e.what() << std::endl;
+                session->logger->error(e.what());
               } catch (exception e) {
-                std::cerr << e.what() << std::endl;
+                session->logger->error(e.what());
               }
             }
 
@@ -271,11 +271,11 @@ namespace store {
 
               for_each(jsons.begin(), jsons.end(), [&](const json& j) { U o = j; pocos.push_back(move(o)); });
             } catch (Postgres::ConnectionException e) {
-              std::cerr << e.what() << std::endl;
+              logger->error(e.what());
             } catch (Postgres::ExecutionException e) {
-              std::cerr << e.what() << std::endl;
+              logger->error(e.what());
             } catch (exception e) {
-              std::cerr << e.what() << std::endl;
+              logger->error(e.what());
             }
 
             return pocos;
