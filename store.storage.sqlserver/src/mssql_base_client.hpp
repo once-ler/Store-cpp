@@ -32,7 +32,7 @@ namespace store::storage::mssql {
   class MsSqlBaseClient {
     friend TDSPP;
   public:
-    const string version = "0.1.10";
+    const string version = "0.1.11";
     MsSqlBaseClient(const string& server_, int port_, const string& database_, const string& user_, const string& password_) :
       server(server_), port(port_), database(database_), user(user_), password(password_) {
       db = make_shared<TDSPP>();
@@ -41,12 +41,24 @@ namespace store::storage::mssql {
       server_port = ss.str();
     }
 
+    shared_ptr<Query> runQuery(const string& sqlStmt) {
+      try {
+        db->connect(server_port, user, password);
+        db->execute(string("use " + database));
+        Query* q = db->sql(sqlStmt);
+        q->execute();
+        return make_shared<Query>(move(*q));
+      } catch (...) {
+        return nullptr;
+      }
+    }
+
     /*
       @usage:
       client.insertOne("epic", "participant_hist", {"firstname", "lastname", "processed"}, "foo", "bar", 0);
     */
     template<typename... Params>
-    int64_t insertOne(const string& schema, const string& table_name, const std::initializer_list<std::string>& fields, Params... params) {
+    pair<int, string> insertOne(const string& schema, const string& table_name, const std::initializer_list<std::string>& fields, Params... params) {
       tuple<Params...> values(params...);
       stringstream ss;
 
@@ -74,10 +86,10 @@ namespace store::storage::mssql {
         db->execute(string("use " + database));
         db->execute(ss.str());
       } catch (TDSPP::Exception& e) {
-        cerr << e.message << endl;
-        return 0;
+        // cerr << e.message << endl;
+        return make_pair(0, e.message);
       }
-      return 1;
+      return make_pair(1, "Succeeded");;
     }
 
   protected:

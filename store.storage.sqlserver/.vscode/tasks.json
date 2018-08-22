@@ -2,7 +2,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Build test",
+            "label": "Build Mssql test",
             "type": "shell",
             "command": "g++",
             "options": {
@@ -13,7 +13,7 @@
                 "-I", "${workspaceRoot}/../",
                 // "-I", "${workspaceRoot}/src",
                 "-I", "${workspaceRoot}/../../tdspp",
-                "-I", "${workspaceRoot}/../../json/src",
+                "-I", "${workspaceRoot}/../../json/single_include",
                 // "-I", "${workspaceRoot}/../store.models/src",
                 // "-I", "${workspaceRoot}/../store.storage/src",
                 // "-I", "${workspaceRoot}/../store.events/src",

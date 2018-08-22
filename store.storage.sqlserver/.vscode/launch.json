@@ -16,7 +16,7 @@
                 }
             ],
             "externalConsole": false,
-            "preLaunchTask": "Build test",
+            "preLaunchTask": "Build Mssql test",
             "logging": {
                 "moduleLoad": false,
                 "trace": true
