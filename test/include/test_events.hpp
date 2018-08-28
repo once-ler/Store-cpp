@@ -7,6 +7,7 @@
 #include "store.events/src/event.hpp"
 #include "store.models/src/models.hpp"
 #include "store.common/src/time.hpp"
+#include "store.common/src/spdlogger.hpp"
 
 using namespace std;
 using namespace store::common;
@@ -65,12 +66,13 @@ namespace test {
       Droid r2{ "1", "r2d2", getCurrentTimeString(true) };
       Human han{ "2", "han solo", getCurrentTimeString(true) };
       
-      enum class StreamType { Droid, Human };
+      enum class StreamType { Droid, Human, Generic };
 
       // Should be looked up from database.
       map<StreamType, string> streamMap = {
         { StreamType::Droid, "06606420-0bc4-4661-8f4a-9a04ef7caea1"},
-        { StreamType::Human, "c455c4fe-f1d2-473d-905b-0aa5671a95e2" }
+        { StreamType::Human, "c455c4fe-f1d2-473d-905b-0aa5671a95e2" },
+        { StreamType::Generic, "ea6bea7d-9050-4fa8-8b97-4819a8622e17" }
       };
       
       Event<Droid> droidEvent;
@@ -82,6 +84,14 @@ namespace test {
       humanEvent.streamId = streamMap[StreamType::Human];
       humanEvent.type = "HUMAN";
       humanEvent.data = han;
+
+      Event<IEvent> genericEvent;
+      genericEvent.streamId = streamMap[StreamType::Generic];
+      genericEvent.type = "FOOBAR";
+      genericEvent.data = R"({
+        "id": "123456",
+        "name": "FooBar"
+      })"_json;
 
       DBContext dbContext{ 
         dbConfig.value("applicationName", "store_pq"), 
@@ -97,8 +107,13 @@ namespace test {
       pgsql::Client<IEvent> pgClient{ dbContext };
       
       pgClient.events.setDbSchema("dwh");
+      // Set the logger to spdlog
+      auto spdLogger = make_shared<SpdLogger>("test_logger");
+      pgClient.logger = spdLogger;
+
       pgClient.events.Append<Droid>(droidEvent);
       pgClient.events.Append<Human>(humanEvent);
+      pgClient.events.Append<IEvent>(genericEvent);
 
       pgClient.events.Save();
 

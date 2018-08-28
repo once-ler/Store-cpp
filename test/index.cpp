@@ -25,14 +25,15 @@ using json = nlohmann::json;
 
 int main() {
   {
-    test::logger::test_splog_spec();
-    return 0;
-  }
-  {
     test::events::test_events();
     return 0;
   }
-
+  
+  {
+    test::logger::test_splog_spec();
+    return 0;
+  }
+  
   using namespace test::fixtures;
 
   Droid c3po, k2so;
