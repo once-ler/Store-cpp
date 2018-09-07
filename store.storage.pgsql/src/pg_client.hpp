@@ -84,9 +84,8 @@ namespace store {
               }
             }
 
-            auto eventIds = mapEvents<string>(pending, [](const IEvent& e) { return generate_uuid(); });
-            auto eventTypes = mapEvents<string>(pending, [](const IEvent& e) { return e.type; });
-            auto bodies = mapEvents<string>(pending, [](const IEvent& e) { return e.data.dump(); });
+            // Clear pending collection.
+            this->Reset();
 
             return 0;
           }

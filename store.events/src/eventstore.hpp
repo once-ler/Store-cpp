@@ -18,6 +18,14 @@ namespace store {
       }
 
       /// <summary>
+      /// Save() should be overridden.  Then Reset() should be called.
+      /// </summary>
+      /// <returns></returns>
+      void Reset() {
+        pending.clear();
+      }
+
+      /// <summary>
       /// The database schema that will be used by the event store.
       /// This only makes sense for databases that can support schemas.
       /// </summary>
