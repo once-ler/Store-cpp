@@ -97,6 +97,19 @@ namespace store {
       return std::move(r);
     }
 
+    inline string generate_uuid_v3(const char* url) {
+      uuid id;
+      uuid id_ns;
+
+      id_ns.load("ns:URL");
+      id.make(UUID_MAKE_V3, &id_ns, url);
+      const char* sid = id.string();
+      std::string r(sid);
+      delete sid;
+
+      return std::move(r);
+    }
+
     template<typename R, typename... T>
     R getPathValueFromJson(const shared_ptr<json>& j, T&&... args) {
       vector<string> params = { args... };

@@ -25,6 +25,14 @@ using json = nlohmann::json;
 
 int main() {
   {
+    const string a = generate_uuid_v3("foobar");
+    cout << a << endl;
+    const string b = generate_uuid_v3("foobar");
+    cout << b << endl;
+    return 0;
+  }
+
+  {
     test::events::test_events();
     return 0;
   }
