@@ -145,9 +145,9 @@ namespace store::storage::mongo {
     shared_ptr<bsoncxx::document::value> makeBsonFromJson(const json& o) {
 	    auto builder = make_shared<bsoncxx::builder::stream::document>();
 
-      for (auto& x : json::iterator_wrapper(o)) {
-        auto k = x.key();
-        auto v = x.value();
+      for (auto it = o.begin(); it != o.end(); ++it) {
+        auto k = it.key();
+        auto v = it.value();
         auto p = o[k];
         if (!p.is_primitive()) {
         *builder << k << bsoncxx::types::b_document{ bsoncxx::from_json(v.dump()) };
