@@ -8,13 +8,13 @@
 using namespace std;
 
 namespace store::common {
-  string getCurrentTimeString(bool ISO_8601_fmt = false) {
+  string getTimeString(uint64_t timestamp, bool ISO_8601_fmt = false) {
+    std::time_t tt = 0.001 * timestamp;
     std::stringstream ss;
     tm localTime;
-    std::chrono::system_clock::time_point t = std::chrono::system_clock::now();
-    std::time_t now = std::chrono::system_clock::to_time_t(t);
-    localtime_r(&now, &localTime);
+    localtime_r(&tt, &localTime);
 
+    std::chrono::system_clock::time_point t = std::chrono::system_clock::now();
     const std::chrono::duration<double> tse = t.time_since_epoch();
     std::chrono::seconds::rep milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(tse).count() % 1000;
 
@@ -30,6 +30,13 @@ namespace store::common {
       ss << 'Z';
   
     return ss.str();
+  }
+
+  string getCurrentTimeString(bool ISO_8601_fmt = false) {
+    std::chrono::system_clock::time_point t = std::chrono::system_clock::now();
+    std::time_t now = std::chrono::system_clock::to_time_t(t);
+    
+    return getTimeString(1000 * now, ISO_8601_fmt);
   }
 
   // Reference: https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c
@@ -62,4 +69,15 @@ namespace store::common {
 
     return 1000 * timeSinceEpoch;
   }
+
+  // Expect format: "%Y-%m-%dT%H:%M:%S" 
+  uint64_t getTimeMilliseconds(const string& dateString, const string& format = "%Y-%m-%dT%H:%M:%s") {
+    struct std::tm tm;
+    std::istringstream ss(dateString);
+    ss >> std::get_time(&tm, format.c_str());
+    std::time_t time = mktime(&tm);
+
+    return 1000 * (time + getTimezoneOffsetSeconds());
+  }
+
 }
