@@ -36,7 +36,7 @@ MESSAGE( STATUS "CMAKE_CURRENT_SOURCE_DIR: " ${CMAKE_CURRENT_SOURCE_DIR} )
 
 set(SIMPLE_WEB_SERVER ${PROJECT_SOURCE_DIR}/../../Simple-Web-Server)
 set(SIMPLE_WEBSOCKET_SERVER ${PROJECT_SOURCE_DIR}/../../Simple-WebSocket-Server)
-set(JSON ${PROJECT_SOURCE_DIR}/../../json/single_include)
+set(JSON ${PROJECT_SOURCE_DIR}/../../json/single_include/nlohmann)
 set(SPDLOG ${PROJECT_SOURCE_DIR}/../../spdlog/include)
 # set(POSTGRESPP ${PROJECT_SOURCE_DIR}/../../postgrespp/postgrespp)
 

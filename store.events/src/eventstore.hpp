@@ -56,6 +56,18 @@ namespace store {
         throw("Not implemented error");
         return -1;
       }
+
+      /// <summary>
+      /// Returns a set of IEvent starting from a sequence id offset.
+      /// </summary>
+      /// <param name="type">The type of the IEvent.</param>
+      /// <param name="fromSeqId">The sequence id offset to search from.</param>
+      /// <param name="limit">The number of IEvent to return.</param>
+      /// <returns>vector[IEvent]</returns>
+      virtual vector<IEvent> Search(string type, int64_t fromSeqId, int limit = 10) {
+        throw("Not implemented error");
+        return vector<IEvent>{};
+      }
     protected:
       vector<IEvent> pending;
       string dbSchema = "dwh";

@@ -89,6 +89,48 @@ namespace store {
 
             return 0;
           }
+
+          vector<IEvent> Search(string type, int64_t fromSeqId, int limit = 10) override {
+            Postgres::Connection cnx;
+            vector<IEvent> events;
+
+            try {
+              cnx.connect(session->connectionInfo.c_str());
+
+              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where seq_id >= %d limit %d",
+                dbSchema.c_str(),
+                fromSeqId,
+                limit
+              );
+
+              auto& resp = cnx.execute(sql.c_str());
+
+              for (auto &row : resp) {
+                json data = json::parse(strip_soh(row.as<string>(5)));
+
+                IEvent ev{
+                  row.as<int64_t>(0),
+                  row.as<Primitive::uuid>(1),
+                  row.as<Primitive::uuid>(2),
+                  row.as<string>(3),
+                  row.as<int64_t>(4),
+                  data,
+                  row.as<int64_t>(6)
+                };
+
+                events.push_back(move(ev));
+              }
+            } catch (Postgres::ConnectionException e) {
+              session->logger->error(e.what());
+            } catch (Postgres::ExecutionException e) {
+              session->logger->error(e.what());
+            } catch (exception e) {
+              session->logger->error(e.what());
+            }
+
+            return events;
+          } 
+
         private:
           Client<T>* session;
 
