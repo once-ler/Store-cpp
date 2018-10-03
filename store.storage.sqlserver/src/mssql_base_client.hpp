@@ -53,6 +53,17 @@ namespace store::storage::mssql {
       }
     }
 
+    pair<int, string> execute(const string& sqlStmt) {
+      try {
+        db->connect(server_port, user, password);
+        db->execute(string("use " + database));
+        db->execute(sqlStmt);
+      } catch (TDSPP::Exception& e) {
+        return make_pair(0, e.message);
+      }
+      return make_pair(1, "Succeeded");
+    }
+
     /*
       @usage:
       client.insertOne("epic", "participant_hist", {"firstname", "lastname", "processed"}, "foo", "bar", 0);
@@ -86,10 +97,9 @@ namespace store::storage::mssql {
         db->execute(string("use " + database));
         db->execute(ss.str());
       } catch (TDSPP::Exception& e) {
-        // cerr << e.message << endl;
         return make_pair(0, e.message);
       }
-      return make_pair(1, "Succeeded");;
+      return make_pair(1, "Succeeded");
     }
 
   protected:

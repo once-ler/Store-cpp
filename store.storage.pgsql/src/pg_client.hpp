@@ -50,7 +50,7 @@ namespace store {
         public:
           explicit PgEventStore(Client<T>* session_) : session(session_) {}
 
-          int Save() override {
+          pair<int, string> Save() override {
             const auto& streams = groupBy(pending.begin(), pending.end(), [](IEvent& e) { return e.streamId; });
 
             for (const auto& o : streams) {
@@ -77,17 +77,20 @@ namespace store {
                 const auto& resp = cnx.execute(stmt.c_str()).template asArray<int>(0);
               } catch (Postgres::ConnectionException e) {
                 session->logger->error(e.what());
+                return make_pair(0, e.what());
               } catch (Postgres::ExecutionException e) {
                 session->logger->error(e.what());
+                return make_pair(0, e.what());
               } catch (exception e) {
                 session->logger->error(e.what());
+                return make_pair(0, e.what());
               }
             }
 
             // Clear pending collection.
             this->Reset();
 
-            return 0;
+            return make_pair(1, "Succeeded");
           }
 
           vector<IEvent> Search(string type, int64_t fromSeqId, int limit = 10) override {

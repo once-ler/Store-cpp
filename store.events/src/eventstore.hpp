@@ -42,9 +42,9 @@ namespace store {
       /// Default version is "master".
       /// </summary>
       /// <returns></returns>
-      virtual int Save() {
+      virtual pair<int, string> Save() {
         throw("Not implemented error");
-        return -1;
+        return make_pair(0, "Failed");
       }
 
       /// <summary>
@@ -52,9 +52,9 @@ namespace store {
       /// </summary>
       /// <param name="version">The VersionControl identifier for this IModel.</param>
       /// <returns></returns>
-      virtual int Save(const string& version) {
+      virtual pair<int, string> Save(const string& version) {
         throw("Not implemented error");
-        return -1;
+        return make_pair(0, "Failed");
       }
 
       /// <summary>
