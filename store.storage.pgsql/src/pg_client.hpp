@@ -100,9 +100,9 @@ namespace store {
             try {
               cnx.connect(session->connectionInfo.c_str());
 
-              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where seq_id >= %d limit %d",
+              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where seq_id >= %lld limit %d",
                 dbSchema.c_str(),
-                fromSeqId,
+                (long long)fromSeqId,
                 limit
               );
 
@@ -118,7 +118,7 @@ namespace store {
                   row.as<string>(3),
                   row.as<int64_t>(4),
                   data,
-                  row.as<int64_t>(6)
+                  row.as<db::postgres::timestamp_t>(6)
                 };
 
                 events.push_back(move(ev));
