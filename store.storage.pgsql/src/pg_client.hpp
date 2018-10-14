@@ -93,15 +93,62 @@ namespace store {
             return make_pair(1, "Succeeded");
           }
 
-          vector<IEvent> Search(string type, int64_t fromSeqId, int limit = 10) override {
+          int64_t LastExecution(const string& type) override {
+            Postgres::Connection cnx;
+            int64_t seqId = 0;
+
+            try {
+              cnx.connect(session->connectionInfo.c_str());
+
+              string createTable = Extensions::string_format(R"SQL(
+                create table if not exists "%s"."mt_last_execution" (
+                  type varchar(250) primary key,
+                  seq_id bigint
+                );                
+              )SQL", dbSchema.c_str());
+
+              cnx.execute(createTable.c_str());
+
+              auto sql = Extensions::string_format("select seq_id from %s.mt_last_execution where type ilike '%s'",
+                dbSchema.c_str(),
+                type.c_str()
+              );
+
+              auto& resp = cnx.execute(sql.c_str());
+
+              auto it = resp.begin();
+
+              if ((*it).num() > 0) {
+                seqId = (*it).as<int64_t>(0);
+              } else {
+                string insertDefault = Extensions::string_format(R"SQL(
+                  insert into "%s"."mt_last_execution" (type, seq_id) values ('%s', 0) on conflict do nothing;
+                )SQL", dbSchema.c_str(), type.c_str());
+
+                cnx.execute(insertDefault.c_str());
+              }
+              
+            } catch (Postgres::ConnectionException e) {
+              session->logger->error(e.what());
+            } catch (Postgres::ExecutionException e) {
+              session->logger->error(e.what());
+            } catch (exception e) {
+              session->logger->error(e.what());
+            }
+
+            return seqId;
+          }
+
+          vector<IEvent> Search(const string& type, int64_t fromSeqId, int limit = 10) override {
             Postgres::Connection cnx;
             vector<IEvent> events;
 
             try {
               cnx.connect(session->connectionInfo.c_str());
 
-              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where seq_id >= %lld limit %d",
+              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where type ~* '%s' seq_id >= %lld limit %d",
                 dbSchema.c_str(),
+                type.c_str(),
                 (long long)fromSeqId,
                 limit
               );
