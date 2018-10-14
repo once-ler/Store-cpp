@@ -5,6 +5,62 @@ using namespace store::models;
 using namespace store::storage::mssql;
 using json = nlohmann::json;
 
+void sqlToJson(Field* fd, json& j) {
+  auto cname = fd->colname;
+  int datatype = fd->getDataType();
+
+  switch (datatype) {
+    case CS_REAL_TYPE: case CS_FLOAT_TYPE: case CS_MONEY_TYPE: case CS_MONEY4_TYPE: case CS_NUMERIC_TYPE: case CS_DECIMAL_TYPE: 
+    {
+      j[cname] = fd->to_double();
+    }
+    case CS_INT_TYPE: case CS_UINT_TYPE:
+    {
+      j[cname] = fd->to_int();
+    }
+    case CS_BIGINT_TYPE: case CS_UBIGINT_TYPE: case CS_BIGDATETIME_TYPE: case CS_BIGTIME_TYPE:
+    {
+      j[cname] = fd->to_int64();
+    } 
+    default:
+      j[cname] = fd->to_str();
+  }
+}
+
+int spec_1() {
+  DBContext db_ctx("testing", "localhost", 1433, "master", "admin", "12345678", 30);
+  
+  using MsSqlClient = store::storage::mssql::MsSqlClient<IEvent>;
+  MsSqlClient sqlClient(db_ctx);
+
+  string fakesql = "select convert(bigint, 999) rowid, 'PROJECT_STATUS' prefix_type, 'FOO' type, '1234' id, 'ALIVE' status";    
+
+  auto q = sqlClient->runQuery(fakesql);  
+
+  if (q != nullptr) {
+    while (!q->eof()) {
+      json j(nullptr);
+
+      cout << "| ";
+      for (int i=0; i < q->fieldcount; i++) {
+        auto fd = q->fields(i);
+        auto v2 = fd->to_str();
+        cout << v2 << " | ";
+        cout << fd->getDataType() << endl;
+
+        sqlToJson(fd, j);
+      }
+
+      cout << j.dump(2) << endl;
+
+      q->next();
+    }
+
+  } else {
+    cout << "Failure" << endl;
+  }
+}
+
 int spec_0() {
   DBContext db_ctx("testing", "localhost", 1433, "master", "admin", "12345678", 30);
   
