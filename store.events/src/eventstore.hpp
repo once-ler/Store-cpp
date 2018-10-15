@@ -73,8 +73,9 @@ namespace store {
       /// Returns the sequence id offset of an event type.
       /// </summary>
       /// <param name="type">The type of the IEvent.</param>
+      /// <param name="subscriber">The application interested in the IEvent.</param>
       /// <returns>[BigInt]</returns>
-      virtual int64_t LastExecution(const string& type) {
+      virtual int64_t LastExecution(const string& type, const string& subscriber) {
         throw("Not implemented error");
         return 0;
       }

@@ -93,7 +93,7 @@ namespace store {
             return make_pair(1, "Succeeded");
           }
 
-          int64_t LastExecution(const string& type) override {
+          int64_t LastExecution(const string& type, const string& subscriber) override {
             Postgres::Connection cnx;
             int64_t seqId = 0;
 
@@ -102,16 +102,19 @@ namespace store {
 
               string createTable = Extensions::string_format(R"SQL(
                 create table if not exists "%s"."mt_last_execution" (
-                  type varchar(250) primary key,
-                  seq_id bigint
+                  stream uuid not null REFERENCES %s.mt_streams ON DELETE CASCADE,
+                  subscriber varchar(250) not null,
+                  seq_id bigint,
+                  primary key(stream, subscriber)
                 );                
-              )SQL", dbSchema.c_str());
+              )SQL", dbSchema.c_str(), dbSchema.c_str());
 
               cnx.execute(createTable.c_str());
 
-              auto sql = Extensions::string_format("select seq_id from %s.mt_last_execution where type ilike '%s'",
+              auto sql = Extensions::string_format("select seq_id from %s.mt_last_execution where stream = '%s' and subscriber = '%s'",
                 dbSchema.c_str(),
-                type.c_str()
+                generate_uuid_v3(type.c_str()).c_str(),
+                subscriber.c_str()
               );
 
               auto& resp = cnx.execute(sql.c_str());
@@ -122,8 +125,8 @@ namespace store {
                 seqId = (*it).as<int64_t>(0);
               } else {
                 string insertDefault = Extensions::string_format(R"SQL(
-                  insert into "%s"."mt_last_execution" (type, seq_id) values ('%s', 0) on conflict do nothing;
-                )SQL", dbSchema.c_str(), type.c_str());
+                  insert into "%s"."mt_last_execution" (stream, subscriber, seq_id) values ('%s', '%s', 0) on conflict do nothing;
+                )SQL", dbSchema.c_str(), generate_uuid_v3(type.c_str()).c_str(), subscriber.c_str());
 
                 cnx.execute(insertDefault.c_str());
               }
@@ -146,7 +149,7 @@ namespace store {
             try {
               cnx.connect(session->connectionInfo.c_str());
 
-              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where type ~* '%s' seq_id >= %lld limit %d",
+              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where type ~* '%s' and seq_id >= %lld limit %d",
                 dbSchema.c_str(),
                 type.c_str(),
                 (long long)fromSeqId,
