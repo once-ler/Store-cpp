@@ -7,6 +7,7 @@
 #include <ctpublic.h>
 #include "tdspp.hh"
 #include "store.common/src/runtime_get_tuple.hpp"
+#include "store.common/src/logger.hpp"
 
 using namespace store::common;
 
@@ -32,7 +33,7 @@ namespace store::storage::mssql {
   class MsSqlBaseClient {
     friend TDSPP;
   public:
-    const string version = "0.1.11";
+    const string version = "0.1.12";
     MsSqlBaseClient(const string& server_, int port_, const string& database_, const string& user_, const string& password_) :
       server(server_), port(port_), database(database_), user(user_), password(password_) {
       db = make_shared<TDSPP>();
@@ -48,9 +49,10 @@ namespace store::storage::mssql {
         Query* q = db->sql(sqlStmt);
         q->execute();
         return make_shared<Query>(move(*q));
-      } catch (...) {
-        return nullptr;
+      } catch (TDSPP::Exception& e) {
+        logger->error(e.message.c_str());
       }
+      return nullptr;
     }
 
     pair<int, string> execute(const string& sqlStmt) {
@@ -59,6 +61,7 @@ namespace store::storage::mssql {
         db->execute(string("use " + database));
         db->execute(sqlStmt);
       } catch (TDSPP::Exception& e) {
+        logger->error(e.message.c_str());
         return make_pair(0, e.message);
       }
       return make_pair(1, "Succeeded");
@@ -97,10 +100,14 @@ namespace store::storage::mssql {
         db->execute(string("use " + database));
         db->execute(ss.str());
       } catch (TDSPP::Exception& e) {
+        logger->error(e.message.c_str());
         return make_pair(0, e.message);
       }
       return make_pair(1, "Succeeded");
     }
+
+    // Default logger.
+    shared_ptr<ILogger> logger = make_shared<ILogger>();
 
   protected:
     shared_ptr<TDSPP> db;
