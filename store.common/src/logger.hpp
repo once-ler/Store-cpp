@@ -8,16 +8,32 @@ namespace store::common {
       std::cout << msg << std::endl;
     }
 
+    template<typename... Args>
+    void debug(const char *fmt, const Args &... args) {}
+
     virtual void info(const char* msg) {
       std::cout << msg << std::endl;
     }
+
+    template<typename... Args>
+    void info(const char *fmt, const Args &... args) {}
 
     virtual void warn(const char* msg) {
       std::cerr << msg << std::endl;
     }
 
+    template<typename... Args>
+    void warn(const char *fmt, const Args &... args) {}
+
     virtual void error(const char* msg) {
       std::cerr << msg << std::endl;
     }
+
+    template<typename... Args>
+    void error(const char *fmt, const Args &... args) {}
+
+    virtual void flush() {}
+
+    virtual inline void dropLogging(const string& logName_ = "") noexcept {}
   };
 }
