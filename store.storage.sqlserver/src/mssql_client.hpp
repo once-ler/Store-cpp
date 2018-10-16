@@ -68,12 +68,15 @@ namespace store::storage::mssql {
         case CS_DATETIME_TYPE: case CS_DATETIME4_TYPE:
         {
           struct tm tm;
-          auto res = strptime(fd->to_str().c_str(), "%B %d %Y %I:%M:%S %p",&tm);
+          strptime(fd->to_str().c_str(), "%B %d %Y %I:%M:%S %p",&tm);
           
           if (fd->to_str().find("PM") != string::npos)
             tm.tm_hour += 12;
 
-          j[cname] = std::put_time(&tm, "%Y-%m-%d %X");
+          ostringstream ss;
+          ss << std::put_time(&tm, "%Y-%m-%d %X");
+          
+          j[cname] = ss.str();
           break;
         }
         default:
