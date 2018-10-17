@@ -14,6 +14,8 @@ using namespace store::interfaces;
 using namespace store::models;
 using namespace store::events;
 
+using json = nlohmann::json;
+
 namespace store {
   namespace storage {
     template<typename T>
@@ -23,7 +25,9 @@ namespace store {
       
       BaseClient() = default;
       ~BaseClient() = default;
-      BaseClient(DBContext _dbContext) : dbContext(_dbContext) {}      
+      BaseClient(DBContext _dbContext) : dbContext(_dbContext) {}
+
+      virtual vector<shared_ptr<json>> runQueryJson(const string& sqlStmt) {}
     protected:
       /* Example of a EventStore. */
       class BaseEventStore : public EventStore {
@@ -38,7 +42,7 @@ namespace store {
         }
       protected:
         BaseClient<T>* session;
-      };
+      };      
     };
   }
 }

@@ -19,7 +19,7 @@ namespace store::storage::mssql {
       BaseClient<T>(_dbContext),
       MsSqlBaseClient(_dbContext.server, _dbContext.port, _dbContext.database, _dbContext.user, _dbContext.password) {}
   
-    vector<shared_ptr<json>> runQueryJson(const string& sqlStmt) {
+    vector<shared_ptr<json>> runQueryJson(const string& sqlStmt) override {
       vector<shared_ptr<json>> a;
 
       auto q = runQuery(sqlStmt);
