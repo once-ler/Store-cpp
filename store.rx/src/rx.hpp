@@ -50,12 +50,29 @@ namespace store::rx {
       };
     };
 
+  // Obervable
+  template<typename A>
+  decltype(auto) generateStoreSource =
+    [](vector<shared_ptr<A>> a){
+      return Rx::observable<>::iterate(a);
+    };
+
   // Observer
   template<typename A>
   decltype(auto) onNextEvent =
     [](EventStore& publisher) {
       return [&](auto ev){
         publisher.Append<A>(*ev);
+      };
+    };
+
+  template<typename A, typename B>
+  decltype(auto) onNextStoreModel =
+    [](shared_ptr<BaseClient<A>> publisher) {
+      return [&](const string& schema) {
+        return [&](B obj){
+          publisher->save(schema, *obj);
+        };
       };
     };
 
