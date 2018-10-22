@@ -28,21 +28,6 @@ namespace store {
       BaseClient(DBContext _dbContext) : dbContext(_dbContext) {}
 
       virtual vector<shared_ptr<json>> runQueryJson(const string& sqlStmt) {}
-
-      template<typename U>
-      U save(string version, U doc){}
-
-      template<typename U>
-      void append(U doc) {
-        json j = doc;
-        pending.push_back(move(j));
-      }
-
-      void reset() {
-        pending.clear();
-      }
-
-      vector<json> pending;
     protected:
       /* Example of a EventStore. */
       class BaseEventStore : public EventStore {
