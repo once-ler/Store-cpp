@@ -84,6 +84,24 @@ namespace store::rx {
         };
       };
     };
+
+  // Observer
+  template<typename B>
+  decltype(auto) onNextIgnore =
+    []() {
+      return [](const B& a) {
+        // No op.
+      };
+    };
+
+  // Observer
+  template<typename B>
+  decltype(auto) onNextSharedIgnore =
+    []() {
+      return [](shared_ptr<B> a) {
+        // No op.
+      };
+    };
  
   auto onAllEventsCompleted = 
     [](EventStore& publisher) {

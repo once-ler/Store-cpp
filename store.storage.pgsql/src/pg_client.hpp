@@ -274,7 +274,7 @@ namespace store {
         }
 
         template<typename U>
-        U save(string version, U doc) {
+        string save(string version, U doc) {
           auto func = this->Save([this, &doc](string version) {
             const auto tableName = resolve_type_to_string<U>();
 
@@ -286,9 +286,9 @@ namespace store {
               on conflict (id) do update set ts = now(), current = EXCLUDED.current, history = EXCLUDED.history
             )SQL", version.c_str(), tableName.c_str(), j.value("id", "").c_str(), j.value("name", "").c_str(), j.value("type", "").c_str(), j.value("related", "").c_str(), j.dump().c_str());
 
-            this->save(sql);
+            auto res = this->save(sql);
 
-            return doc;
+            return res;
           });
 
           return func(version);
