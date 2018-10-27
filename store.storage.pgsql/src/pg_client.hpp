@@ -339,15 +339,23 @@ namespace store {
         }
 
         template<typename U>
-        vector<U> list(string version = "master", int offset = 0, int limit = 10, string sortKey = "id", string sortDirection = "Asc") {
+        vector<U> list(
+          string version = "master", 
+          int offset = 0, 
+          int limit = 10, 
+          string sortKey = "id", 
+          string sortDirection = "Asc",
+          string query = "select current from %s.%s order by current->>'%s' %s offset %d limit %d"
+        ) {
           
-          auto func = this->List([this](string version, int offset, int limit, string sortKey, string sortDirection) {
+          auto func = this->List([this, &query](string version, int offset, int limit, string sortKey, string sortDirection) {
             Postgres::Connection cnx;
             vector<json> jsons;
             vector<U> pocos;
 
             try {
-              auto sql = Extensions::string_format("select current from %s.%s order by current->>'%s' %s offset %d limit %d",
+              auto sql = Extensions::string_format(
+                query,
                 version.c_str(),
                 resolve_type_to_string<U>().c_str(),
                 sortKey.c_str(),
@@ -378,6 +386,45 @@ namespace store {
 
           return func(version, offset, limit, sortKey, sortDirection);
         }
+
+        template<typename A>
+        vector<A> search(const string& version, const string& field, const string& search, int offset = 0, int limit = 10, const string& sortKey = "id", const string& sortDirection = "Asc") {
+
+          string sql = "select current from %s.%s where current->>'%s' ~* '%s' order by current->>'%s' %s offset %d limit %d";
+
+          auto query = Extensions::string_format(
+            sql,
+            version.c_str(),
+            resolve_type_to_string<A>().c_str(),
+            field.c_str(),
+            search.c_str(),
+            sortKey.c_str(),
+            sortDirection.c_str(),
+            offset,
+            limit
+          );
+
+          return list<A>(version, offset, limit, sortKey, sortDirection, query);
+        }
+
+        template<typename A>
+        shared_ptr<A> one(const string& version, const string& field, const string& search) {
+        
+          string sql = "select current from %s.%s where current->>'%s' = '%s' limit 1";
+
+          auto query = Extensions::string_format(
+            sql,
+            version.c_str(),
+            resolve_type_to_string<A>().c_str(),
+            field.c_str(),
+            search.c_str()
+          );
+
+          auto a = list<A>(version, 0, 1, "id", "ASC", query);
+
+          return a.size() == 0 ? nullptr : make_shared<A>(a.at(0));
+        }
+
       protected:
         string connectionInfo;        
 
