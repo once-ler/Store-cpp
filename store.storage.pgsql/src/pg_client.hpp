@@ -388,9 +388,19 @@ namespace store {
         }
 
         template<typename A>
-        vector<A> search(const string& version, const string& field, const string& search, int offset = 0, int limit = 10, const string& sortKey = "id", const string& sortDirection = "Asc") {
+        vector<A> search(
+          const string& version, 
+          const string& field, 
+          const string& search,
+          const string& type = "",
+          int offset = 0, 
+          int limit = 10, 
+          const string& sortKey = "id", 
+          const string& sortDirection = "Asc"
+        ) {
 
-          string sql = "select current from %s.%s where current->>'%s' ~* '%s' order by current->>'%s' %s offset %d limit %d";
+          string sql = "select current from %s.%s where current->>'%s' ~* '%s' and type = coalesce(%s, type) order by current->>'%s' %s offset %d limit %d";
+          string typeFilter = type.size() > 0 ? wrapString(type) : "null";
 
           auto query = Extensions::string_format(
             sql,
@@ -398,6 +408,7 @@ namespace store {
             resolve_type_to_string<A>().c_str(),
             field.c_str(),
             search.c_str(),
+            typeFilter.c_str(),
             sortKey.c_str(),
             sortDirection.c_str(),
             offset,
@@ -408,16 +419,18 @@ namespace store {
         }
 
         template<typename A>
-        shared_ptr<A> one(const string& version, const string& field, const string& search) {
+        shared_ptr<A> one(const string& version, const string& field, const string& search, const string& type = "") {
         
-          string sql = "select current from %s.%s where current->>'%s' = '%s' limit 1";
+          string sql = "select current from %s.%s where current->>'%s' = '%s' and type = coalesce(%s, type) limit 1";
+          string typeFilter = type.size() > 0 ? wrapString(type) : "null";
 
           auto query = Extensions::string_format(
             sql,
             version.c_str(),
             resolve_type_to_string<A>().c_str(),
             field.c_str(),
-            search.c_str()
+            search.c_str(),
+            typeFilter.c_str()
           );
 
           auto a = list<A>(version, 0, 1, "id", "ASC", query);
