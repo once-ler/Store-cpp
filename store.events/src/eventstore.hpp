@@ -74,8 +74,9 @@ namespace store {
       /// </summary>
       /// <param name="type">The type of the IEvent.</param>
       /// <param name="subscriber">The application interested in the IEvent.</param>
+      /// <param name="newSeqId">If value is greater than -1, this value will be used as the new sequence id.</param>
       /// <returns>[BigInt]</returns>
-      virtual int64_t LastExecution(const string& type, const string& subscriber) {
+      virtual int64_t LastExecution(const string& type, const string& subscriber, int64_t newSeqId = -1) {
         throw("Not implemented error");
         return 0;
       }

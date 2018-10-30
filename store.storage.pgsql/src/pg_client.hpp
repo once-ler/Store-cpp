@@ -93,7 +93,7 @@ namespace store {
             return make_pair(1, "Succeeded");
           }
 
-          int64_t LastExecution(const string& type, const string& subscriber) override {
+          int64_t LastExecution(const string& type, const string& subscriber, int64_t newSeqId = -1) override {
             Postgres::Connection cnx;
             int64_t seqId = 0;
 
@@ -125,10 +125,19 @@ namespace store {
                 seqId = (*it).as<int64_t>(0);
               } else {
                 string insertDefault = Extensions::string_format(R"SQL(
-                  insert into "%s"."mt_last_execution" (stream, subscriber, seq_id) values ('%s', '%s', 0) on conflict do nothing;
+                  insert into "%s"."mt_last_execution" (stream, subscriber, seq_id) values ('%s', '%s', -1) on conflict do nothing;
                 )SQL", dbSchema.c_str(), generate_uuid_v3(type.c_str()).c_str(), subscriber.c_str());
 
                 cnx.execute(insertDefault.c_str());
+              }
+
+              if (newSeqId > -1) {
+                string setNextSeqId = Extensions::string_format(R"SQL(
+                  update "%s"."mt_last_execution" set seq_id = %lld where stream = '%s' and subscriber = '%s';
+                )SQL", dbSchema.c_str(), (long long)newSeqId, generate_uuid_v3(type.c_str()).c_str(), subscriber.c_str());
+
+                cnx.execute(setNextSeqId.c_str());
+                seqId = newSeqId;
               }
               
             } catch (Postgres::ConnectionException e) {
@@ -149,7 +158,7 @@ namespace store {
             try {
               cnx.connect(session->connectionInfo.c_str());
 
-              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where type ~* '%s' and seq_id >= %lld limit %d",
+              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where type ~* '%s' and seq_id > %lld limit %d",
                 dbSchema.c_str(),
                 type.c_str(),
                 (long long)fromSeqId,
