@@ -101,6 +101,17 @@ namespace store {
       return ltrim(rtrim(str, chars), chars);
     }
 
+    // find_if(arr.begin(), arr.end(), insensitiveCompare("something")) != arr.end()
+    auto insensitiveCompare = [](string a) {
+      return [&](string b) {
+        return std::equal(a.begin(), a.end(),
+          b.begin(), b.end(),
+          [](char a, char b) {
+            return tolower(a) == tolower(b);
+          });
+      };
+    };
+
     inline string generate_uuid(int vers = UUID_MAKE_V4) {
       uuid id;
       id.make(vers);
