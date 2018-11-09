@@ -54,7 +54,10 @@ namespace store::rx {
   decltype(auto) generateEvent =
     [](const string& streamType) {
       // e could be shared_ptr<json> or shared_ptr<A>
-      return [&](auto e){
+      return [&](auto& e) -> shared_ptr<Event<A>> {
+        if (e == nullptr)
+          return nullptr;
+
         auto ev = make_shared<Event<A>>();
         ev->streamId = generate_uuid_v3(streamType.c_str());
         ev->type = streamType;
@@ -68,7 +71,8 @@ namespace store::rx {
   decltype(auto) onNextEvent =
     [](EventStore& publisher) {
       return [&](shared_ptr<Event<A>> ev){
-        publisher.Append(*ev);
+        if (ev != nullptr)
+          publisher.Append(*ev);
       };
     };
 
@@ -78,7 +82,8 @@ namespace store::rx {
     [](const string& schema) {
       return [&](shared_ptr<pgsql::Client<A>> publisher) {
         return [&](shared_ptr<B> obj){
-          publisher->save(schema, *obj);
+          if (obj != nullptr) 
+            publisher->save(schema, *obj);
         };
       };
     };
