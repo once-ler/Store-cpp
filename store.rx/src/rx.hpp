@@ -23,9 +23,7 @@ using json = nlohmann::json;
 namespace store::rx {
 
   decltype(auto) RxEventLoop = Rx::observe_on_event_loop();
-  auto scheduler = rxcpp::identity_current_thread();
-  auto period = std::chrono::seconds(2);
-
+  
   // Observable
   template<typename A>
   decltype(auto) generateSourceFromSql =

@@ -242,21 +242,29 @@ namespace store {
           return move(retval);
         }
 
+        /*
+          By default, a tablespace with the name of the schema is expected to exist.
+          If not, pass false to useSchemaTablespace.
+        */
         template<typename A>
-        string createStore(const string& tableSchema){
+        string createStore(const string& tableSchema, bool useSchemaTablespace = true){
           const auto tableName = resolve_type_to_string<A>();
           
           string createTable = Extensions::string_format(R"SQL(
             create table if not exists "%s"."%s" (
               id varchar(120) primary key,
               name character varying(500),
-              ts timestamp default current_timestamp,
+              ts timestamp with time zone default current_timestamp,
               type varchar(250),
               related varchar(120),
               current jsonb,
               history jsonb
-            );                
-          )SQL", tableSchema.c_str(), tableName.c_str()); 
+            ) tablespace %s;                
+          )SQL",
+            tableSchema.c_str(),
+            tableName.c_str()
+            (useSchemaTablespace ? tableSchema.c_str(): string("pg_default").c_str())  
+          ); 
 
           vector<string> indxs{"name", "ts", "type", "related", "current", "history"};
           string createIndexes = std::accumulate(indxs.begin(), indxs.end(),
