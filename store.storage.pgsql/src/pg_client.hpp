@@ -262,7 +262,7 @@ namespace store {
             ) tablespace %s;                
           )SQL",
             tableSchema.c_str(),
-            tableName.c_str()
+            tableName.c_str(),
             (useSchemaTablespace ? tableSchema.c_str(): string("pg_default").c_str())  
           ); 
 
