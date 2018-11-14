@@ -271,7 +271,7 @@ namespace store {
           vector<string> indxs{"name", "ts", "type", "related", "current", "history"};
           string createIndexes = std::accumulate(indxs.begin(), indxs.end(),
             string{}, 
-            [&tableSchema, &tableName](auto m, const auto& name){
+            [&tableSchema, &tableName, &indexTablespace](auto m, const auto& name){
               string ret = m + Extensions::string_format("create index if not exists %s_%s_idx on %s.%s ",
                 tableName.c_str(), name.c_str(), tableSchema.c_str(), tableName.c_str());
               
