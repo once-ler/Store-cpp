@@ -249,6 +249,8 @@ namespace store {
         template<typename A>
         string createStore(const string& tableSchema, bool useSchemaTablespace = true){
           const auto tableName = resolve_type_to_string<A>();
+          string tablespaceName = useSchemaTablespace ? tableSchema : "pg_default";
+          string indexTablespace = useSchemaTablespace ? tableSchema + "_idx" : "pg_default";
           
           string createTable = Extensions::string_format(R"SQL(
             create table if not exists "%s"."%s" (
@@ -263,7 +265,7 @@ namespace store {
           )SQL",
             tableSchema.c_str(),
             tableName.c_str(),
-            (useSchemaTablespace ? tableSchema.c_str(): string("pg_default").c_str())  
+            tablespaceName.c_str()  
           ); 
 
           vector<string> indxs{"name", "ts", "type", "related", "current", "history"};
@@ -274,9 +276,9 @@ namespace store {
                 tableName.c_str(), name.c_str(), tableSchema.c_str(), tableName.c_str());
               
               if (regex_match(name, regex("\\bcurrent\\b|\\bhistory\\b")))
-                ret.append("using gin(" + name + " jsonb_ops)");
+                ret.append("using gin(" + name + " jsonb_ops) tablespace " + indexTablespace);
               else
-                ret.append("using btree(" + name + ")");
+                ret.append("using btree(" + name + ") tablespace " + indexTablespace);
               
               ret.append(";");
               return ret;
