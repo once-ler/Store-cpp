@@ -77,17 +77,17 @@ namespace store::common {
 
     // For storing the errors during runtime.
     // Implementer is responsible for emptying the collection.
-    void append_error(const std::string& errmsg) {
+    void append_error(const std::string& errmsg) override {
       errors.emplace_back(errmsg + "\n");
     }
 
-    std::string get_errors() {
+    std::string get_errors() override {
       std::string s;
       s = std::accumulate(std::begin(errors), std::end(errors), s);
       return s;
     }
 
-    void flush_errors() {
+    void flush_errors() override {
       errors.clear();
     }
 

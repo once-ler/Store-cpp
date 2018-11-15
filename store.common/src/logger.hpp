@@ -36,5 +36,11 @@ namespace store::common {
 
     virtual inline void dropLogging(const std::string& logName_ = "") noexcept {}
 
+    virtual void append_error(const std::string& errmsg) {}
+
+    virtual std::string get_errors() {}
+
+    virtual void flush_errors() {}
+
   };
 }
