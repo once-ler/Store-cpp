@@ -34,6 +34,7 @@ namespace store::common {
 
     virtual void flush() {}
 
-    virtual inline void dropLogging(const string& logName_ = "") noexcept {}
+    virtual inline void dropLogging(const std::string& logName_ = "") noexcept {}
+
   };
 }
