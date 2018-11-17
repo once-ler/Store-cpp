@@ -17,6 +17,10 @@ namespace store::common {
       setupLogging();
     }
 
+    explicit SpdLogger(const std::string& logName_, const std::string& subFolder, const bool& runtime_err_save_ = false) : ILogger(), logName(logName_), runtime_err_save(runtime_err_save_) {
+      setupLogging(subFolder);
+    }
+
     void debug (const char* msg) override {
       spdlog::get(logName)->debug(msg);
     }
@@ -53,10 +57,10 @@ namespace store::common {
 
     template<typename... Args>
     void error(const char *fmt, const Args &... args) {
-      spdlog::get(logName)->error(fmt, std::forward<const Args&>(args)...);
+      auto s = fmt::format(fmt, std::forward<const Args&>(args)...);
+      spdlog::get(logName)->error(s);
 
       if (runtime_err_save) {
-        auto s = fmt::format(fmt, std::forward<const Args&>(args)...);
         append_error(s);
       }
     }
@@ -97,22 +101,23 @@ namespace store::common {
     std::vector<std::string> errors;
     bool runtime_err_save = false;
 
-    void setupLogging() { 
-      if (boost::filesystem::create_directory("./log")){
+    void setupLogging(const std::string& subFolder = "") {
+      string dir = "log";
+      if (subFolder.size() > 0) {
+        dir.append("/" + subFolder);
+      } 
+      if (boost::filesystem::create_directories("./" + dir)){
         boost::filesystem::path full_path(boost::filesystem::current_path());
         std::cout << "Successfully created directory"
           << full_path
-          << "/log"
+          << dir
           << "\n";
       }
   
       if (spdlog::get(logName) != nullptr)
         return;
 
-      size_t q_size = 1048576; //queue size must be power of 2      
-      spdlog::init_thread_pool(q_size, 3);
-
-      auto asyncRotatingLogger = spdlog::rotating_logger_mt<spdlog::async_factory>(logName, "log/" + logName + ".txt", 1048576 * 5, 5);
+      auto asyncRotatingLogger = spdlog::rotating_logger_mt<spdlog::async_factory>(logName, dir + "/" + logName + ".txt", 1048576 * 5, 5);
       asyncRotatingLogger->set_pattern("[%Y-%m-%d %H:%M:%S:%e] [%l] [thread %t] %v");
 
       #ifdef DEBUG
