@@ -38,7 +38,7 @@ namespace store::common {
 
     virtual void append_error(const std::string& errmsg) {}
 
-    virtual std::string get_errors() {}
+    virtual std::string get_errors() { return ""; }
 
     virtual void flush_errors() {}
 
