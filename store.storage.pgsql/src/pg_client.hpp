@@ -56,13 +56,13 @@ namespace store {
             for (const auto& o : streams) {
               auto streamId = o.first;
               auto stream = o.second;
-              auto eventIds = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(generate_uuid()); });
-              auto eventTypes = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.type); });
-              auto bodies = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.data.dump()); });
+              auto eventIds = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(generate_uuid(), "$Q$"); });
+              auto eventTypes = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.type, "$Q$"); });
+              auto bodies = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.data.dump(), "$Q$"); });
               
               auto stmt = Extensions::string_format("select %s.mt_append_event(%s, %s, array[%s]::uuid[], array[%s]::varchar[], array[%s]::jsonb[])",
                 dbSchema.c_str(),
-                wrapString(streamId).c_str(),
+                wrapString(streamId, "$Q$").c_str(),
                 eventTypes.at(0).c_str(),
                 join(eventIds.begin(), eventIds.end(), string(",")).c_str(),
                 join(eventTypes.begin(), eventTypes.end(), string(",")).c_str(),
@@ -301,9 +301,15 @@ namespace store {
 
             string sql = Extensions::string_format(R"SQL(
               insert into %s.%s (id, name, ts, type, related, current)
-              values ('%s', '%s', now(), '%s', '%s', '%s')
+              values (%s, %s, now(), %s, %s, %s)
               on conflict (id) do update set ts = now(), current = EXCLUDED.current, history = EXCLUDED.history
-            )SQL", version.c_str(), tableName.c_str(), j.value("id", "").c_str(), j.value("name", "").c_str(), j.value("type", "").c_str(), j.value("related", "").c_str(), j.dump().c_str());
+            )SQL", version.c_str(), tableName.c_str(), 
+              wrapString(j.value("id", ""), "$Q$").c_str(), 
+              wrapString(j.value("name", ""), "$Q$").c_str(), 
+              wrapString(j.value("type", ""), "$Q$").c_str(),
+              wrapString(j.value("related", ""), "$Q$").c_str(),
+              wrapString(j.dump(), "$Q$").c_str()
+            );
 
             auto res = this->save(sql);
 
