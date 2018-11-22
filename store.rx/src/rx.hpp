@@ -55,7 +55,7 @@ namespace store::rx {
     [](const string& streamType) {
       // e could be shared_ptr<json> or shared_ptr<A>
       return [&](auto& e) -> shared_ptr<Event<A>> {
-        if (e == nullptr)
+        if (!e)
           return nullptr;
 
         auto ev = make_shared<Event<A>>();
@@ -71,7 +71,7 @@ namespace store::rx {
   decltype(auto) onNextEvent =
     [](EventStore& publisher) {
       return [&](shared_ptr<Event<A>> ev){
-        if (ev != nullptr)
+        if (ev)
           publisher.Append(*ev);
       };
     };
@@ -82,7 +82,7 @@ namespace store::rx {
     [](const string& schema) {
       return [&](shared_ptr<pgsql::Client<A>> publisher) {
         return [&](shared_ptr<B> obj){
-          if (obj != nullptr) 
+          if (obj) 
             publisher->save(schema, *obj);
         };
       };
