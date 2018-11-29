@@ -177,7 +177,7 @@ namespace store {
                   row.as<string>(3),
                   row.as<int64_t>(4),
                   data,
-                  row.as<db::postgres::timestamp_t>(6)
+                  row.as<db::postgres::timestamptz_t>(6)
                 };
 
                 events.push_back(move(ev));
