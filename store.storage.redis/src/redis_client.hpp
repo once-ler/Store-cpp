@@ -1,8 +1,11 @@
 #pragma once
 
 #include <cpp_redis/cpp_redis>
+#include "store.common/src/web_token.hpp"
 
 using namespace std;
+
+using namespace store::common;
 
 namespace store::storage::redis {
 
@@ -27,6 +30,23 @@ namespace store::storage::redis {
     public:
       explicit RedisSessionStore(Client* session_) : session(session_) {}
 
+      void set(json& j, int ttl = (60 * 60 * 24 * 1000)) {
+        createJwt(j);
+        
+        string sid = j["sid"];
+        string secret = j["secret"];
+
+        this->session->set(sid, ttl, secret);
+      }
+
+      void get(string sid, string& enc_str, function<void(pair<string, shared_ptr<jwt::jwt_object>>&)> func) {
+
+        this->session->get(sid, [&enc_str, &func](string&& secret){
+          auto pa = decryptJwt(secret, enc_str);
+
+          func(pa);
+        });
+      }
 
     private:
       Client* session;
@@ -68,6 +88,11 @@ namespace store::storage::redis {
 
     void set(string key, string value) {      
       client->set(key, value);      
+      client->sync_commit();
+    }
+
+    void set(string key, int ttl, string value) {     
+      client->psetex(key, ttl, value);      
       client->sync_commit();
     }
 

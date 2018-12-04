@@ -23,7 +23,7 @@ namespace store::common {
     std::time_t exp_time = std::chrono::system_clock::to_time_t(exp); 
     string ts = "";
     char str[100];
-    if (std::strftime(str, sizeof(str), "%F %T", std::localtime(&exp_time))) {
+    if (std::strftime(str, sizeof(str), "%F %T %Z%z", std::localtime(&exp_time))) {
       ts.assign(str);
     }
     
@@ -35,11 +35,11 @@ namespace store::common {
       return "";
 
     auto user = j["user"].get<string>();
-    auto key = generate_uuid();
+    auto sid = "sess:" + generate_uuid();
     auto shhh = generate_uuid();
     auto et = getExpirationTime(24);
 
-    j["key"] = key;
+    j["sid"] = sid;
     j["secret"] = shhh;
     j["expire"] = static_cast<int64_t>(et.epochTime * 1000);
     j["expire_ts"] = et.timeString; 
@@ -54,15 +54,40 @@ namespace store::common {
       secret(shhh)      
     };
 
-    obj.add_claim("exp", et.timePoint);
-    obj.header().add_header("key", key);
+    obj.add_claim("exp", j["expire"].get<int64_t>());
+    obj.header().add_header("sid", sid);
 
-    return obj.signature();
+    j["signature"] = obj.signature();
+
+    return j["signature"];
   };
 
   // header: x-access-token
-  auto decryptJwt = [](string key, string enc_str) -> jwt::jwt_object {
-    return jwt::decode(enc_str, algorithms({"hs256"}), secret(key));
+  auto decryptJwt = [](string key, string enc_str) -> pair<string, shared_ptr<jwt::jwt_object>> {
+    string error = "";
+    shared_ptr<jwt::jwt_object> dec = nullptr;
+
+    try {
+      auto obj = jwt::decode(enc_str, algorithms({"hs256"}), secret(key));
+      dec = make_shared<jwt::jwt_object>(obj);
+    } catch (const jwt::TokenExpiredError& e) {
+        //Handle Token expired exception here
+        error = e.what();
+      } catch (const jwt::SignatureFormatError& e) {
+        //Handle invalid signature format error
+        error = e.what();
+      } catch (const jwt::DecodeError& e) {
+        //Handle all kinds of other decode errors
+        error = e.what();
+      } catch (const jwt::VerificationError& e) {
+        // Handle the base verification error.
+        error = e.what();
+      } catch (...) {
+        error = "Caught unknown exception";
+      }
+
+    return make_pair(error, dec);
+
   };
 
 }
