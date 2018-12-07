@@ -8,7 +8,7 @@
 using namespace std;
 
 namespace store::common {
-  string getTimeString(uint64_t timestamp, bool ISO_8601_fmt = false) {
+  string getTimeString(int64_t timestamp, bool ISO_8601_fmt = false) {
     std::time_t tt = 0.001 * timestamp;
     std::stringstream ss;
     tm localTime;
@@ -57,7 +57,7 @@ namespace store::common {
     return (int)difftime(rawtime, gmt);
   }
 
-  uint64_t getCurrentTimeMilliseconds() {
+  int64_t getCurrentTimeMilliseconds() {
     string c;
     std::time_t rawtime;
     std::tm* timeinfo;
@@ -71,7 +71,7 @@ namespace store::common {
   }
 
   // Expect format: "%Y-%m-%dT%H:%M:%S" 
-  uint64_t getTimeMilliseconds(const string& dateString, const string& format = "%Y-%m-%dT%H:%M:%s") {
+  int64_t getTimeMilliseconds(const string& dateString, const string& format = "%Y-%m-%dT%H:%M:%s") {
     struct std::tm tm;
     std::istringstream ss(dateString);
     ss >> std::get_time(&tm, format.c_str());
