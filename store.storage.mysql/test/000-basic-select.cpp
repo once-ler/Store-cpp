@@ -6,18 +6,30 @@ g++ -std=c++14 -Wall -O0 -g3 -I ../../../ -I ../../../../amy/include -I /usr/loc
 
 using MyClient = store::storage::mysql::MyBaseClient;
 
-void simple_get(MyClient& client) {
-  client.connectAsync(R"(
-    SELECT character_set_name, maxlen
-    FROM information_schema.character_sets
-    WHERE character_set_name LIKE 'latin%'";
-  )")
+void simple_get(MyClient& client, string stub) {
+  client.connectAsync("SELECT '" + stub + "' stub, " +
+    R"(
+      character_set_name, maxlen
+      FROM information_schema.character_sets
+      WHERE character_set_name LIKE 'latin%';
+    )"
+  );
 }
 
 auto main(int argc, char *argv[]) -> int {
   auto client = MyClient("127.0.0.1", 3306, "test", "admin", "12345678");
+  
+  thread a([&client] {
+    simple_get(client, "1");
+  });
 
-  simple_get(client);
+  thread b([&client] {
+    simple_get(client, "2");
+  });
+
+  thread c([&client] {
+    simple_get(client, "3");
+  });
 
   thread t([]{while(true) std::this_thread::sleep_for(std::chrono::milliseconds(500));});
   t.join();
