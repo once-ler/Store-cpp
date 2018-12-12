@@ -48,7 +48,10 @@ set(LIBPQMXX ${PROJECT_SOURCE_DIR}/../../libpqmxx/include)
 set(TDSPP ${PROJECT_SOURCE_DIR}/../../tdspp)
 
 # https://github.com/arun11299/cpp-jwt.git
-set(CPPJWT) ${PROJECT_SOURCE_DIR}/../../cpp-jwt/include)
+set(CPPJWT ${PROJECT_SOURCE_DIR}/../../cpp-jwt/include)
+
+# https://github.com/liancheng/amy.git
+set(AMY ${PROJECT_SOURCE_DIR}/../../amy/include)
 
 include_directories(
     /usr/local/include
@@ -72,6 +75,7 @@ include_directories(
     "${TDSPP}"
     "${SPDLOG}"
     "${CPPJWT}"
+    "${AMY}"
     )
 
 # link_directories("${PROJECT_SOURCE_DIR}/../../postgrespp/lib")
