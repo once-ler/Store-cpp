@@ -1,6 +1,8 @@
 #pragma once
 
+#include <numeric>
 #include "json.hpp"
+#include "store.common/src/group_by.hpp"
 #include "store.models/src/primitive.hpp"
 
 using namespace std;
@@ -46,5 +48,32 @@ namespace store::events {
   struct Event : IEvent {
     T model;
   };
+
+  /*
+    Get the member with max sequence
+  */
+  vector<IEvent> getMaxEvent(vector<IEvent>& events) {
+    vector<IEvent> latest;
+
+    const auto& streams = groupBy(events.begin(), events.end(), [](IEvent& e) { return e.data.value("id", ""); });
+
+    for(const auto& o : streams) {
+      auto streamId = o.first;
+      auto stream = o.second;
+      IEvent base;
+      base.seqId = -1; 
+
+      IEvent maxEv = std::accumulate(stream.begin(), stream.end(),
+        base,
+        [](auto m, IEvent& ev) {
+          return ev.seqId > m.seqId ? ev : m;
+        }
+      );
+
+      latest.emplace_back(maxEv);
+    }
+
+    return latest;
+  }
 
 }
