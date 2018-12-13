@@ -151,15 +151,18 @@ namespace store {
             return seqId;
           }
 
-          vector<IEvent> Search(const string& type, int64_t fromSeqId, int limit = 10) override {
+          vector<IEvent> Search(const string& type, int64_t fromSeqId, int limit = 10, bool exact = true) override {
             Postgres::Connection cnx;
             vector<IEvent> events;
+
+            string matchExact = exact ? "=" : "~*";
 
             try {
               cnx.connect(session->connectionInfo.c_str());
 
-              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where type ~* '%s' and seq_id > %lld limit %d",
+              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where type %s '%s' and seq_id > %lld limit %d",
                 dbSchema.c_str(),
+                matchExact.c_str(),
                 type.c_str(),
                 (long long)fromSeqId,
                 limit

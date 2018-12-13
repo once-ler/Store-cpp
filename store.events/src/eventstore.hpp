@@ -63,8 +63,9 @@ namespace store {
       /// <param name="type">The type of the IEvent.</param>
       /// <param name="fromSeqId">The sequence id offset to search from.</param>
       /// <param name="limit">The number of IEvent to return.</param>
+      /// <param name="exact">Match the type exactly.</param>
       /// <returns>vector[IEvent]</returns>
-      virtual vector<IEvent> Search(const string& type, int64_t fromSeqId, int limit = 10) {
+      virtual vector<IEvent> Search(const string& type, int64_t fromSeqId, int limit = 10, bool exact = true) {
         throw("Not implemented error");
         return vector<IEvent>{};
       }
