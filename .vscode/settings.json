@@ -38,6 +38,8 @@
     "cstdlib": "cpp",
     "cstring": "cpp",
     "cwchar": "cpp",
-    "cwctype": "cpp"
+    "cwctype": "cpp",
+    "*.ipp": "cpp",
+    "iostream": "cpp"
   }
 }

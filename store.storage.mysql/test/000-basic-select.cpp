@@ -6,29 +6,49 @@ g++ -std=c++14 -Wall -O0 -g3 -I ../../../ -I ../../../../amy/include -I /usr/loc
 
 using MyClient = store::storage::mysql::MyBaseClient;
 
-void simple_get(MyClient& client, string stub) {
+void simple_get_async(MyClient& client, string stub) {
   client.connectAsync("SELECT '" + stub + "' stub, " +
     R"(
       character_set_name, maxlen
       FROM information_schema.character_sets
       WHERE character_set_name LIKE 'latin%';
-    )"
+    )",
+    [](AMY_SYSTEM_NS::error_code const& ec, amy::result_set& rs) {
+      const auto& fields_info = rs.fields_info();
+
+      std::cout
+        << "Affected rows: " << rs.affected_rows()
+        << ", field count: " << rs.field_count()
+        << ", result set size: " << rs.size()
+        << std::endl;
+
+      for (const auto& row : rs) {
+        std::cout
+          << fields_info[0].name() << ": " << row[0].as<std::string>() << ", "
+          << fields_info[1].name() << ": " << row[1].as<amy::sql_bigint>()
+          << std::endl;
+      }
+    }
+
   );
 }
 
 auto main(int argc, char *argv[]) -> int {
-  auto client = MyClient("127.0.0.1", 3306, "test", "admin", "12345678");
-  
-  thread a([&client] {
-    simple_get(client, "1");
+  DBContext ctx{"127.0.0.1", 3306, "test", "admin", "12345678"};
+
+  thread a([] {
+    auto client = MyClient("127.0.0.1", 3306, "test", "admin", "12345678");
+    simple_get_async(client, "1");
   });
 
-  thread b([&client] {
-    simple_get(client, "2");
+  thread b([&ctx] {
+    auto client = MyClient(ctx);
+    simple_get_async(client, "2");
   });
 
-  thread c([&client] {
-    simple_get(client, "3");
+  thread c([&ctx] {
+    auto client = MyClient(ctx);
+    simple_get_async(client, "3");
   });
 
   thread t([]{while(true) std::this_thread::sleep_for(std::chrono::milliseconds(500));});

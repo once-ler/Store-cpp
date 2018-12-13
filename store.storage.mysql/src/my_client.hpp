@@ -3,50 +3,39 @@ ubuntu: apt-get install libmysqlclient-dev
 redhat: yum install mysql mysql-devel mysql-lib
 */
 #define USE_BOOST_ASIO 1
-// #include "amy/asio.hpp"
-// #include "amy/auth_info.hpp"
-#include <functional>
-#include <mutex>
+
 #include "amy/connector.hpp"
 #include "amy/placeholders.hpp"
+#include "store.models/src/models.hpp"
 
 using namespace std;
 using namespace AMY_ASIO_NS::ip;
+using namespace store::models;
 
 namespace store::storage::mysql {
-  class Spinlock {
-    std::atomic_flag lock_;
-  public:
-    Spinlock() {
-      lock_.clear();
-    }
- 
-    inline void lock() {
-      while (lock_.test_and_set(std::memory_order_acquire));
-    }
- 
-    inline void unlock() {
-      lock_.clear(std::memory_order_release);
-    }
- 
-    inline bool try_lock() {
-      return !lock_.test_and_set(std::memory_order_acquire);
-    }
-  };
-
-  Spinlock _lock;
+  
+  using ResultHandlerFunc = function<void(
+      AMY_SYSTEM_NS::error_code const&,
+      amy::result_set&
+    )>;
 
   class MyBaseClient {
     friend AMY_ASIO_NS::io_service;
   
   public:
-    const string version = "0.0.2";
+    const string version = "0.1.0";
     MyBaseClient(const string& server_, int port_, const string& database_, const string& user_, const string& password_) :
       server(server_), port(port_), database(database_), user(user_), password(password_) {
-      stringstream ss;
-      ss << server << ":" << port;
-      // server_port = ss.str();
+      
+      IO = make_shared<AMY_ASIO_NS::io_service>();
+      transactor = make_shared<amy::connector>(*IO);
+      url = tcp::endpoint(address::from_string(server), port);
+      authInfo = make_shared<amy::auth_info>(user, password);
+    }
 
+    MyBaseClient(DBContext& ctx) :
+      server(ctx.server), port(ctx.port), database(ctx.database), user(ctx.user), password(ctx.password) {
+      
       IO = make_shared<AMY_ASIO_NS::io_service>();
       transactor = make_shared<amy::connector>(*IO);
       url = tcp::endpoint(address::from_string(server), port);
@@ -55,41 +44,28 @@ namespace store::storage::mysql {
 
     void check_error(AMY_SYSTEM_NS::error_code const& ec) {
       if (ec) {
-        throw AMY_SYSTEM_NS::system_error(ec);
+        auto e = AMY_SYSTEM_NS::system_error(ec);
+        std::cerr
+          << "System error: "
+          << e.code().value() << " - " << e.what()
+          << std::endl;
       }
     }
 
-    /*
-      callback should be passed in by user.
-    */
-    void onResult(
-      AMY_SYSTEM_NS::error_code const& ec,
-      amy::result_set rs,
-      amy::connector& transactor
-    ) {
-      cout << "Response acquired" << endl;
+    void report_system_error(AMY_SYSTEM_NS::system_error const& e) {
+      std::cerr
+          << "System error: "
+          << e.code().value() << " - " << e.what()
+          << std::endl;
+    }
+
+    void onResult(AMY_SYSTEM_NS::error_code const& ec, amy::result_set rs, amy::connector& transactor) {
       check_error(ec);
 
-      std::cout
-        << "Affected rows: " << rs.affected_rows()
-        << ", field count: " << rs.field_count()
-        << ", result set size: " << rs.size()
-        << std::endl;
-
-      const auto& fields_info = rs.fields_info();
-
-      for (const auto& row : rs) {
-        std::cout
-          << fields_info[0].name() << ": " << row[0].as<std::string>() << ", "
-          << fields_info[1].name() << ": " << row[1].as<amy::sql_bigint>()
-          << std::endl;
-      }
-
-      _lock.unlock();
+      userResultCallback(ec, rs);
     }
 
     void onQuery(AMY_SYSTEM_NS::error_code const& ec, amy::connector& transactor) {
-      cout << "Query sent" << endl;
       check_error(ec);
 
       transactor.async_store_result(
@@ -103,7 +79,6 @@ namespace store::storage::mysql {
     }
 
     void onConnect(AMY_SYSTEM_NS::error_code const& ec, amy::connector& transactor, string& stmt) {
-      cout << "Connected" << endl;
       check_error(ec);
 
       transactor.async_query(
@@ -113,38 +88,35 @@ namespace store::storage::mysql {
           amy::placeholders::error,
           std::ref(transactor)
         )
-      );      
+      );
     }
 
-    void connectAsync(string stmt) {
-      _lock.lock();
+    void connectAsync(
+      string stmt, 
+      ResultHandlerFunc&& handleResult = [](AMY_SYSTEM_NS::error_code const& ec, amy::result_set& rs){}
+    ) {
 
-      if (transactor->is_open()) {
-        onConnect(boost::system::error_code(), *transactor, stmt);
-        return;
-      }
+      userResultCallback = handleResult;
+
+      auto callback = std::bind(
+        &MyBaseClient::onConnect, this,
+        amy::placeholders::error,
+        std::ref(*transactor),
+        stmt
+      );
 
       transactor->async_connect(
         url,
         *authInfo,
         database,
         amy::default_flags,
-        std::bind(
-          &MyBaseClient::onConnect, this,
-          amy::placeholders::error,
-          std::ref(*transactor),
-          stmt
-        )
+        callback
       );
 
       try {
           IO->run();
       } catch (AMY_SYSTEM_NS::system_error const& e) {
-        // report_system_error(e);
-        std::cerr
-          << "System error: "
-          << e.code().value() << " - " << e.what()
-          << std::endl;
+        report_system_error(e);
       } catch (std::exception const& e) {
         std::cerr << "Exception: " << e.what() << std::endl;
       }
@@ -156,12 +128,12 @@ namespace store::storage::mysql {
     string database = "test";
     string user;
     string password;
-    // string server_port;
     AMY_ASIO_NS::ip::tcp::endpoint url = tcp::endpoint(address_v4::loopback(), port);
     
     shared_ptr<amy::auth_info> authInfo;
     shared_ptr<AMY_ASIO_NS::io_service> IO;
     shared_ptr<amy::connector> transactor;
+    ResultHandlerFunc userResultCallback;
   };
 
 }
