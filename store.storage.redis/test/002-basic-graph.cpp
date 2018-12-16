@@ -18,14 +18,14 @@ struct ResponseHandler {
       if (r[0].is_array()) {
         for(auto e : r[0].as_array()) {
           results.emplace_back(e.as_string());
-          cout << e << endl;
+          cout << __func__ << ": " << e << endl;
         }
       }
 
       if (r[1].is_array()) {
         for(auto e : r[1].as_array()) {
           statistics.emplace_back(e.as_string());
-          cout << e << endl;
+          cout << __func__ << ": " << e << endl;
         }
       }
     } else {
@@ -47,11 +47,18 @@ auto handleResponse(cpp_redis::reply& resp) -> void {
   }   
 }
 
+auto count() -> int {
+  return 0;
+}
+
 // https://github.com/swilly22/redis-graph/blob/master/docs/commands.md
 void createNode(shared_ptr<cpp_redis::client> client) {
   vector<string> command{"GRAPH.QUERY", "social", "CREATE (:person{name: 'John Doe',age: 32})"};
   ResponseHandler h, h1;
-  client->send(command, handleResponse);
+  auto cb = std::bind(&ResponseHandler::onResponse, &h, placeholders::_1);
+  client->send(command, [&cb](cpp_redis::reply& resp){
+    cb(resp);
+  });
 
   command.clear();
   command = {"GRAPH.QUERY", "social", "CREATE (:country{name: 'Japan'})"};
