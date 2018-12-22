@@ -1,5 +1,5 @@
 /*
-g++ -std=c++14 -I ../../ -I /usr/local/include -I ../../../Store-cpp -I ../../../json/single_include/nlohmann ../index-max-event.cpp -o bin/testing -L /usr/lib/x86_64-linux-gnu -L /usr/local/lib
+g++ -std=c++14 -I ../../ -I /usr/local/include -I ../../../Store-cpp -I ../../../json/single_include/nlohmann ../001-max-event.cpp -o bin/testing -L /usr/lib/x86_64-linux-gnu -L /usr/local/lib
 */
 #include <cassert> 
 #include <numeric>

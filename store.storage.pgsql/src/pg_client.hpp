@@ -151,20 +151,27 @@ namespace store {
             return seqId;
           }
 
-          vector<IEvent> Search(const string& type, int64_t fromSeqId, int limit = 10, bool exact = true) override {
+          vector<IEvent> Search(const string& type, int64_t fromSeqId, int limit = 10, bool exact = true, vector<string> mustExistKeys = {}) override {
             Postgres::Connection cnx;
             vector<IEvent> events;
 
             string matchExact = exact ? "=" : "~*";
 
+            // data field must contain the following keys.            
+            vector<string> mustExistKeysQuoted;
+            std::transform(mustExistKeys.begin(), mustExistKeys.end(), std::back_inserter(mustExistKeysQuoted), [](const string& s) { return wrapString(s); });
+            string mustExistKeysQuotedString = join(mustExistKeysQuoted.begin(), mustExistKeysQuoted.end(), string(","));
+            string matchMustExistKeys = mustExistKeysQuotedString.size() > 0 ? string_format(" and data ?& array[%s]", mustExistKeysQuotedString.c_str()) : "";
+
             try {
               cnx.connect(session->connectionInfo.c_str());
 
-              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where type %s '%s' and seq_id > %lld limit %d",
+              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where type %s '%s' and seq_id > %lld %s limit %d",
                 dbSchema.c_str(),
                 matchExact.c_str(),
                 type.c_str(),
                 (long long)fromSeqId,
+                matchMustExistKeys.c_str(),
                 limit
               );
 
