@@ -11,6 +11,8 @@
 #include <algorithm>
 
 namespace store::common {
+  std::mutex log_mutex;
+
   class SpdLogger : public ILogger {
     public:
     explicit SpdLogger(const std::string& logName_, const bool& runtime_err_save_ = false) : ILogger(), logName(logName_), runtime_err_save(runtime_err_save_) {
@@ -51,8 +53,10 @@ namespace store::common {
     void error (const char* msg) override {
       spdlog::get(logName)->error(msg);
 
-      if (runtime_err_save)
+      if (runtime_err_save) {
+        std::lock_guard<std::mutex> lock(log_mutex);
         append_error(msg);
+      }
     }
 
     template<typename... Args>
@@ -82,16 +86,19 @@ namespace store::common {
     // For storing the errors during runtime.
     // Implementer is responsible for emptying the collection.
     void append_error(const std::string& errmsg) override {
+      std::lock_guard<std::mutex> lock(log_mutex);
       errors.emplace_back(errmsg + "\n");
     }
 
     std::string get_errors() override {
+      std::lock_guard<std::mutex> lock(log_mutex);
       std::string s;
       s = std::accumulate(std::begin(errors), std::end(errors), s);
       return s;
     }
 
     void flush_errors() override {
+      std::lock_guard<std::mutex> lock(log_mutex);
       errors.clear();
     }
 
