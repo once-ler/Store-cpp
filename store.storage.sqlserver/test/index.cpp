@@ -1,9 +1,12 @@
 #include "store.storage.sqlserver/src/mssql_client.hpp"
 #include "store.models/src/models.hpp"
+#include "store.common/src/spdlogger.hpp"
 
 using namespace store::models;
 using namespace store::storage::mssql;
 using json = nlohmann::json;
+
+auto spdLogger = make_shared<SpdLogger>("mssql-test", "log", true);
 
 void sqlToJson(Field* fd, json& j) {
   auto cname = fd->colname;
@@ -27,11 +30,27 @@ void sqlToJson(Field* fd, json& j) {
   }
 }
 
+int spec_2() {
+  DBContext db_ctx("testing", "localhost", 1433, "master", "admin", "12345678", 30);
+  
+  using MsSqlClient = store::storage::mssql::MsSqlClient<IEvent>;
+  MsSqlClient client(db_ctx);
+  auto sqlClient = make_shared<MsSqlClient>(client);
+  sqlClient->logger = spdLogger;
+
+  string fakesql = "select convert(bigint, 999) rowid, 'PROJECT_STATUS' prefix_type, 'FOO' type, '1234' id, 'ALIVE' status";    
+
+  auto a = sqlClient->runQueryJson(fakesql);  
+
+  cout << sqlClient->logger->get_errors() << endl;
+}
+
 int spec_1() {
   DBContext db_ctx("testing", "localhost", 1433, "master", "admin", "12345678", 30);
   
   using MsSqlClient = store::storage::mssql::MsSqlClient<IEvent>;
-  MsSqlClient sqlClient(db_ctx);
+  MsSqlClient client(db_ctx);
+  auto sqlClient = make_shared<MsSqlClient>(client);
 
   string fakesql = "select convert(bigint, 999) rowid, 'PROJECT_STATUS' prefix_type, 'FOO' type, '1234' id, 'ALIVE' status";    
 
@@ -98,6 +117,6 @@ int spec_0() {
 }
 
 int main(int argc, char *argv[]) {
-  return spec_0();
+  return spec_2();
 }
 

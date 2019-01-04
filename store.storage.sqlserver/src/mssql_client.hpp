@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iomanip>
 #include "store.storage.sqlserver/src/mssql_base_client.hpp"
 #include "store.storage/src/base_client.hpp"
 #include "json.hpp"

@@ -45,12 +45,6 @@ namespace store::storage::mssql {
     shared_ptr<Query> runQuery(const string& sqlStmt) {
       try {
         db->connect(server_port, user, password);
-      } catch (TDSPP::Exception& e) {
-        logger->error(e.message.c_str());
-        return nullptr;
-      }
-
-      try {
         db->execute(string("use " + database));
         Query* q = db->sql(sqlStmt);
         q->execute();
@@ -64,12 +58,6 @@ namespace store::storage::mssql {
     pair<int, string> execute(const string& sqlStmt) {
       try {
         db->connect(server_port, user, password);
-      } catch (TDSPP::Exception& e) {
-        logger->error(e.message.c_str());
-        return make_pair(0, e.message);
-      }
-
-      try {
         db->execute(string("use " + database));
         db->execute(sqlStmt);
       } catch (TDSPP::Exception& e) {

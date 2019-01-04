@@ -54,7 +54,6 @@ namespace store::common {
       spdlog::get(logName)->error(msg);
 
       if (runtime_err_save) {
-        std::lock_guard<std::mutex> lock(log_mutex);
         append_error(msg);
       }
     }

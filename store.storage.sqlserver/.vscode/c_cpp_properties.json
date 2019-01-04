@@ -33,12 +33,12 @@
                 "/usr/include",
                 "/usr/include/x86_64-linux-gnu",
                 "${workspaceRoot}/src",
+                "${workspaceRoot}/../../json/single_include/nlohmann",
                 "${workspaceRoot}/../store.models/src",
                 "${workspaceRoot}/../store.storage/src",
                 "${workspaceRoot}/../store.events/src",
                 "${workspaceRoot}/../store.common/src",
-                "${workspaceRoot}/../../tdspp",
-                "${workspaceRoot}/../../json/src"
+                "${workspaceRoot}/../../tdspp"                
             ],
             "defines": [],
             "intelliSenseMode": "clang-x64",

@@ -13,7 +13,8 @@
                 "-I", "${workspaceRoot}/../",
                 // "-I", "${workspaceRoot}/src",
                 "-I", "${workspaceRoot}/../../tdspp",
-                "-I", "${workspaceRoot}/../../json/single_include",
+                "-I", "${workspaceRoot}/../../json/single_include/nlohmann",
+                "-I", "${workspaceRoot}/../../spdlog/include",
                 // "-I", "${workspaceRoot}/../store.models/src",
                 // "-I", "${workspaceRoot}/../store.storage/src",
                 // "-I", "${workspaceRoot}/../store.events/src",
@@ -23,7 +24,10 @@
                 "-L", "/usr/local/lib",
                 "-L", "${workspaceRoot}/../../tdspp",
                 "-l", "tds++",
-                "-l", "ct"             
+                "-l", "ct",
+                "-l", "pthread",
+                "-l", "boost_system",
+                "-l", "boost_filesystem"     
             ],
             "group": "build",
             "presentation": {
