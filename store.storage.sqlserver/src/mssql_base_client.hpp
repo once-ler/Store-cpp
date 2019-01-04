@@ -64,6 +64,7 @@ namespace store::storage::mssql {
     pair<int, string> execute(const string& sqlStmt) {
       try {
         db->connect(server_port, user, password);
+      } catch (TDSPP::Exception& e) {
         logger->error(e.message.c_str());
         return make_pair(0, e.message);
       }
