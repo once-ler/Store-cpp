@@ -33,7 +33,7 @@ namespace store::storage::mssql {
   class MsSqlBaseClient {
     friend TDSPP;
   public:
-    const string version = "0.1.12";
+    const string version = "0.1.13";
     MsSqlBaseClient(const string& server_, int port_, const string& database_, const string& user_, const string& password_) :
       server(server_), port(port_), database(database_), user(user_), password(password_) {
       db = make_shared<TDSPP>();
@@ -45,6 +45,12 @@ namespace store::storage::mssql {
     shared_ptr<Query> runQuery(const string& sqlStmt) {
       try {
         db->connect(server_port, user, password);
+      } catch (TDSPP::Exception& e) {
+        logger->error(e.message.c_str());
+        return nullptr;
+      }
+
+      try {
         db->execute(string("use " + database));
         Query* q = db->sql(sqlStmt);
         q->execute();
@@ -58,6 +64,11 @@ namespace store::storage::mssql {
     pair<int, string> execute(const string& sqlStmt) {
       try {
         db->connect(server_port, user, password);
+        logger->error(e.message.c_str());
+        return make_pair(0, e.message);
+      }
+
+      try {
         db->execute(string("use " + database));
         db->execute(sqlStmt);
       } catch (TDSPP::Exception& e) {
