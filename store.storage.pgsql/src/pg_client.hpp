@@ -474,8 +474,8 @@ namespace store {
         }
 
         template<typename A>
-        long count(const string& version, const string& type = "", const string& search = "") {
-          string sql = "select current from %s.%s where type = coalesce(%s, type) %s";
+        int64_t count(const string& version, string type = "", string search = "") {
+          string sql = "select count(1) result from %s.%s where type = coalesce(%s, type) %s";
           string typeFilter = type.size() > 0 ? wrapString(type) : "null";
           string searchFilter = search.size() > 0 ? (" and " + search) : "";
 
@@ -490,8 +490,8 @@ namespace store {
           try {
             Postgres::Connection cnx;
             cnx.connect(connectionInfo.c_str());
-            auto& resp = cnx.execute(sql.c_str());
-            return resp.as<long>(0);
+            auto& resp = cnx.execute(query.c_str());
+            return resp.template as<int64_t>(0);
           } catch (Postgres::ConnectionException e) {
             logger->error(e.what());
           } catch (Postgres::ExecutionException e) {

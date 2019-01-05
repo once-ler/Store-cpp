@@ -1,16 +1,20 @@
 /*
-g++ -std=c++14 -I ../../ -I /usr/local/include -I /usr/include/postgresql -I ../../../libpqmxx/include -I ../../../Store-cpp -I ../../../json/single_include/nlohmann ../003-dangerously-execute.cpp -o bin/testing -L /usr/lib/x86_64-linux-gnu -L /usr/local/lib -luuid -llibpqmxx -lpq
+g++ -std=c++14 -I ../../ -I /usr/local/include -I /usr/include/postgresql -I ../../../libpqmxx/include -I ../../../Store-cpp -I ../../../json/single_include/nlohmann ../003-pgsql-count.cpp -o bin/testing -L /usr/lib/x86_64-linux-gnu -L /usr/local/lib -luuid -llibpqmxx -lpq
 */
 
 #include "store.storage.pgsql/src/pg_client.hpp"
+#include <cassert>
 
 using json = nlohmann::json;
 
+struct Wsi {
+  string id;
+};
+
 namespace test::count {
 
-  shared_ptr<db::postgres::Result> run(const string& sql) {
+  int64_t run() {
     json dbConfig = {{"applicationName", "store_pq"}};
-    cout << dbConfig.dump(2) << endl;
     DBContext dbContext{ 
       dbConfig.value("applicationName", "store_pq"), 
       dbConfig.value("server", "127.0.0.1"),
@@ -23,12 +27,16 @@ namespace test::count {
 
     pgsql::Client<IEvent> pgClient{ dbContext };
     
-    return pgClient.dangerouslyExecute(sql);
+    return pgClient.count<Wsi>("irb", "TESTER");
   }
 }
 
 int main(int argc, char *argv[]) {
   
-  auto r = test::count::run("");
+  auto r = test::count::run();
+
+  cout << r << endl;
+
+  assert(r == 1);
 
 }
