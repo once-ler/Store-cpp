@@ -473,6 +473,36 @@ namespace store {
           return a.size() == 0 ? nullptr : make_shared<A>(a.at(0));
         }
 
+        template<typename A>
+        long count(const string& version, const string& type = "", const string& search = "") {
+          string sql = "select current from %s.%s where type = coalesce(%s, type) %s";
+          string typeFilter = type.size() > 0 ? wrapString(type) : "null";
+          string searchFilter = search.size() > 0 ? (" and " + search) : "";
+
+          auto query = Extensions::string_format(
+            sql,
+            version.c_str(),
+            resolve_type_to_string<A>().c_str(),
+            typeFilter.c_str(),
+            searchFilter.c_str()
+          );
+
+          try {
+            Postgres::Connection cnx;
+            cnx.connect(connectionInfo.c_str());
+            auto& resp = cnx.execute(sql.c_str());
+            return resp.as<long>(0);
+          } catch (Postgres::ConnectionException e) {
+            logger->error(e.what());
+          } catch (Postgres::ExecutionException e) {
+            logger->error(e.what());
+          } catch (exception e) {
+            logger->error(e.what());
+          }
+
+          return -1;
+        }
+
       protected:
         string connectionInfo;        
 
