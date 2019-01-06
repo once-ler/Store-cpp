@@ -33,10 +33,9 @@ namespace store::storage::mssql {
   class MsSqlBaseClient {
     friend TDSPP;
   public:
-    const string version = "0.1.13";
+    const string version = "0.1.14";
     MsSqlBaseClient(const string& server_, int port_, const string& database_, const string& user_, const string& password_) :
       server(server_), port(port_), database(database_), user(user_), password(password_) {
-      db = make_shared<TDSPP>();
       stringstream ss;
       ss << server << ":" << port;
       server_port = ss.str();
@@ -44,6 +43,7 @@ namespace store::storage::mssql {
 
     shared_ptr<Query> runQuery(const string& sqlStmt) {
       try {
+        auto db = make_shared<TDSPP>();
         db->connect(server_port, user, password);
         db->execute(string("use " + database));
         Query* q = db->sql(sqlStmt);
@@ -57,6 +57,7 @@ namespace store::storage::mssql {
 
     pair<int, string> execute(const string& sqlStmt) {
       try {
+        auto db = make_shared<TDSPP>();
         db->connect(server_port, user, password);
         db->execute(string("use " + database));
         db->execute(sqlStmt);
@@ -96,6 +97,7 @@ namespace store::storage::mssql {
       ss << ");";
 
       try {
+        auto db = make_shared<TDSPP>();
         db->connect(server_port, user, password);
         db->execute(string("use " + database));
         db->execute(ss.str());
@@ -108,9 +110,6 @@ namespace store::storage::mssql {
 
     // Default logger.
     shared_ptr<ILogger> logger = make_shared<ILogger>();
-
-  protected:
-    shared_ptr<TDSPP> db;
 
   private:
     string server;

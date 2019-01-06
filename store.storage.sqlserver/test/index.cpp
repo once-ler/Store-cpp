@@ -30,6 +30,25 @@ void sqlToJson(Field* fd, json& j) {
   }
 }
 
+struct Wrapper {
+  using MsSqlClient = store::storage::mssql::MsSqlClient<IEvent>;
+  shared_ptr<MsSqlClient> ptr;
+};
+
+int spec_3() {
+  DBContext db_ctx("testing", "localhost", 1433, "master", "admin", "12345678", 30);
+  using MsSqlClient = store::storage::mssql::MsSqlClient<IEvent>;
+  
+  Wrapper wrapper;
+  wrapper.ptr = make_shared<MsSqlClient>(db_ctx);
+  wrapper.ptr = nullptr;
+
+  wrapper.ptr = make_shared<MsSqlClient>(db_ctx);
+  wrapper.ptr = nullptr;
+  
+  return 0;
+}
+
 int spec_2() {
   DBContext db_ctx("testing", "localhost", 1433, "master", "admin", "12345678", 30);
   
@@ -43,6 +62,12 @@ int spec_2() {
   auto a = sqlClient->runQueryJson(fakesql);  
 
   cout << sqlClient->logger->get_errors() << endl;
+
+  auto b = sqlClient->runQueryJson(fakesql);  
+
+  cout << sqlClient->logger->get_errors() << endl;
+
+  return 0;
 }
 
 int spec_1() {
@@ -117,6 +142,8 @@ int spec_0() {
 }
 
 int main(int argc, char *argv[]) {
-  return spec_2();
+  spec_2();
+
+  return 0;
 }
 
