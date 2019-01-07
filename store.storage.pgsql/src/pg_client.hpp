@@ -264,13 +264,14 @@ namespace store {
           
           string createTable = Extensions::string_format(R"SQL(
             create table if not exists "%s"."%s" (
-              id varchar(120) primary key,
+              id varchar(120),
               name character varying(500),
               ts timestamp with time zone default current_timestamp,
               type varchar(250),
               related varchar(120),
               current jsonb,
-              history jsonb
+              history jsonb,
+              primary key(id, type)
             ) tablespace %s;                
           )SQL",
             tableSchema.c_str(),
