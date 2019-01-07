@@ -313,7 +313,7 @@ namespace store {
             string sql = Extensions::string_format(R"SQL(
               insert into %s.%s (id, name, ts, type, related, current)
               values (%s, %s, now(), %s, %s, %s)
-              on conflict (id) do update set ts = now(), current = EXCLUDED.current, history = EXCLUDED.history
+              on conflict (id, type) do update set ts = now(), current = EXCLUDED.current, history = EXCLUDED.history
             )SQL", version.c_str(), tableName.c_str(), 
               wrapString(j.value("id", ""), "$Q$").c_str(), 
               wrapString(j.value("name", ""), "$Q$").c_str(), 
