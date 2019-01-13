@@ -458,6 +458,27 @@ namespace store {
         }
 
         template<typename A>
+        vector<A> collect(const string& version, const string& field, const string& type, const vector<string>& keys) {
+          string inCollection = join(keys.begin(), keys.end(), string(","));
+
+          string sql = "select current from %s.%s where type = '%s' and %s in (%s) order by %s";
+
+          auto query = string_format(
+            sql,
+            version.c_str(),
+            resolve_type_to_string<A>().c_str(),
+            type.c_str(),
+            field.c_str(),
+            inCollection.c_str(),
+            field.c_str()
+          );
+
+          auto limit = keys.size();
+
+          return list<A>(version, 0, limit, "id", "ASC", query);
+        }
+
+        template<typename A>
         shared_ptr<A> one(const string& version, const string& field, const string& search, const string& type = "") {
         
           string sql = "select current from %s.%s where current->>'%s' = '%s' and type = coalesce(%s, type) limit 1";
