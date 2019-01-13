@@ -432,10 +432,12 @@ namespace store {
           int offset = 0, 
           int limit = 10, 
           const string& sortKey = "id", 
-          const string& sortDirection = "Asc"
+          const string& sortDirection = "Asc",
+          bool exact = true
         ) {
 
-          string sql = "select current from %s.%s where current->>'%s' ~* '%s' and type = coalesce(%s, type) order by current->>'%s' %s offset %d limit %d";
+          string matchExact = exact ? "=" : "~*";
+          string sql = "select current from %s.%s where current->>'%s' %s '%s' and type = coalesce(%s, type) order by current->>'%s' %s offset %d limit %d";
           string typeFilter = type.size() > 0 ? wrapString(type) : "null";
 
           auto query = Extensions::string_format(
@@ -443,6 +445,7 @@ namespace store {
             version.c_str(),
             resolve_type_to_string<A>().c_str(),
             field.c_str(),
+            matchExact.c_str(),
             search.c_str(),
             typeFilter.c_str(),
             sortKey.c_str(),
