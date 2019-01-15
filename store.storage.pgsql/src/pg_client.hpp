@@ -459,7 +459,10 @@ namespace store {
 
         template<typename A>
         vector<A> collect(const string& version, const string& field, const string& type, const vector<string>& keys) {
-          string inCollection = join(keys.begin(), keys.end(), string(","));
+          vector<string> keysQuoted;
+          std::transform(keys.begin(), keys.end(), std::back_inserter(keysQuoted), [](const string& s) { return wrapString(s); });
+            
+          string inCollection = join(keysQuoted.begin(), keysQuoted.end(), string(","));
 
           string sql = "select current from %s.%s where type = '%s' and %s in (%s) order by %s";
 
