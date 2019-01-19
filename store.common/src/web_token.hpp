@@ -34,24 +34,32 @@ namespace store::common {
     if (j["user"].is_null())
       return "";
 
+    // Check whether we are use public key signing.  The field "private_key" will be provided by user.
+    string alg = "rs256";
+    string privateKey = j.value("private_key", "");
+
+    if (privateKey.size() == 0) {
+      alg = "hs256"; 
+      privateKey = generate_uuid();
+    }
+
     auto user = j["user"].get<string>();
     auto sid = "sess:" + generate_uuid();
-    auto shhh = generate_uuid();
     auto et = getExpirationTime(24);
 
     j["sid"] = sid;
-    j["secret"] = shhh;
+    j["secret"] = privateKey;
     j["expire"] = static_cast<int64_t>(et.epochTime * 1000);
     j["expire_ts"] = et.timeString; 
     j["user_uuid"] = generate_uuid_v3(user.c_str());
 
     jwt::jwt_object obj{
-      algorithm("hs256"), 
+      algorithm(alg), 
       payload({
         { "iss", "store::web::token" },
         { "user", user }
       }),
-      secret(shhh)      
+      secret(privateKey)      
     };
 
     obj.add_claim("exp", j["expire"].get<int64_t>());
@@ -63,12 +71,17 @@ namespace store::common {
   };
 
   // header: x-access-token
+  /* 
+    @param
+      key: Either the an actual random key phrase or a public RSA key (or public key from a certificate).
+      enc_str: Encrypted or signed token.
+  */
   auto decryptJwt = [](string key, string enc_str) -> pair<string, shared_ptr<jwt::jwt_object>> {
     string error = "";
     shared_ptr<jwt::jwt_object> dec = nullptr;
 
     try {
-      auto obj = jwt::decode(enc_str, algorithms({"hs256"}), secret(key));
+      auto obj = jwt::decode(enc_str, algorithms({"hs256", "rs256"}), secret(key));
       dec = make_shared<jwt::jwt_object>(obj);
     } catch (const jwt::TokenExpiredError& e) {
         //Handle Token expired exception here
