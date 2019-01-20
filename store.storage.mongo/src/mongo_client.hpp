@@ -34,8 +34,9 @@ namespace store::storage::mongo {
       public:
       explicit MongoEventStore(MongoClient<T>* session_) : session(session_) {}
 
-      int Save() override {
-
+      pair<int, string> Save() override {
+        throw("Not implemented error");
+        return make_pair(0, "Failed");
       }
 
       int SaveOne(const string& streamType, const json& streamObj) {        
