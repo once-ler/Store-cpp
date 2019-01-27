@@ -65,8 +65,9 @@ namespace store {
       /// <param name="limit">The number of IEvent to return.</param>
       /// <param name="exact">Match the type exactly.</param>
       /// <param name="mustExistKeys">List of keys that the json data must contain.</param>
+      /// <param name="filters">Filter rows by map of field name and a set of values.</param>
       /// <returns>vector[IEvent]</returns>
-      virtual vector<IEvent> Search(const string& type, int64_t fromSeqId, int limit = 10, bool exact = true, vector<string> mustExistKeys = {}) {
+      virtual vector<IEvent> Search(const string& type, int64_t fromSeqId, int limit = 10, bool exact = true, vector<string> mustExistKeys = {}, map<string, vector<string>> filters = {} ) {
         throw("Not implemented error");
         return vector<IEvent>{};
       }

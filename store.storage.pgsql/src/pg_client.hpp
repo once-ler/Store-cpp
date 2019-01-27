@@ -151,7 +151,7 @@ namespace store {
             return seqId;
           }
 
-          vector<IEvent> Search(const string& type, int64_t fromSeqId, int limit = 10, bool exact = true, vector<string> mustExistKeys = {}) override {
+          vector<IEvent> Search(const string& type, int64_t fromSeqId, int limit = 10, bool exact = true, vector<string> mustExistKeys = {}, map<string, vector<string>> filters = {}) override {
             Postgres::Connection cnx;
             vector<IEvent> events;
 
@@ -163,15 +163,26 @@ namespace store {
             string mustExistKeysQuotedString = join(mustExistKeysQuoted.begin(), mustExistKeysQuoted.end(), string(","));
             string matchMustExistKeys = mustExistKeysQuotedString.size() > 0 ? string_format(" and data ?& array[%s]", mustExistKeysQuotedString.c_str()) : "";
 
+            vector<string> filtersQuoted;
+            for(auto& e : filters) {
+              vector<string> q;
+              std::transform(e.second.begin(), e.second.end(), std::back_inserter(q), [](const string& s) { return wrapString(s); });
+              string fragment = "data->>'" + e.first + "' in (" + join(q.begin(), q.end(), string(","))  + ")";
+              filtersQuoted.push_back(move(fragment));
+            }
+            string filtersQuotedString = join(filtersQuoted.begin(), filtersQuoted.end(), string(" and "));
+            string matchFilters = filtersQuotedString.size() > 0 ? string_format(" and %s", filtersQuotedString.c_str()) : "";
+
             try {
               cnx.connect(session->connectionInfo.c_str());
 
-              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where type %s '%s' and seq_id > %lld %s limit %d",
+              auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where type %s '%s' and seq_id > %lld %s %s limit %d",
                 dbSchema.c_str(),
                 matchExact.c_str(),
                 type.c_str(),
                 (long long)fromSeqId,
                 matchMustExistKeys.c_str(),
+                matchFilters.c_str(),
                 limit
               );
 
