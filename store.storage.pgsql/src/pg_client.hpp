@@ -74,7 +74,7 @@ namespace store {
                 cnx.connect(session->connectionInfo.c_str());
                 // resp is [current_version, ...sequence num]
                 // https://stackoverflow.com/questions/17947863/error-expected-primary-expression-before-templated-function-that-try-to-us
-                const auto& resp = cnx.execute(stmt.c_str()).template asArray<int>(0);
+                const auto& resp = cnx.execute(stmt.c_str()).template asArray<int64_t>(0);
               } catch (Postgres::ConnectionException e) {
                 session->logger->error(e.what());
                 return make_pair(0, e.what());
