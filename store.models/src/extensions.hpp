@@ -119,6 +119,16 @@ namespace store {
       };
     };
 
+    std::vector<std::string> split(const std::string& s, char delim) {
+      std::vector<std::string> tokens;
+      std::string tok;
+      std::istringstream iss(s);
+      while (std::getline(iss, tok, delim))
+        tokens.push_back(tok);
+      
+      return tokens;
+    }
+
     inline string generate_uuid(int vers = UUID_MAKE_V4) {
       uuid id;
       id.make(vers);
