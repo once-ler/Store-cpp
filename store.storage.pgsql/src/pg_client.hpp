@@ -13,12 +13,14 @@
 #include "store.events/src/eventstore.hpp"
 #include "store.common/src/group_by.hpp"
 #include "store.common/src/logger.hpp"
+#include "store.common/src/runtime_get_tuple.hpp"
 
 using namespace std;
 using namespace store::interfaces;
 using namespace store::storage;
 using namespace store::extensions;
 using namespace store::common;
+using namespace store::common::tuples;
 
 // Don't use db::postgres b/c it defines time_t which will collide with std::time_t if used in other libs.
 namespace Postgres = db::postgres;
@@ -343,6 +345,8 @@ namespace store {
 
         template<typename U, typename... Params>
         string insertOne(const string& version, const std::initializer_list<std::string>& fields, Params... params) {
+          tuple<Params...> values(params...);
+
           const auto tableName = resolve_type_to_string<U>();
 
           stringstream ss;
@@ -359,12 +363,13 @@ namespace store {
           
           int i = 0;
           while (i < fields.size() - 1) {
-            ss << "$" << i + 1 << ",";
+            tuples::apply(values, i, TupleFormatFunc{&ss});
+            ss << ",";
             ++i;
           }          
-          ss << "$" << fields.size();
+          tuples::apply(values, fields.size() - 1, TupleFormatFunc{&ss});
           ss << ");";
-          
+
           const auto retval = this->save(ss.str());
           return move(retval);
         }
@@ -540,6 +545,24 @@ namespace store {
           }
 
           return -1;
+        }
+
+        template<typename... Params>
+        auto select(const string& query, Params... params) {
+          return [&](function<void(Postgres::Result&)> callback) {          
+            try {
+              Postgres::Connection cnx;
+              cnx.connect(connectionInfo.c_str());
+              auto& resp = cnx.execute(query.c_str(), std::forward<Params>(params)...);
+              callback(resp);
+            } catch (Postgres::ConnectionException e) {
+              logger->error(e.what());
+            } catch (Postgres::ExecutionException e) {
+              logger->error(e.what());
+            } catch (exception e) {
+              logger->error(e.what());
+            }
+          };
         }
 
       protected:

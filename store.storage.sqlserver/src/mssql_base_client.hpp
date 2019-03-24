@@ -2,38 +2,22 @@
 
 #include <iostream>
 #include <sstream>
-#include <tuple>
-#include <typeinfo>
+// #include <tuple>
+// #include <typeinfo>
 #include <ctpublic.h>
 #include "tdspp.hh"
 #include "store.common/src/runtime_get_tuple.hpp"
 #include "store.common/src/logger.hpp"
 
 using namespace store::common;
+using namespace store::common::tuples;
 
 namespace store::storage::mssql {
   
-  struct TupleFormatFunc {
-    TupleFormatFunc(stringstream* ss_) : ss(ss_) {};
-
-    template<class U>
-    void operator()(U p) {
-      auto ty = string(typeid(p).name()).back();
-      if (ty == 'c' || ty == 's') {
-        *ss << "'" << p << "'";
-      } else {
-        *ss << p;
-      }
-      // std::cout << __PRETTY_FUNCTION__ << " : " << p << "\n";
-    }
-
-    stringstream* ss;
-  };
-
   class MsSqlBaseClient {
     friend TDSPP;
   public:
-    const string version = "0.1.14";
+    const string version = "0.1.15";
     MsSqlBaseClient(const string& server_, int port_, const string& database_, const string& user_, const string& password_) :
       server(server_), port(port_), database(database_), user(user_), password(password_) {
       stringstream ss;

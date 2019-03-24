@@ -1,3 +1,5 @@
+#pragma once
+
 /*
  * reference:
  * https://stackoverflow.com/questions/21062864/optimal-way-to-access-stdtuple-element-in-runtime-by-index
@@ -8,7 +10,12 @@
       for(int i = 0; i < 4; ++i) apply(t, i, Func{});
     } 
  */
+#include <iostream>
 #include <tuple>
+#include <typeinfo>
+#include <sstream>
+
+using namespace std;
 
 namespace store::common::tuples {
 
@@ -32,4 +39,22 @@ namespace store::common::tuples {
   void apply(T& p, int index, F func) {
       apply(p, index, func, gen_seq<std::tuple_size<T>::value>{});
   }
+
+  struct TupleFormatFunc {
+    TupleFormatFunc(stringstream* ss_) : ss(ss_) {};
+
+    template<class U>
+    void operator()(U p) {
+      auto ty = string(typeid(p).name()).back();
+      if (ty == 'c' || ty == 's') {
+        *ss << "'" << p << "'";
+      } else {
+        *ss << p;
+      }
+      // std::cout << __PRETTY_FUNCTION__ << " : " << p << "\n";
+    }
+
+    stringstream* ss;
+  };
+
 }
