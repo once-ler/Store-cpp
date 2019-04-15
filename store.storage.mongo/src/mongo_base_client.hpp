@@ -82,7 +82,10 @@ namespace store::storage::mongo {
       auto filter_ = document{} << "_id" << _id << finalize;
       try {
         mongocxx::client client{ mongocxx::uri{ url_ } };
-        auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), v, mongocxx::options::update());
+        mongocxx::options::update options;
+        options.upsert(true);
+
+        auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), v, options);
         return 1;
       } catch (const exception& e) {
         cout << e.what() << endl;
@@ -172,7 +175,10 @@ namespace store::storage::mongo {
     int upsertImpl(const T& doc, const document& filter_, const string& collectionName) {
       try {
         mongocxx::client client{ mongocxx::uri{ url_ } };
-        auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), doc.view(), mongocxx::options::update());
+        mongocxx::options::update options;
+        options.upsert(true);
+
+        auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), doc.view(), options);
         return 1;
       } catch (const exception& e) {
         cout << e.what() << endl;

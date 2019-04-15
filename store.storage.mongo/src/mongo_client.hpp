@@ -137,7 +137,7 @@ namespace store::storage::mongo {
       MongoBaseClient(url, database, collection) {}
 
     shared_ptr<document> addTimeFields(shared_ptr<document> instream) {
-      *instream << "dateCreated" << bsoncxx::types::b_date(std::chrono::system_clock::now())
+      *instream << "dateCreated" << getCurrentTimeMilliseconds()
         << "dateLocal" << getCurrentTimeString()
         << "dateTimezoneOffset" << getTimezoneOffsetSeconds();
       return instream;
@@ -151,17 +151,17 @@ namespace store::storage::mongo {
         auto v = it.value();
         auto p = o[k];
         if (!p.is_primitive()) {
-        *builder << k << bsoncxx::types::b_document{ bsoncxx::from_json(v.dump()) };
+          *builder << k << bsoncxx::types::b_document{ bsoncxx::from_json(v.dump()) };
         } else if (p.is_number_integer()) {
-        *builder << k << bsoncxx::types::b_int64{v};
+          *builder << k << bsoncxx::types::b_int64{v};
         } else if (p.is_number_float()) {
-        *builder << k << bsoncxx::types::b_double{v};
+          *builder << k << bsoncxx::types::b_double{v};
         } else {
-        auto str = o[k].get<string>();
-        *builder << k << str;
-        if (k == "id") {
-          *builder << "_id" << str;
-        }
+          auto str = o[k].get<string>();
+          *builder << k << str;
+          if (k == "id") {
+            *builder << "_id" << str;
+          }
         }          
       }
 
