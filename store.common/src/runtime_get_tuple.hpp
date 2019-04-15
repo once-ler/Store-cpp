@@ -45,8 +45,9 @@ namespace store::common::tuples {
 
     template<class U>
     void operator()(U p) {
-      auto ty = string(typeid(p).name()).back();
-      if (ty == 'c' || ty == 's') {
+      auto tyname = string(typeid(p).name());
+      auto ty = tyname.back();
+      if (tyname.find("basic_string") != std::string::npos || ty == 'c' || ty == 's') {
         *ss << "'" << p << "'";
       } else {
         *ss << p;
