@@ -2,8 +2,6 @@
 
 #include <iostream>
 #include <sstream>
-// #include <tuple>
-// #include <typeinfo>
 #include <ctpublic.h>
 #include "tdspp.hh"
 #include "store.common/src/runtime_get_tuple.hpp"

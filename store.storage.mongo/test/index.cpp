@@ -97,6 +97,10 @@ int spec_4() {
   client.events.SaveOne("foo-a", j);
 }
 
+int spec_5() {
+  
+}
+
 int main(int argc, char *argv[]) {
   return spec_4();
   return spec_3();

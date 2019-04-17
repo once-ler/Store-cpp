@@ -17,6 +17,8 @@ using json = nlohmann::json;
 
 using MongoBaseClient = store::storage::mongo::MongoBaseClient;
 
+using bsoncxx::builder::basic::kvp;
+
 namespace store::storage::mongo {
   
   template<typename T>
@@ -133,41 +135,16 @@ namespace store::storage::mongo {
       }
     };
     
-    explicit MongoClient(const string& url, const string& database, const string& collection) : 
-      MongoBaseClient(url, database, collection) {}
-
-    shared_ptr<document> addTimeFields(shared_ptr<document> instream) {
-      *instream << "dateCreated" << getCurrentTimeMilliseconds()
-        << "dateLocal" << getCurrentTimeString()
-        << "dateTimezoneOffset" << getTimezoneOffsetSeconds();
-      return instream;
-    }
+    explicit MongoClient(const string& url, const string& database, const string& collection, shared_ptr<ILogger> logger_ = nullptr) : 
+      MongoBaseClient(url, database, collection) {
+        if (logger_)
+          this->logger = logger_;
+      }
     
     shared_ptr<bsoncxx::document::value> makeBsonFromJson(const json& o) {
-	    auto builder = make_shared<bsoncxx::builder::stream::document>();
-
-      for (auto it = o.begin(); it != o.end(); ++it) {
-        auto k = it.key();
-        auto v = it.value();
-        auto p = o[k];
-        if (!p.is_primitive()) {
-          *builder << k << bsoncxx::types::b_document{ bsoncxx::from_json(v.dump()) };
-        } else if (p.is_number_integer()) {
-          *builder << k << bsoncxx::types::b_int64{v};
-        } else if (p.is_number_float()) {
-          *builder << k << bsoncxx::types::b_double{v};
-        } else {
-          auto str = o[k].get<string>();
-          *builder << k << str;
-          if (k == "id") {
-            *builder << "_id" << str;
-          }
-        }          
-      }
-
-      builder = addTimeFields(builder);      
-      auto doc = *builder << finalize;      
-      return make_shared<bsoncxx::document::value>(doc);
+      auto x = bsoncxx::from_json(o.dump());
+      
+      return make_shared<bsoncxx::document::value>(x);
 	  }
 
     MongoEventStore events{ this };

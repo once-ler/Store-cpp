@@ -1,7 +1,6 @@
 #pragma once
 
-// #define BSONCXX_STATIC
-// #define MONGOCXX_STATIC
+#include "store.common/src/logger.hpp"
 
 #include <iostream>
 #include <bsoncxx/builder/stream/document.hpp>
@@ -21,6 +20,7 @@
 
 using namespace std;
 using namespace bsoncxx::builder::stream;
+using namespace store::common;
 
 #ifndef MONGO_INIT_ONCE
 #define MONGO_INIT_ONCE
@@ -58,7 +58,7 @@ namespace store::storage::mongo {
         auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(doc.view());
         return 1;
       } catch (const exception& e) {
-        cout << e.what() << endl;
+        logger->error(e.what());
         return 0;
       }
     }
@@ -69,6 +69,7 @@ namespace store::storage::mongo {
         auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(v);
         return 1;
       } catch (const exception& e) {
+        logger->error(e.what());
         return 0;
       }
     }
@@ -88,7 +89,7 @@ namespace store::storage::mongo {
         auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), v, options);
         return 1;
       } catch (const exception& e) {
-        cout << e.what() << endl;
+        logger->error(e.what());
         return 0;
       }
     }
@@ -135,6 +136,7 @@ namespace store::storage::mongo {
         auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].find_one_and_update(filter_.view(), update_.view(), options );
         return result->view()["sequence_value"].get_int64().value;
       } catch (const exception& e) {
+        logger->error(e.what());
         return -1;
       }
     }
@@ -161,10 +163,13 @@ namespace store::storage::mongo {
           r_uid = result->inserted_id().get_utf8().value.to_string();
         }
       } catch (const exception& e) {
-        
+        logger->error(e.what());
       }
       return move(r_uid);
     }
+
+    // Default logger.
+    shared_ptr<ILogger> logger = make_shared<ILogger>();
 
   protected:
     string url_;
@@ -181,7 +186,7 @@ namespace store::storage::mongo {
         auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), doc.view(), options);
         return 1;
       } catch (const exception& e) {
-        cout << e.what() << endl;
+        logger->error(e.what());
         return 0;
       }
     }
