@@ -141,12 +141,6 @@ namespace store::storage::mongo {
         if (logger_)
           this->logger = logger_;
       }
-   
-    explicit MongoClient(const string& url, const string& database, const string& collection, shared_ptr<ILogger> logger_ = nullptr) : 
-      MongoBaseClient(url, database, collection) {
-        if (logger_)
-          this->logger = logger_;
-      }
     
     shared_ptr<bsoncxx::document::value> makeBsonFromJson(const json& o) {
       auto x = bsoncxx::from_json(o.dump());

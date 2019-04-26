@@ -62,12 +62,6 @@ namespace store::storage::mongo {
       const string& collection
     ) : database_(database), collection_(collection) {}
 
-    explicit MongoBaseClient(
-      const string& url,
-      const string& database,
-      const string& collection
-    ) : url_(url), database_(database), collection_(collection) {}
-
     int insert(
       const string& type,
       const string& jsonString,
