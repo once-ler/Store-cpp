@@ -35,7 +35,7 @@ int spec_0() {
 int main1(int argc, char *argv[]) {
 
   mongocxx::instance inst{};
-  mongocxx::uri uri{"mongodb://localhost:27017/?minPoolSize=3&maxPoolSize=3"};
+  mongocxx::uri uri{"mongodb://localhost:27017/?minPoolSize=3&maxPoolSize=3&connectTimeoutMS=5000&socketTimeoutMS=5000&serverSelectionTryOnce=true"};
 
   mongocxx::pool px{uri};
   
@@ -55,7 +55,15 @@ int main(int argc, char *argv[]) {
 
   ioc::ServiceProvider->RegisterSingletonClass<store::storage::mongo::MongoInstance>();
 
-  auto uri = mongocxx::uri{(argc >= 2) ? argv[1] : mongocxx::uri::k_default_uri};
+  /* sharded cluster
+    mongodb://router1.example.com:27017,router2.example2.com:27017,router3.example3.com:27017/?minPoolSize=3&maxPoolSize=3&connectTimeoutMS=5000&socketTimeoutMS=5000&serverSelectionTimeoutMS=4000
+  */
+ 
+  // https://github.com/mongodb/specifications/blob/master/source/server-selection/server-selection.rst#id14
+  // serverSelectionTimeoutMS default is 30s!
+  mongocxx::uri uri{"mongodb://localhost:27017/?minPoolSize=3&maxPoolSize=3&connectTimeoutMS=5000&socketTimeoutMS=5000&serverSelectionTimeoutMS=4000"};
+
+  // auto uri = mongocxx::uri{(argc >= 2) ? argv[1] : mongocxx::uri::k_default_uri};
     
   store::storage::mongo::configure(std::move(uri));
 

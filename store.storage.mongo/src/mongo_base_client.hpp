@@ -54,7 +54,7 @@ namespace store::storage::mongo {
 
   class MongoBaseClient {
   public:
-    const string version = "0.5.0";
+    const string version = "0.5.1";
     MongoBaseClient() = default;
 
     explicit MongoBaseClient(
@@ -76,8 +76,11 @@ namespace store::storage::mongo {
       auto doc = prepareDocument(type, jsonString);
       
       try {
-        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->getConnection();
-        auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(doc.view());
+        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->tryGetConnection();
+        if (client == bsoncxx::stdx::nullopt)
+          throw "Failed to acquire client from thread pool.";
+
+        auto result = (**client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(doc.view());
         return 1;
       } catch (const exception& e) {
         logger->error(e.what());
@@ -87,8 +90,11 @@ namespace store::storage::mongo {
 
     int insertOne(const bsoncxx::document::view_or_value& v, const string& collectionName = "") {
       try {
-        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->getConnection();
-        auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(v);
+        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->tryGetConnection();
+        if (client == bsoncxx::stdx::nullopt)
+          throw "Failed to acquire client from thread pool.";
+
+        auto result = (**client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(v);
         return 1;
       } catch (const exception& e) {
         logger->error(e.what());
@@ -104,11 +110,14 @@ namespace store::storage::mongo {
     int upsertOne(const bsoncxx::document::view_or_value& v, const string& _id, const string& collectionName = "") {
       auto filter_ = document{} << "_id" << _id << finalize;
       try {
-        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->getConnection();
+        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->tryGetConnection();
+        if (client == bsoncxx::stdx::nullopt)
+          throw "Failed to acquire client from thread pool.";
+
         mongocxx::options::update options;
         options.upsert(true);
 
-        auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), v, options);
+        auto result = (**client)[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), v, options);
         return 1;
       } catch (const exception& e) {
         logger->error(e.what());
@@ -154,8 +163,11 @@ namespace store::storage::mongo {
       options.max_time(std::chrono::milliseconds(5000));
 
       try {
-        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->getConnection();
-        auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].find_one_and_update(filter_.view(), update_.view(), options );
+        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->tryGetConnection();
+        if (client == bsoncxx::stdx::nullopt)
+          throw "Failed to acquire client from thread pool.";
+
+        auto result = (**client)[database_][collectionName.size() == 0 ? collection_ : collectionName].find_one_and_update(filter_.view(), update_.view(), options );
         return result->view()["sequence_value"].get_int64().value;
       } catch (const exception& e) {
         logger->error(e.what());
@@ -172,8 +184,11 @@ namespace store::storage::mongo {
       findOptions.projection(document{} << "_id" << 1 << finalize);
 
       try {
-        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->getConnection();
-        auto cursor = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].find(filter_.view(), findOptions );
+        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->tryGetConnection();
+        if (client == bsoncxx::stdx::nullopt)
+          throw "Failed to acquire client from thread pool.";
+
+        auto cursor = (**client)[database_][collectionName.size() == 0 ? collection_ : collectionName].find(filter_.view(), findOptions );
         auto iter = (cursor.begin());
 
         if (iter != cursor.end()) {
@@ -181,7 +196,7 @@ namespace store::storage::mongo {
           r_uid = doc["_id"].get_utf8().value.to_string();
         } else {
           // Create the first instance.
-          auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(document{} << "_id" << uid << "type" << typeName << finalize);
+          auto result = (**client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(document{} << "_id" << uid << "type" << typeName << finalize);
           r_uid = result->inserted_id().get_utf8().value.to_string();
         }
       } catch (const exception& e) {
@@ -201,11 +216,14 @@ namespace store::storage::mongo {
     template<typename T>
     int upsertImpl(const T& doc, const document& filter_, const string& collectionName) {
       try {
-        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->getConnection();
+        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->tryGetConnection();
+        if (client == bsoncxx::stdx::nullopt)
+          throw "Failed to acquire client from thread pool.";
+
         mongocxx::options::update options;
         options.upsert(true);
 
-        auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), doc.view(), options);
+        auto result = (**client)[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), doc.view(), options);
         return 1;
       } catch (const exception& e) {
         logger->error(e.what());
