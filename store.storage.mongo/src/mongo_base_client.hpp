@@ -1,6 +1,8 @@
 #pragma once
 
+#include "store.storage.mongo/src/mongo_instance.hpp"
 #include "store.common/src/logger.hpp"
+#include "store.models/src/ioc/service_provider.hpp"
 
 #include <iostream>
 #include <bsoncxx/builder/stream/document.hpp>
@@ -10,8 +12,6 @@
 #include <bsoncxx/json.hpp>
 
 #include <mongocxx/client.hpp>
-// #include <mongocxx/instance.hpp>
-#include <mongocxx/pool.hpp>
 #include <mongocxx/options/create_collection.hpp>
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -24,8 +24,6 @@ using namespace bsoncxx::builder::stream;
 using namespace store::common;
 
 /*
-#ifndef MONGO_INIT_ONCE
-#define MONGO_INIT_ONCE
 // NOTE: Call init() once in application main()
 
 #include <mongocxx/instance.hpp>
@@ -42,9 +40,9 @@ int main() {
 
     // ...
 }
-
-#endif
 */
+
+namespace ioc = store::ioc;
 
 namespace store::storage::mongo {
   using bsoncxx::builder::stream::close_array;
@@ -56,14 +54,13 @@ namespace store::storage::mongo {
 
   class MongoBaseClient {
   public:
-    const string version = "0.4.0";
+    const string version = "0.5.0";
     MongoBaseClient() = default;
 
     explicit MongoBaseClient(
-      mongocxx::pool* pool,
       const string& database,
       const string& collection
-    ) : pool_(pool), database_(database), collection_(collection) {}
+    ) : database_(database), collection_(collection) {}
 
     explicit MongoBaseClient(
       const string& url,
@@ -79,8 +76,7 @@ namespace store::storage::mongo {
       auto doc = prepareDocument(type, jsonString);
       
       try {
-        // mongocxx::client client{ mongocxx::uri{ url_ } };
-        mongocxx::pool::entry client = pool_->acquire();
+        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->getConnection();
         auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(doc.view());
         return 1;
       } catch (const exception& e) {
@@ -91,8 +87,7 @@ namespace store::storage::mongo {
 
     int insertOne(const bsoncxx::document::view_or_value& v, const string& collectionName = "") {
       try {
-        // mongocxx::client client{ mongocxx::uri{ url_ } };
-        mongocxx::pool::entry client = pool_->acquire();
+        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->getConnection();
         auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(v);
         return 1;
       } catch (const exception& e) {
@@ -109,8 +104,7 @@ namespace store::storage::mongo {
     int upsertOne(const bsoncxx::document::view_or_value& v, const string& _id, const string& collectionName = "") {
       auto filter_ = document{} << "_id" << _id << finalize;
       try {
-        // mongocxx::client client{ mongocxx::uri{ url_ } };
-        mongocxx::pool::entry client = pool_->acquire();
+        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->getConnection();
         mongocxx::options::update options;
         options.upsert(true);
 
@@ -160,8 +154,7 @@ namespace store::storage::mongo {
       options.max_time(std::chrono::milliseconds(5000));
 
       try {
-        // mongocxx::client client{ mongocxx::uri{ url_ } };
-        mongocxx::pool::entry client = pool_->acquire();
+        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->getConnection();
         auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].find_one_and_update(filter_.view(), update_.view(), options );
         return result->view()["sequence_value"].get_int64().value;
       } catch (const exception& e) {
@@ -179,8 +172,7 @@ namespace store::storage::mongo {
       findOptions.projection(document{} << "_id" << 1 << finalize);
 
       try {
-        // mongocxx::client client{ mongocxx::uri{ url_ } };
-        mongocxx::pool::entry client = pool_->acquire();
+        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->getConnection();
         auto cursor = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].find(filter_.view(), findOptions );
         auto iter = (cursor.begin());
 
@@ -201,8 +193,6 @@ namespace store::storage::mongo {
     // Default logger.
     shared_ptr<ILogger> logger = make_shared<ILogger>();
 
-    mongocxx::pool* pool_;
-
   protected:
     string url_;
     string database_;
@@ -211,8 +201,7 @@ namespace store::storage::mongo {
     template<typename T>
     int upsertImpl(const T& doc, const document& filter_, const string& collectionName) {
       try {
-        // mongocxx::client client{ mongocxx::uri{ url_ } };
-        mongocxx::pool::entry client = pool_->acquire();
+        auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->getConnection();
         mongocxx::options::update options;
         options.upsert(true);
 

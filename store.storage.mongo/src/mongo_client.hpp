@@ -44,11 +44,8 @@ namespace store::storage::mongo {
 
       int SaveOne(const string& streamType, const json& streamObj) {        
         int rc = 0;
-        // MongoBaseClient clientStreams(session->url_, session->database_, eventstreams_);
-        // MongoBaseClient clientEventsCounter(session->url_, session->database_, events_counter_);
-        
-        MongoBaseClient clientStreams(session->pool_, session->database_, eventstreams_);
-        MongoBaseClient clientEventsCounter(session->pool_, session->database_, events_counter_);
+        MongoBaseClient clientStreams(session->database_, eventstreams_);
+        MongoBaseClient clientEventsCounter(session->database_, events_counter_);
         
         // Get the stream id that represents the Type.
         auto new_uuid = generate_uuid();
@@ -111,8 +108,7 @@ namespace store::storage::mongo {
 
         json j = ev;
         auto b = session->makeBsonFromJson(j);
-        // MongoBaseClient clientEvents(session->url_, session->database_, events_); 
-        MongoBaseClient clientEvents(session->pool_, session->database_, events_); 
+        MongoBaseClient clientEvents(session->database_, events_); 
         return clientEvents.insertOne(b->view());
       }
 
@@ -135,20 +131,17 @@ namespace store::storage::mongo {
 
         json j1 = es;
         auto b1 = session->makeBsonFromJson(j1);
-        // MongoBaseClient clientStreams(session->url_, session->database_, eventstreams_);
-        MongoBaseClient clientStreams(session->pool_, session->database_, eventstreams_);
+        MongoBaseClient clientStreams(session->database_, eventstreams_);
         return clientStreams.upsertOne(b1->view(), streamId);
       }
     };
     
-    explicit MongoClient(mongocxx::pool* pool, const string& database, const string& collection, shared_ptr<ILogger> logger_ = nullptr) : 
-      MongoBaseClient(pool, database, collection) {
-        pool_ = pool;
-
+   explicit MongoClient(const string& database, const string& collection, shared_ptr<ILogger> logger_ = nullptr) : 
+      MongoBaseClient(database, collection) {
         if (logger_)
           this->logger = logger_;
       }
-
+   
     explicit MongoClient(const string& url, const string& database, const string& collection, shared_ptr<ILogger> logger_ = nullptr) : 
       MongoBaseClient(url, database, collection) {
         if (logger_)
@@ -160,8 +153,6 @@ namespace store::storage::mongo {
       
       return make_shared<bsoncxx::document::value>(x);
 	  }
-
-    mongocxx::pool* pool_;
 
     MongoEventStore events{ this };
 
