@@ -10,7 +10,8 @@
 #include <bsoncxx/json.hpp>
 
 #include <mongocxx/client.hpp>
-#include <mongocxx/instance.hpp>
+// #include <mongocxx/instance.hpp>
+#include <mongocxx/pool.hpp>
 #include <mongocxx/options/create_collection.hpp>
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -22,11 +23,28 @@ using namespace std;
 using namespace bsoncxx::builder::stream;
 using namespace store::common;
 
+/*
 #ifndef MONGO_INIT_ONCE
 #define MONGO_INIT_ONCE
-//Call init() once
-mongocxx::instance inst{};
+// NOTE: Call init() once in application main()
+
+#include <mongocxx/instance.hpp>
+#include <mongocxx/pool.hpp>
+
+int main() {
+    // The mongocxx::instance constructor and destructor initialize and shut down the driver,
+    // respectively. Therefore, a mongocxx::instance must be created before using the driver and
+    // must remain alive for as long as the driver is in use.
+    mongocxx::instance inst{};
+    mongocxx::uri uri{"mongodb://localhost:27017/?minPoolSize=3&maxPoolSize=3"};
+
+    mongocxx::pool pool{uri};
+
+    // ...
+}
+
 #endif
+*/
 
 namespace store::storage::mongo {
   using bsoncxx::builder::stream::close_array;
@@ -40,6 +58,13 @@ namespace store::storage::mongo {
   public:
     const string version = "0.4.0";
     MongoBaseClient() = default;
+
+    explicit MongoBaseClient(
+      mongocxx::pool* pool,
+      const string& database,
+      const string& collection
+    ) : pool_(pool), database_(database), collection_(collection) {}
+
     explicit MongoBaseClient(
       const string& url,
       const string& database,
@@ -54,8 +79,9 @@ namespace store::storage::mongo {
       auto doc = prepareDocument(type, jsonString);
       
       try {
-        mongocxx::client client{ mongocxx::uri{ url_ } };
-        auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(doc.view());
+        // mongocxx::client client{ mongocxx::uri{ url_ } };
+        mongocxx::pool::entry client = pool_->acquire();
+        auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(doc.view());
         return 1;
       } catch (const exception& e) {
         logger->error(e.what());
@@ -65,8 +91,9 @@ namespace store::storage::mongo {
 
     int insertOne(const bsoncxx::document::view_or_value& v, const string& collectionName = "") {
       try {
-        mongocxx::client client{ mongocxx::uri{ url_ } };
-        auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(v);
+        // mongocxx::client client{ mongocxx::uri{ url_ } };
+        mongocxx::pool::entry client = pool_->acquire();
+        auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(v);
         return 1;
       } catch (const exception& e) {
         logger->error(e.what());
@@ -82,11 +109,12 @@ namespace store::storage::mongo {
     int upsertOne(const bsoncxx::document::view_or_value& v, const string& _id, const string& collectionName = "") {
       auto filter_ = document{} << "_id" << _id << finalize;
       try {
-        mongocxx::client client{ mongocxx::uri{ url_ } };
+        // mongocxx::client client{ mongocxx::uri{ url_ } };
+        mongocxx::pool::entry client = pool_->acquire();
         mongocxx::options::update options;
         options.upsert(true);
 
-        auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), v, options);
+        auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), v, options);
         return 1;
       } catch (const exception& e) {
         logger->error(e.what());
@@ -132,8 +160,9 @@ namespace store::storage::mongo {
       options.max_time(std::chrono::milliseconds(5000));
 
       try {
-        mongocxx::client client{ mongocxx::uri{ url_ } };
-        auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].find_one_and_update(filter_.view(), update_.view(), options );
+        // mongocxx::client client{ mongocxx::uri{ url_ } };
+        mongocxx::pool::entry client = pool_->acquire();
+        auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].find_one_and_update(filter_.view(), update_.view(), options );
         return result->view()["sequence_value"].get_int64().value;
       } catch (const exception& e) {
         logger->error(e.what());
@@ -150,8 +179,9 @@ namespace store::storage::mongo {
       findOptions.projection(document{} << "_id" << 1 << finalize);
 
       try {
-        mongocxx::client client{ mongocxx::uri{ url_ } };
-        auto cursor = client[database_][collectionName.size() == 0 ? collection_ : collectionName].find(filter_.view(), findOptions );
+        // mongocxx::client client{ mongocxx::uri{ url_ } };
+        mongocxx::pool::entry client = pool_->acquire();
+        auto cursor = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].find(filter_.view(), findOptions );
         auto iter = (cursor.begin());
 
         if (iter != cursor.end()) {
@@ -159,7 +189,7 @@ namespace store::storage::mongo {
           r_uid = doc["_id"].get_utf8().value.to_string();
         } else {
           // Create the first instance.
-          auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(document{} << "_id" << uid << "type" << typeName << finalize);
+          auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(document{} << "_id" << uid << "type" << typeName << finalize);
           r_uid = result->inserted_id().get_utf8().value.to_string();
         }
       } catch (const exception& e) {
@@ -171,6 +201,8 @@ namespace store::storage::mongo {
     // Default logger.
     shared_ptr<ILogger> logger = make_shared<ILogger>();
 
+    mongocxx::pool* pool_;
+
   protected:
     string url_;
     string database_;
@@ -179,11 +211,12 @@ namespace store::storage::mongo {
     template<typename T>
     int upsertImpl(const T& doc, const document& filter_, const string& collectionName) {
       try {
-        mongocxx::client client{ mongocxx::uri{ url_ } };
+        // mongocxx::client client{ mongocxx::uri{ url_ } };
+        mongocxx::pool::entry client = pool_->acquire();
         mongocxx::options::update options;
         options.upsert(true);
 
-        auto result = client[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), doc.view(), options);
+        auto result = (*client)[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), doc.view(), options);
         return 1;
       } catch (const exception& e) {
         logger->error(e.what());
