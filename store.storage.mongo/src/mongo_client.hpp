@@ -108,7 +108,8 @@ namespace store::storage::mongo {
 
         json j = ev;
         auto b = session->makeBsonFromJson(j);
-        MongoBaseClient clientEvents(session->database_, events_); 
+        MongoBaseClient clientEvents(session->database_, events_);
+        clientEvents.logger = session->logger;
         return clientEvents.insertOne(b->view());
       }
 
@@ -132,6 +133,7 @@ namespace store::storage::mongo {
         json j1 = es;
         auto b1 = session->makeBsonFromJson(j1);
         MongoBaseClient clientStreams(session->database_, eventstreams_);
+        clientStreams.logger = session->logger;
         return clientStreams.upsertOne(b1->view(), streamId);
       }
     };

@@ -54,8 +54,8 @@ namespace store::storage::mongo {
 
   class MongoBaseClient {
   public:
-    const string version = "0.5.1";
-    MongoBaseClient() = default;
+    const string version = "0.5.2";
+    MongoBaseClient() {}
 
     explicit MongoBaseClient(
       const string& database,
@@ -68,13 +68,16 @@ namespace store::storage::mongo {
       const string& collectionName = ""
     ) {          
       auto doc = prepareDocument(type, jsonString);
-      
+
+      mongocxx::options::insert options;
+      createInsertOptions(options);
+
       try {
         auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->tryGetConnection();
         if (client == bsoncxx::stdx::nullopt)
           throw "Failed to acquire client from thread pool.";
 
-        auto result = (**client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(doc.view());
+        auto result = (**client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(doc.view(), options);
         return 1;
       } catch (const exception& e) {
         logger->error(e.what());
@@ -83,12 +86,15 @@ namespace store::storage::mongo {
     }
 
     int insertOne(const bsoncxx::document::view_or_value& v, const string& collectionName = "") {
+      mongocxx::options::insert options;
+      createInsertOptions(options);
+
       try {
         auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->tryGetConnection();
         if (client == bsoncxx::stdx::nullopt)
           throw "Failed to acquire client from thread pool.";
 
-        auto result = (**client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(v);
+        auto result = (**client)[database_][collectionName.size() == 0 ? collection_ : collectionName].insert_one(v, options);
         return 1;
       } catch (const exception& e) {
         logger->error(e.what());
@@ -103,13 +109,14 @@ namespace store::storage::mongo {
 
     int upsertOne(const bsoncxx::document::view_or_value& v, const string& _id, const string& collectionName = "") {
       auto filter_ = document{} << "_id" << _id << finalize;
+      
+      mongocxx::options::update options;
+      createUpdateOptions(options);
+
       try {
         auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->tryGetConnection();
         if (client == bsoncxx::stdx::nullopt)
           throw "Failed to acquire client from thread pool.";
-
-        mongocxx::options::update options;
-        options.upsert(true);
 
         auto result = (**client)[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), v, options);
         return 1;
@@ -151,10 +158,7 @@ namespace store::storage::mongo {
         << finalize;
 
       mongocxx::options::find_one_and_update options;
-      options.upsert(true);
-      options.return_document(mongocxx::options::return_document::k_after);
-      options.bypass_document_validation(true);
-      options.max_time(std::chrono::milliseconds(5000));
+      createFindOneAndUpdateOptions(options);
 
       try {
         auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->tryGetConnection();
@@ -206,16 +210,16 @@ namespace store::storage::mongo {
     string url_;
     string database_;
     string collection_;
-
+    
     template<typename T>
     int upsertImpl(const T& doc, const document& filter_, const string& collectionName) {
+      mongocxx::options::update options;
+      createUpdateOptions(options);
+
       try {
         auto client = ioc::ServiceProvider->GetInstance<MongoInstance>()->tryGetConnection();
         if (client == bsoncxx::stdx::nullopt)
           throw "Failed to acquire client from thread pool.";
-
-        mongocxx::options::update options;
-        options.upsert(true);
 
         auto result = (**client)[database_][collectionName.size() == 0 ? collection_ : collectionName].replace_one(filter_.view(), doc.view(), options);
         return 1;
@@ -237,6 +241,26 @@ namespace store::storage::mongo {
         << "start_time" << bsoncxx::types::b_date(std::chrono::system_clock::now())
         << "data" << bsoncxx::types::b_document{ bsoncxx::from_json(jsonString) };
       return b;
+    }
+
+    void createInsertOptions(mongocxx::options::insert& options) {
+      mongocxx::write_concern wc;
+      wc.nodes(1);
+      options.write_concern(wc);     
+    }
+
+    void createUpdateOptions(mongocxx::options::update& options) {
+      options.upsert(true);
+      mongocxx::write_concern wc;
+      wc.nodes(1);
+      options.write_concern(wc);      
+    }
+
+    void createFindOneAndUpdateOptions(mongocxx::options::find_one_and_update& options) {
+      options.upsert(true);
+      options.return_document(mongocxx::options::return_document::k_after);
+      options.bypass_document_validation(true);
+      options.max_time(std::chrono::milliseconds(5000));
     }
 
   };
