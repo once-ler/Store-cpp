@@ -6,6 +6,7 @@
 
 #include "store.models/src/extensions.hpp"
 #include "store.models/src/ioc/service_provider.hpp"
+#include "store.models/src/models.hpp"
 
 using namespace std;
 using namespace com::eztier;
@@ -14,7 +15,7 @@ namespace ioc = store::ioc;
 
 using json = nlohmann::json;
 
-namespace store::storage::connection_pools::mssql {
+namespace store::storage::connection_pools::mssql::dblib {
   auto testPool = []() {
     cout << "Testing MSSQL dblib connection pool" << endl;
     
@@ -104,7 +105,7 @@ namespace store::storage::connection_pools::mssql {
       user = getPathValueFromJson<string>(config_pt, "mssql", environment, "user"),
       password = getPathValueFromJson<string>(config_pt, "mssql", environment, "password");
 
-    createPoolImpl(server, port, database, user, password, poolSize);    
+    createPoolImpl(server, port, database, user, password, poolSize); 
   };
 
   auto createPoolFromDBContext = [](const store::models::DBContext& dbContext, int poolSize = 10) {

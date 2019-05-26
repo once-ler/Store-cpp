@@ -4,7 +4,7 @@
 #include <sstream>
 #include "store.storage.connection-pools/src/mssql_dblib.hpp"
 
-namespace MSSQLDbLibPool = store::storage::connection_pools::mssql;
+namespace MSSQLDbLibPool = store::storage::connection_pools::mssql::dblib;
 
 namespace store::storage::mssql {
   class MsSqlDbLibBaseClient {

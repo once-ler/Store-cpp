@@ -18,7 +18,7 @@ namespace store::storage::mssql {
     const string version = "0.1.11";
     MsSqlClient(DBContext _dbContext) :
       BaseClient<T>(_dbContext),
-      MsSqlBaseClient(_dbContext.server, _dbContext.port, _dbContext.database, _dbContext.user, _dbContext.password) {}
+      MsSqlBaseClient(_dbContext) {}
   
     vector<shared_ptr<json>> runQueryJson(const string& sqlStmt) override {
       vector<shared_ptr<json>> a;

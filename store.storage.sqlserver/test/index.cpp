@@ -174,7 +174,10 @@ int spec_0() {
 }
 
 int main(int argc, char *argv[]) {
-  // spec_2();
+  spec_0();
+  spec_1();
+  spec_2();
+  spec_3();
   spec_4();
   return 0;
 }
