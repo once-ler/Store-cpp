@@ -6,6 +6,7 @@
 
 #include "store.models/src/extensions.hpp"
 #include "store.models/src/ioc/service_provider.hpp"
+#include "store.models/src/models.hpp"
 
 using namespace std;
 using namespace com::eztier;
@@ -28,16 +29,7 @@ namespace store::storage::connection_pools::pgsql {
     pool1->unborrow(conn);
   };
 
-  auto createPool = [](const json& config_j, const string& environment, int poolSize = 10) {
-    auto config_pt = make_shared<json>(config_j);
-
-    int port = getPathValueFromJson<int>(config_pt, "postgres", environment, "port");
-
-    string server = getPathValueFromJson<string>(config_pt, "postgres", environment, "server"),
-      database = getPathValueFromJson<string>(config_pt, "postgres", environment, "database"),
-      user = getPathValueFromJson<string>(config_pt, "postgres", environment, "user"),
-      password = getPathValueFromJson<string>(config_pt, "postgres", environment, "password");
-
+  auto createPoolImpl = [](const string& server, int port, const string& database, const string& user, const string& password, int poolSize = 10) {
     cout << "Creating PostgreSQL connections..." << endl;
     std::shared_ptr<PostgreSQLConnectionFactory> connection_factory;
     std::shared_ptr<ConnectionPool<PostgreSQLConnection>> pool;
@@ -67,6 +59,22 @@ namespace store::storage::connection_pools::pgsql {
 
       testPool();
     }
+  };
+
+  auto createPool = [](const json& config_j, const string& environment, int poolSize = 10) {
+    auto config_pt = make_shared<json>(config_j);
+
+    int port = getPathValueFromJson<int>(config_pt, "postgres", environment, "port");
+
+    string server = getPathValueFromJson<string>(config_pt, "postgres", environment, "server"),
+      database = getPathValueFromJson<string>(config_pt, "postgres", environment, "database"),
+      user = getPathValueFromJson<string>(config_pt, "postgres", environment, "user"),
+      password = getPathValueFromJson<string>(config_pt, "postgres", environment, "password");
     
+    createPoolImpl(server, port, database, user, password, poolSize);
+  };
+
+  auto createPool = [](const store::models::DBContext& dbContext, int poolSize = 10) {
+    createPoolImpl(dbContext.server, dbContext.port, dbContext.database, dbContext.user, dbContext.password, poolSize);
   };
 }

@@ -14,6 +14,7 @@
 #include "store.common/src/group_by.hpp"
 #include "store.common/src/logger.hpp"
 #include "store.common/src/runtime_get_tuple.hpp"
+#include "store.storage.connection-pools.hpp"
 
 using namespace std;
 using namespace store::interfaces;
@@ -25,6 +26,7 @@ using namespace store::common::tuples;
 // Don't use db::postgres b/c it defines time_t which will collide with std::time_t if used in other libs.
 namespace Postgres = db::postgres;
 namespace Extensions = store::extensions;
+namespace PostgreSQLPool = store::storage::connection_pools::pgsql;
 
 using json = nlohmann::json;
 
@@ -71,12 +73,17 @@ namespace store {
                 join(bodies.begin(), bodies.end(), string(",")).c_str()
               );
 
-              Postgres::Connection cnx;
+              // Postgres::Connection cnx;
+              std::shared_ptr<PostgreSQLConnection> conn=pool->borrow();
+                
               try {
-                cnx.connect(session->connectionInfo.c_str());
+                // cnx.connect(session->connectionInfo.c_str());
+                // const auto& resp = cnx.execute(stmt.c_str()).template asArray<int64_t>(0);
+
                 // resp is [current_version, ...sequence num]
                 // https://stackoverflow.com/questions/17947863/error-expected-primary-expression-before-templated-function-that-try-to-us
-                const auto& resp = cnx.execute(stmt.c_str()).template asArray<int64_t>(0);
+                const auto& resp = conn->sql_connection->execute(stmt.c_str()).template asArray<int64_t>(0);
+                
               } catch (Postgres::ConnectionException e) {
                 session->logger->error(e.what());
                 return make_pair(0, e.what());
@@ -92,16 +99,20 @@ namespace store {
             // Clear pending collection.
             this->Reset();
 
+            pool->unborrow(conn);
+
             return make_pair(1, "Succeeded");
           }
 
           int64_t LastExecution(const string& type, const string& subscriber, int64_t newSeqId = -1) override {
-            Postgres::Connection cnx;
+            // Postgres::Connection cnx;
+            std::shared_ptr<PostgreSQLConnection> conn=pool->borrow();
+              
             int64_t seqId = 0;
 
             try {
-              cnx.connect(session->connectionInfo.c_str());
-
+              // cnx.connect(session->connectionInfo.c_str());
+              
               string createTable = Extensions::string_format(R"SQL(
                 create table if not exists "%s"."mt_last_execution" (
                   stream uuid not null REFERENCES %s.mt_streams ON DELETE CASCADE,
@@ -111,15 +122,17 @@ namespace store {
                 );                
               )SQL", dbSchema.c_str(), dbSchema.c_str());
 
-              cnx.execute(createTable.c_str());
-
+              // cnx.execute(createTable.c_str());
+              conn->sql_connection->execute(createTable.c_str());
+              
               auto sql = Extensions::string_format("select seq_id from %s.mt_last_execution where stream = '%s' and subscriber = '%s'",
                 dbSchema.c_str(),
                 generate_uuid_v3(type.c_str()).c_str(),
                 subscriber.c_str()
               );
 
-              auto& resp = cnx.execute(sql.c_str());
+              // auto& resp = cnx.execute(sql.c_str());
+              auto& resp = conn->sql_connection->execute(sql.c_str());
 
               auto it = resp.begin();
 
@@ -130,7 +143,8 @@ namespace store {
                   insert into "%s"."mt_last_execution" (stream, subscriber, seq_id) values ('%s', '%s', -1) on conflict do nothing;
                 )SQL", dbSchema.c_str(), generate_uuid_v3(type.c_str()).c_str(), subscriber.c_str());
 
-                cnx.execute(insertDefault.c_str());
+                // cnx.execute(insertDefault.c_str());
+                conn->sql_connection->execute(insertDefault.c_str());
               }
 
               if (newSeqId > -1) {
@@ -138,7 +152,8 @@ namespace store {
                   update "%s"."mt_last_execution" set seq_id = %lld where stream = '%s' and subscriber = '%s';
                 )SQL", dbSchema.c_str(), (long long)newSeqId, generate_uuid_v3(type.c_str()).c_str(), subscriber.c_str());
 
-                cnx.execute(setNextSeqId.c_str());
+                // cnx.execute(setNextSeqId.c_str());
+                conn->sql_connection->execute(setNextSeqId.c_str());
                 seqId = newSeqId;
               }
               
@@ -150,11 +165,14 @@ namespace store {
               session->logger->error(e.what());
             }
 
+            pool->unborrow(conn);
             return seqId;
           }
 
           vector<IEvent> Search(const string& type, int64_t fromSeqId, int limit = 10, bool exact = true, vector<string> mustExistKeys = {}, map<string, vector<string>> filters = {}) override {
-            Postgres::Connection cnx;
+            // Postgres::Connection cnx;
+            std::shared_ptr<PostgreSQLConnection> conn=pool->borrow();
+
             vector<IEvent> events;
 
             string matchExact = exact ? "=" : "~*";
@@ -176,8 +194,7 @@ namespace store {
             string matchFilters = filtersQuotedString.size() > 0 ? string_format(" and %s", filtersQuotedString.c_str()) : "";
 
             try {
-              cnx.connect(session->connectionInfo.c_str());
-
+              // cnx.connect(session->connectionInfo.c_str());
               auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where type %s '%s' and seq_id > %lld %s %s limit %d",
                 dbSchema.c_str(),
                 matchExact.c_str(),
@@ -188,7 +205,8 @@ namespace store {
                 limit
               );
 
-              auto& resp = cnx.execute(sql.c_str());
+              // auto& resp = cnx.execute(sql.c_str());
+              auto& resp = conn->sql_connection->execute(sql.c_str());
 
               for (auto &row : resp) {
                 json data = json::parse(strip_soh(row.as<string>(5)));
@@ -213,6 +231,8 @@ namespace store {
               session->logger->error(e.what());
             }
 
+            pool->unborrow(conn);
+
             return events;
           } 
 
@@ -227,7 +247,7 @@ namespace store {
           }
         };
 
-        Client(DBContext _dbContext) : BaseClient<T>(_dbContext) {
+        Client(DBContext _dbContext, int poolSize = 10) : BaseClient<T>(_dbContext) {
           connectionInfo = Extensions::string_format("application_name=%s host=%s port=%d dbname=%s connect_timeout=%d user=%s password=%s", 
             this->dbContext.applicationName.c_str(), 
             this->dbContext.server.c_str(), 
@@ -236,6 +256,12 @@ namespace store {
             this->dbContext.connectTimeout, 
             this->dbContext.user.c_str(), 
             this->dbContext.password.c_str());
+
+          pool = PostgreSQLPool::createPool(this->dbContext, poolSize);
+        }
+
+        Client(const json& config_j, const string& environment, int poolSize = 10) {
+          pool = PostgreSQLPool::createPool(config_j, environment, poolSize);
         }
         
         // Pass pgsql::Client<A> to friend PgEventStore; event store will share same connection.
@@ -566,10 +592,11 @@ namespace store {
         }
 
       protected:
-        string connectionInfo;        
+        string connectionInfo;
+        shared_ptr<ConnectionPool<PostgreSQLConnection>> pool;  
 
       private:
-
+        
       };     
 
     }
