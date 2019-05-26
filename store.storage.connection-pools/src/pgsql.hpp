@@ -61,7 +61,11 @@ namespace store::storage::connection_pools::pgsql {
     }
   };
 
-  auto createPool = [](const json& config_j, const string& environment, int poolSize = 10) {
+  auto createPool = [](const string& server, int port, const string& database, const string& user, const string& password, int poolSize = 10) {
+    createPoolImpl(server, port, database, user, password, poolSize);
+  };
+
+  auto createPoolFromJson = [](const json& config_j, const string& environment, int poolSize = 10) {
     auto config_pt = make_shared<json>(config_j);
 
     int port = getPathValueFromJson<int>(config_pt, "postgres", environment, "port");
@@ -74,7 +78,7 @@ namespace store::storage::connection_pools::pgsql {
     createPoolImpl(server, port, database, user, password, poolSize);
   };
 
-  auto createPool = [](const store::models::DBContext& dbContext, int poolSize = 10) {
+  auto createPoolFromDBContext = [](const store::models::DBContext& dbContext, int poolSize = 10) {
     createPoolImpl(dbContext.server, dbContext.port, dbContext.database, dbContext.user, dbContext.password, poolSize);
   };
 }

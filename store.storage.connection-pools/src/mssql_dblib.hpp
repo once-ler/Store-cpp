@@ -58,16 +58,7 @@ namespace store::storage::connection_pools::mssql {
     pool1->unborrow(conn);
   };
 
-  auto createPool = [](const json& config_j, const string& environment, int poolSize = 10) {
-    auto config_pt = make_shared<json>(config_j);
-
-    int port = getPathValueFromJson<int>(config_pt, "mssql", environment, "port");
-
-    string server = getPathValueFromJson<string>(config_pt, "mssql", environment, "server"),
-      database = getPathValueFromJson<string>(config_pt, "mssql", environment, "database"),
-      user = getPathValueFromJson<string>(config_pt, "mssql", environment, "user"),
-      password = getPathValueFromJson<string>(config_pt, "mssql", environment, "password");
-
+  auto createPoolImpl = [](const string& server, int port, const string& database, const string& user, const string& password, int poolSize = 10) {
     cout << "Creating MSSQL dblib connections..." << endl;
     std::shared_ptr<MSSQLDbLibConnectionFactory> connection_factory;
     std::shared_ptr<ConnectionPool<MSSQLDbLibConnection>> pool;
@@ -97,6 +88,27 @@ namespace store::storage::connection_pools::mssql {
 
       testPool();
     }
-    
   };
+
+  auto createPool = [](const string& server, int port, const string& database, const string& user, const string& password, int poolSize = 10) {
+    createPoolImpl(server, port, database, user, password, poolSize);
+  };
+
+  auto createPoolFromJson = [](const json& config_j, const string& environment, int poolSize = 10) {
+    auto config_pt = make_shared<json>(config_j);
+
+    int port = getPathValueFromJson<int>(config_pt, "mssql", environment, "port");
+
+    string server = getPathValueFromJson<string>(config_pt, "mssql", environment, "server"),
+      database = getPathValueFromJson<string>(config_pt, "mssql", environment, "database"),
+      user = getPathValueFromJson<string>(config_pt, "mssql", environment, "user"),
+      password = getPathValueFromJson<string>(config_pt, "mssql", environment, "password");
+
+    createPoolImpl(server, port, database, user, password, poolSize);    
+  };
+
+  auto createPoolFromDBContext = [](const store::models::DBContext& dbContext, int poolSize = 10) {
+    createPoolImpl(dbContext.server, dbContext.port, dbContext.database, dbContext.user, dbContext.password, poolSize);
+  };
+  
 }

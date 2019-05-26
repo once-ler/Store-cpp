@@ -1,4 +1,9 @@
+/*
+g++ -std=c++14 -I /usr/local/include -I ../../../../spdlog/include -I ../../../../tdspp -I ../../../../Store-cpp -I ../../../../connection-pool -I ../../../../json/single_include/nlohmann ../index.cpp -o bin/testing -L /usr/lib/x86_64-linux-gnu -L /usr/local/lib -luuid -ltds++ -lct -ltdsclient -lsybdb -lpthread -lboost_system -lboost_filesystem
+*/
+
 #include "store.storage.sqlserver/src/mssql_client.hpp"
+#include "store.storage.sqlserver/src/mssql_dblib_base_client.hpp"
 #include "store.models/src/models.hpp"
 #include "store.common/src/spdlogger.hpp"
 
@@ -28,6 +33,33 @@ void sqlToJson(Field* fd, json& j) {
     default:
       j[cname] = fd->to_str();
   }
+}
+
+int spec_4() {
+  using MsSqlClient = store::storage::mssql::MsSqlDbLibBaseClient;
+
+  MsSqlClient mssqlClient("localhost", 1433, "master", "admin", "12345678", 20);
+
+  vector<string> fieldNames;
+  vector<vector<string>> fieldValues;
+  istringstream input("select convert(bigint, 999) rowid, 'PROJECT_STATUS' prefix_type, 'FOO' type, '1234' id, 'ALIVE' status");
+  mssqlClient.quick(input, fieldNames, fieldValues);
+
+  int idx = 0, cnt = fieldNames.size() - 1;
+  for (auto& fld : fieldNames) {
+    cout << fld << (idx < cnt ? "\t" : "");
+    idx++;
+  }
+  cout << endl;
+  idx = 0;
+
+  for (auto& row : fieldValues) {
+    for (const auto& col: row) {
+      cout << col << (idx < cnt ? "\t" : "");
+    }
+    cout << endl;
+  }
+  cout << endl;
 }
 
 struct Wrapper {
@@ -142,8 +174,8 @@ int spec_0() {
 }
 
 int main(int argc, char *argv[]) {
-  spec_2();
-
+  // spec_2();
+  spec_4();
   return 0;
 }
 
