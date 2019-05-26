@@ -2,7 +2,10 @@
 
 #include <iostream>
 #include <sstream>
+#include "store.common/src/logger.hpp"
 #include "store.storage.connection-pools/src/mssql_dblib.hpp"
+
+using namespace store::common;
 
 namespace MSSQLDbLibPool = store::storage::connection_pools::mssql::dblib;
 
@@ -52,6 +55,9 @@ namespace store::storage::mssql {
 
       pool->unborrow(conn);
     }
+
+    // Default logger.
+    shared_ptr<ILogger> logger = make_shared<ILogger>();
 
   protected:
     shared_ptr<ConnectionPool<MSSQLDbLibConnection>> pool;
