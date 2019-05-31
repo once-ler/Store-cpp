@@ -9,6 +9,10 @@ g++ -std=c++14 -Wall -I ../../../../Store-cpp \
 -luuid
 */
 
+// #define DEBUG
+
+#include <stdio.h>
+#include <time.h> 
 #include <unistd.h> //usleep
 #include <thread>
 
@@ -31,23 +35,38 @@ int main(int argc, char* argv[]) {
   using namespace store::storage::cassandra;
 
   auto client = make_shared<CassandraBaseClient>("127.0.0.1", "cassandra", "cassandra");
+  client->tryConnect();
 
+  // Register in main().  
   ioc::ServiceProvider->RegisterInstance<CassandraBaseClient>(client);
 
+  // Later...
   auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
-
-  conn->tryConnect();
-
-  const char* query = "INSERT INTO async (key, i64) VALUES (?, ?);";
-  CassStatement* statement = cass_statement_new(query, 2);
-  // cass_statement_bind_string(statement, 0, "ABC123");
-  BindCassParameter(statement, 0, "DEF456");
-  cass_statement_bind_int64(statement, 1, (cass_int64_t)100);
 
   conn->executeQuery(createTable);
   conn->executeQuery("use examples");
-  conn->insertAsync(statement);
   
+  clock_t t; 
+  t = clock(); 
+
+  size_t i = 0;
+  for (; i < 25000; i++) {
+    auto statement = conn->getInsertStatement("async", {"key", "i64"}, "ABC" + std::to_string(i), (int64_t)i);
+    conn->insertAsync(statement);
+  }
+
+  vector<CassStatement*> stmts;
+  for (; i < 50000; i++) {
+    stmts.emplace_back(conn->getInsertStatement("async", {"key", "i64"}, "ABC" + std::to_string(i), (int64_t)i));
+  }
+  conn->insertAsync(stmts);
+  
+  t = clock() - t; 
+  double time_taken = ((double)t)/CLOCKS_PER_SEC; // in seconds 
+  
+  printf("Inserted %lu in %f sec.\n", i, time_taken); 
+
+  // Inserted 500000 in 7.169531 sec.
   fprintf(stdout, "Staying put");
 
   std::thread t1([]{ while (true) usleep(20000);});

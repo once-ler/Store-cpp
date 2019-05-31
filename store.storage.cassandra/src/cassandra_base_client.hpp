@@ -22,6 +22,10 @@ namespace store::storage::cassandra {
   template<typename A>
   void BindCassParameter(CassStatement* statement, size_t position, A value){}
 
+  void BindCassParameter(CassStatement* statement, size_t position, const char* value) {
+    cass_statement_bind_string(statement, position, value);
+  }
+
   void BindCassParameter(CassStatement* statement, size_t position, string value) {
     cass_statement_bind_string(statement, position, value.c_str());
   }
@@ -47,25 +51,15 @@ namespace store::storage::cassandra {
   }
 
   struct TupleFormatCassParamFunc {
-    TupleFormatCassParamFunc(stringstream* ss_) : ss(ss_) {};
-
+    TupleFormatCassParamFunc(CassStatement* statement_, size_t pos_) : statement(statement_), pos(pos_) {};
+    
     template<class U>
     void operator()(U p) {
-      
-      
-      auto tyname = string(typeid(p).name());
-      auto ty = tyname.back();
-      if (tyname.find("basic_string") != std::string::npos || ty == 'c' || ty == 's') {
-        *ss << "'" << p << "'";
-      } else {
-        *ss << p;
-      }
-      // std::cout << __PRETTY_FUNCTION__ << " : " << p << "\n";
-
-      
+      BindCassParameter(statement, pos, p);
     }
 
-    stringstream* ss;
+    CassStatement* statement;
+    size_t pos;
   };
 
   class CassandraBaseClient {
@@ -147,6 +141,19 @@ namespace store::storage::cassandra {
     }
 
     void insertAsync(CassStatement* statement) {
+      #ifdef DEBUG
+      auto f = cass_session_execute(session, statement);
+      cass_future_wait(f);
+
+      size_t rc = cass_future_error_code(f);
+      if (rc != CASS_OK) {
+        print_error(f);
+      }
+      cass_future_free(f);
+      cass_statement_free(statement);
+      return;
+      #endif
+
       futures.push_back(cass_session_execute(session, statement));
       if (futures.size() > insertThreshold) {
         for (auto future : futures) {
@@ -166,10 +173,10 @@ namespace store::storage::cassandra {
 
     /*
       @usage:
-      client.createInsertStatement("participant_hist", {"firstname", "lastname", "processed"}, "foo", "bar", 0);
+      client.getInsertStatement("participant_hist", {"firstname", "lastname", "processed"}, "foo", "bar", 0);
     */
     template<typename... Params>
-    pair<int, string> createInsertStatement(const string& table_name, const std::initializer_list<std::string>& fields, Params... params) {
+    CassStatement* getInsertStatement(const string& table_name, const std::initializer_list<std::string>& fields, Params... params) {
       tuple<Params...> values(params...);
       stringstream ss;
 
@@ -190,14 +197,19 @@ namespace store::storage::cassandra {
       }          
       ss << "?);";
 
+      #ifdef DEBUG
+      fprintf(stdout, "%s\n", ss.str().c_str());
+      #endif
+
       CassStatement* statement = cass_statement_new(ss.str().c_str(), fields.size());
 
-      while (i < fields.size() - 1) {
-        tuples::apply(values, i, TupleFormatFunc{&ss});
+      i = 0;
+      while (i < fields.size()) {
+        tuples::apply(values, i, TupleFormatCassParamFunc{statement, i});
         ++i;
       }
 
-      return make_pair(1, "Succeeded");
+      return statement;
     }
 
   protected:
