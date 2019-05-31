@@ -291,7 +291,7 @@ int main(int argc, char* argv[]) {
 
   //
 
-  printf("Staying put");
+  fprintf(stdout, "Staying put");
 
   std::thread t1([]{ while (true) usleep(20000);});
   t1.join();
