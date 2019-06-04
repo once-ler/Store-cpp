@@ -69,6 +69,11 @@ namespace store {
         }
       }
 
+      template <class T>
+      bool InstanceExist() {
+        return instanceMap_.find(typeid(T).name()) != instanceMap_.end();
+      }
+
     };
 
     class SimpleContainer : public IOCContainer {

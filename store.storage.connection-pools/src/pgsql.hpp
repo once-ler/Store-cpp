@@ -30,15 +30,16 @@ namespace store::storage::connection_pools::pgsql {
   };
 
   auto createPoolImpl = [](const string& server, int port, const string& database, const string& user, const string& password, int poolSize = 10) {
-    auto pool1 = ioc::ServiceProvider->GetInstance<ConnectionPool<PostgreSQLConnection>>();
-    if (pool1)
+    bool poolCreated = false;
+
+    poolCreated = ioc::ServiceProvider->InstanceExist<ConnectionPool<PostgreSQLConnection>>();
+    if (poolCreated)
       return;
 
     cout << "Creating PostgreSQL connections..." << endl;
     std::shared_ptr<PostgreSQLConnectionFactory> connection_factory;
     std::shared_ptr<ConnectionPool<PostgreSQLConnection>> pool;
-    bool poolCreated = false;
-
+    
     try {
       connection_factory = make_shared<PostgreSQLConnectionFactory>(
         server,
