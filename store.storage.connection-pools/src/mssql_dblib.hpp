@@ -60,6 +60,10 @@ namespace store::storage::connection_pools::mssql::dblib {
   };
 
   auto createPoolImpl = [](const string& server, int port, const string& database, const string& user, const string& password, int poolSize = 10) {
+    auto pool1 = ioc::ServiceProvider->GetInstance<ConnectionPool<MSSQLDbLibConnection>>();
+    if (pool1)
+      return;
+
     cout << "Creating MSSQL dblib connections..." << endl;
     std::shared_ptr<MSSQLDbLibConnectionFactory> connection_factory;
     std::shared_ptr<ConnectionPool<MSSQLDbLibConnection>> pool;

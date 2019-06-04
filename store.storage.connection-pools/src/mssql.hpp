@@ -38,6 +38,10 @@ namespace store::storage::connection_pools::mssql {
   };
 
   auto createPoolImpl = [](const string& server, int port, const string& database, const string& user, const string& password, int poolSize = 10) {
+    auto pool1 = ioc::ServiceProvider->GetInstance<ConnectionPool<MSSQLConnection>>();
+    if (pool1)
+      return;
+
     cout << "Creating MSSQL connections..." << endl;
     std::shared_ptr<MSSQLConnectionFactory> connection_factory;
     std::shared_ptr<ConnectionPool<MSSQLConnection>> pool;
