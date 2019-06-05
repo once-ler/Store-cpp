@@ -257,15 +257,15 @@ namespace store {
             this->dbContext.user.c_str(), 
             this->dbContext.password.c_str());
 
-          PostgreSQLPool::createPoolFromDBContext(this->dbContext, poolSize);
-
-          pool = ioc::ServiceProvider->GetInstance<ConnectionPool<PostgreSQLConnection>>();
+          PostgreSQLPool::createPoolFromDBContext(this->dbContext, typeid(this).name(), poolSize);
+          auto poolKey = typeid(this).name();
+          pool = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<PostgreSQLConnection>>(poolKey);
         }
 
         Client(const json& config_j, const string& environment, int poolSize = 10) {
-          PostgreSQLPool::createPoolFromJson(config_j, environment, poolSize);
-
-          pool = ioc::ServiceProvider->GetInstance<ConnectionPool<PostgreSQLConnection>>();
+          PostgreSQLPool::createPoolFromJson(config_j, environment, typeid(this).name(), poolSize);
+          auto poolKey = typeid(this).name();
+          pool = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<PostgreSQLConnection>>(poolKey);
         }
         
         // Pass pgsql::Client<A> to friend PgEventStore; event store will share same connection.
@@ -578,7 +578,9 @@ namespace store {
             // cnx.connect(connectionInfo.c_str());
             // auto& resp = cnx.execute(query.c_str());
             auto& resp = conn->sql_connection->execute(query.c_str());
-            return resp.template as<int64_t>(0);
+            int64_t r = resp.template as<int64_t>(0);
+            pool->unborrow(conn);
+            return r;
           } catch (Postgres::ConnectionException e) {
             logger->error(e.what());
           } catch (Postgres::ExecutionException e) {

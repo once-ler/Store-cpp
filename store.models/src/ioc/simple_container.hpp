@@ -20,6 +20,9 @@ namespace store {
         virtual void noop() {}
       };
 
+      using KeyCreator = std::map<std::string, std::function<void*()>>;
+      using KeyInstance = std::map<std::string, std::shared_ptr<IHolder>>;
+      
       template<class T>
       class Holder : public IHolder {
       public:
@@ -30,6 +33,9 @@ namespace store {
       std::map<std::string, std::function<void*()>> creatorMap_;
       std::map<std::string, std::shared_ptr<IHolder>> instanceMap_;
 
+      std::map<std::string, KeyCreator> creatorMapWithKey_;
+      std::map<std::string, KeyInstance> instanceMapWithKey_;
+      
     public:
       template <class T, typename... Ts>
       void RegisterSingletonClass() {
@@ -45,6 +51,17 @@ namespace store {
         holder->instance_ = instance;
 
         instanceMap_[typeid(T).name()] = holder;
+      }
+
+      /*
+        Same type, multiple instances with different keys.
+      */
+      template <class T>
+      void RegisterInstanceWithKey(std::string key, std::shared_ptr<T> instance) {
+        std::shared_ptr<Holder<T>> holder(new Holder<T>());
+        holder->instance_ = instance;
+
+        instanceMapWithKey_[typeid(T).name()][key] = holder;
       }
 
       template <class T, typename... Ts>
@@ -70,8 +87,41 @@ namespace store {
       }
 
       template <class T>
+      std::shared_ptr<T> GetInstanceWithKey(std::string key) {
+        auto it = instanceMapWithKey_.find(typeid(T).name());
+        if (it != instanceMapWithKey_.end()) {
+          
+          KeyInstance& inner = it->second;
+          KeyInstance::iterator it2 = it->second.find(key);
+          if (it2 != inner.end()) {
+            std::shared_ptr<IHolder> iholder = inner[key];
+            Holder<T> * holder = dynamic_cast<Holder<T>*>(iholder.get());
+            return holder->instance_;
+          } else {
+            return std::shared_ptr<T>(static_cast<T*>
+              (creatorMapWithKey_[typeid(T).name()][key]()));
+          }          
+        } else {
+          return std::shared_ptr<T>(static_cast<T*>
+            (creatorMapWithKey_[typeid(T).name()][key]()));
+        }
+      }
+
+      template <class T>
       bool InstanceExist() {
         return instanceMap_.find(typeid(T).name()) != instanceMap_.end();
+      }
+
+      template <class T>
+      bool InstanceWithKeyExist(std::string key) {
+        auto it = instanceMapWithKey_.find(typeid(T).name());
+        if (it != instanceMapWithKey_.end()) {
+          KeyInstance& inner = it->second;
+          KeyInstance::iterator it2 = it->second.find(key);
+          return it2 != inner.end();
+        }
+
+        return false;
       }
 
     };

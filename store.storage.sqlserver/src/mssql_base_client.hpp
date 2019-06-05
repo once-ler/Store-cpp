@@ -21,25 +21,25 @@ namespace store::storage::mssql {
   public:
     const string version = "0.1.15";
     
-    MsSqlBaseClient(const string& server_, int port_, const string& database_, const string& user_, const string& password_, int poolSize = 10) :
+    MsSqlBaseClient(const string& server_, int port_, const string& database_, const string& user_, const string& password_, const string& poolKey, int poolSize = 10) :
       server(server_), port(port_), database(database_), user(user_), password(password_) {
       server_port = server + ":" + to_string(port);
 
-      MSSQLPool::createPool(server, port, database, user, password, poolSize);
+      MSSQLPool::createPool(server, port, database, user, password, poolKey, poolSize);
 
-      pool = ioc::ServiceProvider->GetInstance<ConnectionPool<MSSQLConnection>>();
+      pool = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<MSSQLConnection>>(poolKey);
     }
 
-    MsSqlBaseClient(const DBContext& dbContext, int poolSize = 10) {
-      MSSQLPool::createPoolFromDBContext(dbContext, poolSize);
+    MsSqlBaseClient(const DBContext& dbContext, const string& poolKey, int poolSize = 10) {
+      MSSQLPool::createPoolFromDBContext(dbContext, poolKey, poolSize);
 
-      pool = ioc::ServiceProvider->GetInstance<ConnectionPool<MSSQLConnection>>();
+      pool = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<MSSQLConnection>>(poolKey);
     }
 
-    MsSqlBaseClient(const json& config_j, const string& environment, int poolSize = 10) {
-      MSSQLPool::createPoolFromJson(config_j, environment, poolSize);
+    MsSqlBaseClient(const json& config_j, const string& environment, const string& poolKey, int poolSize = 10) {
+      MSSQLPool::createPoolFromJson(config_j, environment, poolKey, poolSize);
 
-      pool = ioc::ServiceProvider->GetInstance<ConnectionPool<MSSQLConnection>>();
+      pool = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<MSSQLConnection>>(poolKey);
     }
 
     shared_ptr<Query> runQuery(const string& sqlStmt) {

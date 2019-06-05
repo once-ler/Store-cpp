@@ -16,10 +16,10 @@ namespace ioc = store::ioc;
 using json = nlohmann::json;
 
 namespace store::storage::connection_pools::mssql {
-  auto testPool = []() {
-    cout << "Testing MSSQL connection pool" << endl;
+  auto testPool = [](std::string instanceKey) {
+    cout << "Testing MSSQL connection pool with key " << instanceKey << endl;
     
-    auto pool1 = ioc::ServiceProvider->GetInstance<ConnectionPool<MSSQLConnection>>();
+    auto pool1 = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<MSSQLConnection>>(instanceKey);
 
     std::shared_ptr<MSSQLConnection> conn = pool1->borrow();
     
@@ -37,14 +37,14 @@ namespace store::storage::connection_pools::mssql {
     pool1->unborrow(conn);
   };
 
-  auto createPoolImpl = [](const string& server, int port, const string& database, const string& user, const string& password, int poolSize = 10) {
+  auto createPoolImpl = [](const string& server, int port, const string& database, const string& user, const string& password, const string& poolKey, int poolSize = 10) {
     bool poolCreated = false;
 
-    poolCreated = ioc::ServiceProvider->InstanceExist<ConnectionPool<MSSQLConnection>>();
+    poolCreated = ioc::ServiceProvider->InstanceWithKeyExist<ConnectionPool<MSSQLConnection>>(poolKey);
     if (poolCreated)
       return;
 
-    cout << "Creating MSSQL connections..." << endl;
+    cout << "Creating MSSQL connections " << poolKey << "..." << endl;
     std::shared_ptr<MSSQLConnectionFactory> connection_factory;
     std::shared_ptr<ConnectionPool<MSSQLConnection>> pool;
     
@@ -68,17 +68,17 @@ namespace store::storage::connection_pools::mssql {
       cout << "MSSQL connection pool count: " << stats.pool_size << endl;
 
       // Register pool
-      ioc::ServiceProvider->RegisterInstance<ConnectionPool<MSSQLConnection>>(pool);
+      ioc::ServiceProvider->RegisterInstanceWithKey<ConnectionPool<MSSQLConnection>>(poolKey, pool);
 
-      testPool();
+      testPool(poolKey);
     }
   };
 
-  auto createPool = [](const string& server, int port, const string& database, const string& user, const string& password, int poolSize = 10) {
-    createPoolImpl(server, port, database, user, password, poolSize);
+  auto createPool = [](const string& server, int port, const string& database, const string& user, const string& password, const string& poolKey, int poolSize = 10) {
+    createPoolImpl(server, port, database, user, password, poolKey, poolSize);
   };
 
-  auto createPoolFromJson = [](const json& config_j, const string& environment, int poolSize = 10) {
+  auto createPoolFromJson = [](const json& config_j, const string& environment, const string& poolKey, int poolSize = 10) {
     auto config_pt = make_shared<json>(config_j);
 
     int port = getPathValueFromJson<int>(config_pt, "mssql", environment, "port");
@@ -88,10 +88,10 @@ namespace store::storage::connection_pools::mssql {
       user = getPathValueFromJson<string>(config_pt, "mssql", environment, "user"),
       password = getPathValueFromJson<string>(config_pt, "mssql", environment, "password");
 
-    createPoolImpl(server, port, database, user, password, poolSize);    
+    createPoolImpl(server, port, database, user, password, poolKey, poolSize);    
   };
 
-  auto createPoolFromDBContext = [](const store::models::DBContext& dbContext, int poolSize = 10) {
-    createPoolImpl(dbContext.server, dbContext.port, dbContext.database, dbContext.user, dbContext.password, poolSize);
+  auto createPoolFromDBContext = [](const store::models::DBContext& dbContext, const string& poolKey, int poolSize = 10) {
+    createPoolImpl(dbContext.server, dbContext.port, dbContext.database, dbContext.user, dbContext.password, poolKey, poolSize);
   };
 }

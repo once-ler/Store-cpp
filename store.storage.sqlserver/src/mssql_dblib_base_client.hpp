@@ -13,25 +13,25 @@ namespace store::storage::mssql {
   class MsSqlDbLibBaseClient {
     
   public:
-    MsSqlDbLibBaseClient(const string& server_, int port_, const string& database_, const string& user_, const string& password_, int poolSize = 10) :
+    MsSqlDbLibBaseClient(const string& server_, int port_, const string& database_, const string& user_, const string& password_, const string& poolKey, int poolSize = 10) :
       server(server_), port(port_), database(database_), user(user_), password(password_) {
       server_port = server + ":" + to_string(port);
 
-      MSSQLDbLibPool::createPool(server, port, database, user, password, poolSize);
+      MSSQLDbLibPool::createPool(server, port, database, user, password, poolKey, poolSize);
 
-      pool = ioc::ServiceProvider->GetInstance<ConnectionPool<MSSQLDbLibConnection>>();
+      pool = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<MSSQLDbLibConnection>>(poolKey);
     }
 
-    MsSqlDbLibBaseClient(const DBContext& dbContext, int poolSize = 10) {
-      MSSQLDbLibPool::createPoolFromDBContext(dbContext, poolSize);
+    MsSqlDbLibBaseClient(const DBContext& dbContext, const string& poolKey, int poolSize = 10) {
+      MSSQLDbLibPool::createPoolFromDBContext(dbContext, poolKey, poolSize);
 
-      pool = ioc::ServiceProvider->GetInstance<ConnectionPool<MSSQLDbLibConnection>>();
+      pool = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<MSSQLDbLibConnection>>(poolKey);
     }
 
-    MsSqlDbLibBaseClient(const json& config_j, const string& environment, int poolSize = 10) {
-      MSSQLDbLibPool::createPoolFromJson(config_j, environment, poolSize);
+    MsSqlDbLibBaseClient(const json& config_j, const string& environment, const string& poolKey, int poolSize = 10) {
+      MSSQLDbLibPool::createPoolFromJson(config_j, environment, poolKey, poolSize);
 
-      pool = ioc::ServiceProvider->GetInstance<ConnectionPool<MSSQLDbLibConnection>>();
+      pool = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<MSSQLDbLibConnection>>(poolKey);
     }
 
     int quick(const istream& input, vector<string>& fieldNames, vector<vector<string>>& fieldValues) {
