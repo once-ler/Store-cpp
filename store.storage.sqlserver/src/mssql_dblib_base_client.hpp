@@ -47,6 +47,7 @@ namespace store::storage::mssql {
       int rc = db->execute();
 
       if (rc) {
+        pool->unborrow(conn);
         return rc;
       }
 
