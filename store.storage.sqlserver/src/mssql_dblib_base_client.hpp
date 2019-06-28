@@ -56,7 +56,7 @@ namespace store::storage::mssql {
 
         fieldNames = std::move(db->fieldNames);
         fieldValues = std::move(db->fieldValues);
-      } (std::exception e) {
+      } catch (std::exception e) {
         cerr << e.what() << endl;
       }
       if (conn)
