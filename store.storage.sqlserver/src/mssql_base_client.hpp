@@ -43,9 +43,10 @@ namespace store::storage::mssql {
     }
 
     shared_ptr<Query> runQuery(const string& sqlStmt) {
-      std::shared_ptr<MSSQLConnection> conn=pool->borrow();
+      std::shared_ptr<MSSQLConnection> conn = nullptr;
 
       try {
+        pool->borrow();
         auto db = conn->sql_connection;
         Query* q = db->sql(sqlStmt);
         q->execute();
@@ -55,16 +56,17 @@ namespace store::storage::mssql {
         logger->error(e.message.c_str());
       }
 
-      if (pool)
+      if (conn)
         pool->unborrow(conn);
 
       return nullptr;
     }
 
     pair<int, string> execute(const string& sqlStmt) {
-      std::shared_ptr<MSSQLConnection> conn=pool->borrow();
+      std::shared_ptr<MSSQLConnection> conn = nullptr;
 
       try {
+        conn = pool->borrow();
         auto db = conn->sql_connection;
         db->execute(sqlStmt);
       } catch (TDSPP::Exception& e) {
@@ -72,7 +74,8 @@ namespace store::storage::mssql {
         pool->unborrow(conn);
         return make_pair(0, e.message);
       }
-      pool->unborrow(conn);
+      if (conn)
+        pool->unborrow(conn);
       return make_pair(1, "Succeeded");
     }
 
@@ -104,9 +107,10 @@ namespace store::storage::mssql {
       tuples::apply(values, fields.size() - 1, TupleFormatFunc{&ss});
       ss << ");";
 
-      std::shared_ptr<MSSQLConnection> conn=pool->borrow();
+      std::shared_ptr<MSSQLConnection> conn = nullptr;
 
       try {
+        conn = pool->borrow();
         auto db = conn->sql_connection;
         db->execute(ss.str());
       } catch (TDSPP::Exception& e) {
@@ -115,7 +119,8 @@ namespace store::storage::mssql {
         return make_pair(0, e.message);
       }
 
-      pool->unborrow(conn);
+      if (conn)
+        pool->unborrow(conn);
       return make_pair(1, "Succeeded");
     }
 

@@ -73,10 +73,12 @@ namespace store {
                 join(bodies.begin(), bodies.end(), string(",")).c_str()
               );
 
-              // Postgres::Connection cnx;
-              std::shared_ptr<PostgreSQLConnection> conn = session->pool->borrow();
-                
+              std::shared_ptr<PostgreSQLConnection> conn = nullptr;
+
               try {
+                // Postgres::Connection cnx;
+                conn = session->pool->borrow();
+              
                 // cnx.connect(session->connectionInfo.c_str());
                 // const auto& resp = cnx.execute(stmt.c_str()).template asArray<int64_t>(0);
 
@@ -95,7 +97,8 @@ namespace store {
                 return make_pair(0, e.what());
               }
 
-              session->pool->unborrow(conn);
+              if (conn) 
+                session->pool->unborrow(conn);
             }
 
             // Clear pending collection.
@@ -106,12 +109,13 @@ namespace store {
 
           int64_t LastExecution(const string& type, const string& subscriber, int64_t newSeqId = -1) override {
             // Postgres::Connection cnx;
-            std::shared_ptr<PostgreSQLConnection> conn = session->pool->borrow();
+            std::shared_ptr<PostgreSQLConnection> conn = nullptr;
               
             int64_t seqId = 0;
 
             try {
               // cnx.connect(session->connectionInfo.c_str());
+              conn = session->pool->borrow();
               
               string createTable = Extensions::string_format(R"SQL(
                 create table if not exists "%s"."mt_last_execution" (
@@ -165,13 +169,14 @@ namespace store {
               session->logger->error(e.what());
             }
 
-            session->pool->unborrow(conn);
+            if (conn)
+              session->pool->unborrow(conn);
             return seqId;
           }
 
           vector<IEvent> Search(const string& type, int64_t fromSeqId, int limit = 10, bool exact = true, vector<string> mustExistKeys = {}, map<string, vector<string>> filters = {}) override {
             // Postgres::Connection cnx;
-            std::shared_ptr<PostgreSQLConnection> conn = session->pool->borrow();
+            std::shared_ptr<PostgreSQLConnection> conn = nullptr;
 
             vector<IEvent> events;
 
@@ -195,6 +200,8 @@ namespace store {
 
             try {
               // cnx.connect(session->connectionInfo.c_str());
+              conn = session->pool->borrow();
+
               auto sql = Extensions::string_format("select seq_id, id, stream_id, type, version, data, timestamp from %s.mt_events where type %s '%s' and seq_id > %lld %s %s limit %d",
                 dbSchema.c_str(),
                 matchExact.c_str(),
@@ -231,7 +238,8 @@ namespace store {
               session->logger->error(e.what());
             }
 
-            session->pool->unborrow(conn);
+            if (conn)
+              session->pool->unborrow(conn);
 
             return events;
           } 
@@ -278,11 +286,12 @@ namespace store {
           string retval = "Succeeded";
 
           // Postgres::Connection cnx;
-          std::shared_ptr<PostgreSQLConnection> conn = pool->borrow();
+          std::shared_ptr<PostgreSQLConnection> conn = nullptr;
 
           try {
             // cnx.connect(connectionInfo.c_str());
             // cnx.execute(sql.c_str());
+            conn = pool->borrow();
             conn->sql_connection->execute(sql.c_str());
           } catch (Postgres::ConnectionException e) {
             retval = e.what();
@@ -295,7 +304,8 @@ namespace store {
             logger->error(e.what());
           }
 
-          pool->unborrow(conn);
+          if (conn)
+            pool->unborrow(conn);
           
           return move(retval);
         }
@@ -437,12 +447,14 @@ namespace store {
           
           auto func = this->List([this, &query](string version, int offset, int limit, string sortKey, string sortDirection) {
             // Postgres::Connection cnx;
-            std::shared_ptr<PostgreSQLConnection> conn = pool->borrow();
+            std::shared_ptr<PostgreSQLConnection> conn = nullptr;
 
             vector<json> jsons;
             vector<U> pocos;
 
             try {
+              conn = pool->borrow();
+
               auto sql = Extensions::string_format(
                 query,
                 version.c_str(),
@@ -471,7 +483,8 @@ namespace store {
               logger->error(e.what());
             }
 
-            pool->unborrow(conn);
+            if (conn)
+              pool->unborrow(conn);
 
             return pocos;
           });
@@ -571,12 +584,13 @@ namespace store {
             searchFilter.c_str()
           );
           
-          std::shared_ptr<PostgreSQLConnection> conn = pool->borrow();
+          std::shared_ptr<PostgreSQLConnection> conn = nullptr;
           
           try {
             // Postgres::Connection cnx;
             // cnx.connect(connectionInfo.c_str());
             // auto& resp = cnx.execute(query.c_str());
+            conn = pool->borrow();
             auto& resp = conn->sql_connection->execute(query.c_str());
             int64_t r = resp.template as<int64_t>(0);
             pool->unborrow(conn);
@@ -589,7 +603,8 @@ namespace store {
             logger->error(e.what());
           }
 
-          pool->unborrow(conn);
+          if (conn)
+            pool->unborrow(conn);
 
           return -1;
         }
@@ -597,11 +612,12 @@ namespace store {
         template<typename... Params>
         auto select(const string& query, Params... params) {
           return [&](function<void(Postgres::Result&)> callback) {          
-            std::shared_ptr<PostgreSQLConnection> conn = pool->borrow();
+            std::shared_ptr<PostgreSQLConnection> conn = nullptr;
             try {
               // Postgres::Connection cnx;
               // cnx.connect(connectionInfo.c_str());
               // auto& resp = cnx.execute(query.c_str(), std::forward<Params>(params)...);
+              conn = pool->borrow();
               auto& resp = conn->sql_connection->execute(query.c_str(), std::forward<Params>(params)...);
               callback(resp);
             } catch (Postgres::ConnectionException e) {
@@ -611,7 +627,8 @@ namespace store {
             } catch (exception e) {
               logger->error(e.what());
             }
-            pool->unborrow(conn);
+            if (conn)
+              pool->unborrow(conn);
           };
         }
 

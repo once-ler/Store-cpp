@@ -35,26 +35,32 @@ namespace store::storage::mssql {
     }
 
     int quick(const istream& input, vector<string>& fieldNames, vector<vector<string>>& fieldValues) {
-      std::shared_ptr<MSSQLDbLibConnection> conn = pool->borrow();
+      std::shared_ptr<MSSQLDbLibConnection> conn = nullptr;
+      
+      try {
+        pool->borrow();
 
-      ostringstream oss;
-      oss << input.rdbuf();
+        ostringstream oss;
+        oss << input.rdbuf();
 
-      auto db = conn->sql_connection;
+        auto db = conn->sql_connection;
 
-      db->sql(oss.str());
+        db->sql(oss.str());
 
-      int rc = db->execute();
+        int rc = db->execute();
 
-      if (rc) {
-        pool->unborrow(conn);
-        return rc;
+        if (rc) {
+          pool->unborrow(conn);
+          return rc;
+        }
+
+        fieldNames = std::move(db->fieldNames);
+        fieldValues = std::move(db->fieldValues);
+      } (std::exception e) {
+        cerr << e.what() << endl;
       }
-
-      fieldNames = std::move(db->fieldNames);
-      fieldValues = std::move(db->fieldValues);
-
-      pool->unborrow(conn);
+      if (conn)
+        pool->unborrow(conn);
     }
 
     // Default logger.
