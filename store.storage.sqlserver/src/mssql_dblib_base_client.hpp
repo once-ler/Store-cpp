@@ -38,7 +38,7 @@ namespace store::storage::mssql {
       std::shared_ptr<MSSQLDbLibConnection> conn = nullptr;
       
       try {
-        pool->borrow();
+        conn = pool->borrow();
 
         ostringstream oss;
         oss << input.rdbuf();
