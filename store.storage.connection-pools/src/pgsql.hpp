@@ -17,16 +17,28 @@ using json = nlohmann::json;
 
 namespace store::storage::connection_pools::pgsql {
   auto testPool = [](std::string instanceKey) {
+    #ifdef DEBUG
     cout << "Testing PostgreSQL connection pool with key " << instanceKey << endl;
-    
+    #endif
+
     auto pool1 = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<PostgreSQLConnection>>(instanceKey);
 
-    std::shared_ptr<PostgreSQLConnection> conn = pool1->borrow();
+    std::shared_ptr<PostgreSQLConnection> conn = nullptr;
     
-    auto &now = conn->sql_connection->execute("SELECT to_char(current_timestamp, 'YYYY-MM-DD HH:MI:SS.MS')");
-    std::cout << now.as<std::string>(0) << std::endl;
+    try {
+      conn = pool1->borrow();
+    
+      auto &now = conn->sql_connection->execute("SELECT to_char(current_timestamp, 'YYYY-MM-DD HH:MI:SS.MS')");
+    
+      #ifdef DEBUG
+      std::cout << now.as<std::string>(0) << std::endl;
+      #endif
+    } catch (...) {
+      throw "ConnectionPool<PostgreSQLConnection> test failed.";
+    }
 
-    pool1->unborrow(conn);
+    if (conn)
+      pool1->unborrow(conn);
   };
 
   auto createPoolImpl = [](const string& server, int port, const string& database, const string& user, const string& password, const string& poolKey, int poolSize = 10) {
@@ -36,7 +48,10 @@ namespace store::storage::connection_pools::pgsql {
     if (poolCreated)
       return;
 
+    #ifdef DEBUG
     cout << "Creating PostgreSQL connections..." << endl;
+    #endif
+
     std::shared_ptr<PostgreSQLConnectionFactory> connection_factory;
     std::shared_ptr<ConnectionPool<PostgreSQLConnection>> pool;
     
@@ -51,13 +66,16 @@ namespace store::storage::connection_pools::pgsql {
       pool = make_shared<ConnectionPool<PostgreSQLConnection>>(poolSize, connection_factory);
       poolCreated = true;
     } catch (...) {
-      cerr << "Cannot create PostgreSQL pool" << endl;
+      throw "Cannot create PostgreSQL pool";
     }
     
     if (poolCreated) {
       ConnectionPoolStats stats=pool->get_stats();
       assert(stats.pool_size == poolSize);
+      
+      #ifdef DEBUG
       cout << "PostgreSQL connection pool count: " << stats.pool_size << endl;
+      #endif
 
       // Register pool
       ioc::ServiceProvider->RegisterInstanceWithKey<ConnectionPool<PostgreSQLConnection>>(poolKey, pool);

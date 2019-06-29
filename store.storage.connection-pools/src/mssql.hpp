@@ -17,24 +17,35 @@ using json = nlohmann::json;
 
 namespace store::storage::connection_pools::mssql {
   auto testPool = [](std::string instanceKey) {
+    #ifdef DEBUG
     cout << "Testing MSSQL connection pool with key " << instanceKey << endl;
-    
+    #endif
+
     auto pool1 = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<MSSQLConnection>>(instanceKey);
 
-    std::shared_ptr<MSSQLConnection> conn = pool1->borrow();
+    std::shared_ptr<MSSQLConnection> conn = nullptr;
     
-    Query *q = conn->sql_connection->sql("select convert(varchar(23), current_timestamp, 126) right_now");
-    q->execute();
+    try {
+      conn = pool1->borrow();
+      
+      Query *q = conn->sql_connection->sql("select convert(varchar(23), current_timestamp, 126) right_now");
+      q->execute();
 
-    while (!q->eof()) {
-      for (int i=0; i < q->fieldcount; i++) {
-        auto fd = q->fields(i);
-        cout << fd->to_str() << endl;
+      #ifdef DEBUG
+      while (!q->eof()) {
+        for (int i=0; i < q->fieldcount; i++) {
+          auto fd = q->fields(i);
+          cout << fd->to_str() << endl;
+        }
+        q->next();
       }
-      q->next();
+      #endif
+    } catch (...) {
+      throw "ConnectionPool<MSSQLConnection> test failed.";
     }
 
-    pool1->unborrow(conn);
+    if (conn)
+      pool1->unborrow(conn);
   };
 
   auto createPoolImpl = [](const string& server, int port, const string& database, const string& user, const string& password, const string& poolKey, int poolSize = 10) {
@@ -44,7 +55,10 @@ namespace store::storage::connection_pools::mssql {
     if (poolCreated)
       return;
 
+    #ifdef DEBUG
     cout << "Creating MSSQL connections " << poolKey << "..." << endl;
+    #endif
+
     std::shared_ptr<MSSQLConnectionFactory> connection_factory;
     std::shared_ptr<ConnectionPool<MSSQLConnection>> pool;
     
@@ -59,13 +73,16 @@ namespace store::storage::connection_pools::mssql {
       pool = make_shared<ConnectionPool<MSSQLConnection>>(poolSize, connection_factory);
       poolCreated = true;
     } catch (...) {
-      cerr << "Cannot create MSSQL pool" << endl;
+      throw "Cannot create MSSQL pool";
     }
     
     if (poolCreated) {
       ConnectionPoolStats stats=pool->get_stats();
       assert(stats.pool_size == poolSize);
+      
+      #ifdef DEBUG
       cout << "MSSQL connection pool count: " << stats.pool_size << endl;
+      #endif
 
       // Register pool
       ioc::ServiceProvider->RegisterInstanceWithKey<ConnectionPool<MSSQLConnection>>(poolKey, pool);
