@@ -1,27 +1,22 @@
 /*
 cp ../sample-post-data.txt bin
-g++ -std=c++14 -Wall -I ../../ -I ../../../json/single_include/nlohmann -I ../../../rapidxml -o bin/parse-form ../005-parse-form.cpp -levent -lpthread
+cp ~/docs/V4/xslt/rnumber/recurse-map.xml bin
+g++ -std=c++14 -Wall -I ../../ -I ../../../json/single_include/nlohmann -o bin/parse-form ../005-parse-form.cpp -levent -lpthread -lpugixml
 */
 
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <set>
+#include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <evhttp.h>
 #include <regex>
 #include "json.hpp"
-// Modified versions of rapidxml for printing.
-// https://stackoverflow.com/questions/14113923/rapidxml-print-header-has-undefined-methods
-#include "rapidxml.hpp"
-#include "rapidxml_print.hpp"
+#include <pugixml.hpp>
 
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/xml_parser.hpp>
-
-using namespace rapidxml;
-using namespace boost::property_tree;
 using json = nlohmann::json;
 
 // An implementation of regex replace in c is here:
@@ -55,23 +50,6 @@ char* readFile(const char* fname) {
   return buf;
 }
 
-xml_node<>* createRootNode(xml_document<>& doc) {
-  // std::shared_ptr<xml_document<>> doc(new xml_document<>());
-
-  // xml_document<> doc;
-  // xml declaration
-  xml_node<>* n = doc.allocate_node(node_declaration);
-  n->append_attribute(doc.allocate_attribute("version", "1.0"));
-  n->append_attribute(doc.allocate_attribute("encoding", "utf-8"));
-  doc.append_node(n);
-
-  // root node
-  xml_node<>* o = doc.allocate_node(node_element, "object");
-  doc.append_node(o);
-
-  return o;
-}
-
 std::vector<std::string> split(char* line, char* tk = ":") {
   char* token = strtok(line, tk);
   std::vector<std::string> ret;
@@ -93,26 +71,37 @@ auto main(int argc, char* argv[]) -> int {
   char* buf = readFile("sample-post-data.txt");
   struct evkeyvalq* headers = (struct evkeyvalq*) malloc(sizeof(struct evkeyvalq));
 
-  xml_document<> doc;
-  auto root = createRootNode(doc);
+  pugi::xml_document doc;
+  pugi::xml_parse_result result = doc.load_file("recurse-map.xml");
+  pugi::xpath_node_set attrs = doc.select_nodes("//Attribute");
+  std::vector<std::string> li;
+  for (auto node : attrs) {
+    // std::cout << node.node().attribute("path").value() << "\n";
+    li.emplace_back(node.node().attribute("path").value());
+  }
 
-  ptree tree;
+  // sort(v.begin(), v.end()); 
 
   evhttp_parse_query_str(buf, headers);
 
+  std::vector<std::string> li_defined;
+  std::set<std::string> li_defined_parent;
+  
   struct evkeyval* kv = headers->tqh_first;
   while (kv) {
 
     std::string key(kv->key);
     key = std::regex_replace(key, slash_rgx, "/");
-    key = std::regex_replace(key, colon_rgx, ":");
-    
-    auto tokens = split((char*)key.c_str(), ":");
 
-    /*
-    for (auto& a : tokens)
-      std::cout << a << std::endl;
-    */
+    li_defined.emplace_back(key);
+
+    auto tokens = split((char*)key.c_str(), "/");
+
+    std::string parentPath;
+    for (int i = 0; i < tokens.size() - 1; i++) {
+      parentPath.append("/" + tokens.at(i));
+    }
+    li_defined_parent.emplace(parentPath);
 
     json val = kv->value[0] == '[' ? json::parse(kv->value) : kv->value;
 
@@ -136,31 +125,9 @@ auto main(int argc, char* argv[]) -> int {
       }
     } else {
       // Scalar
-      xml_node<>* field = doc.allocate_node(node_element, "field");
-      field->append_attribute(doc.allocate_attribute("name", kv->key));
-      field->append_attribute(doc.allocate_attribute("value", kv->value));
-      root->append_node(field);
-
-      auto spath = tokens[0];
-      auto vpath = split((char*)spath.c_str(), "/");
-
-      /*
-      for (auto el : vpath) {
-        ptree nextEl;
-        nextEl.put("Attribute.<xmlattr>.Name", el);
-        tree.put("WebServiceRoot.WebService.Attribute.<xmlattr>.Name", el);
-      }
-
-      if (tokens.size() > 2) {
-
-      }
-      */
-
-      std::string npath = std::regex_replace(spath, std::regex("/"), ".");
-
-      tree.put("WebServiceRoot.WebService" + npath + ".Attribute.<xmlattr>.Value", kv->value);
     }
 
+    
     // std::cout << key << ": " << val.dump(2) << std::endl;
     kv = kv->next.tqe_next;
   }
@@ -168,16 +135,39 @@ auto main(int argc, char* argv[]) -> int {
   free(buf);
   free(headers);
 
-  std::string outxml;
-  rapidxml::print(std::back_inserter(outxml), doc);
+  std::cout << li.size() << "\n";
 
-  dumpFile("output.xml", outxml);
+  auto rend = std::remove_if(li.begin(), li.end(), [&li_defined](auto& s){
+    return std::find(li_defined.begin(), li_defined.end(), s) != li_defined.end();
+  });
 
-  // boost
-  boost::property_tree::xml_writer_settings<std::string> xcfg(' ', 2);
-  // write_xml(std::cout, tree, boost::property_tree::xml_writer_settings<std::string>(' ', 2));
-  write_xml("output-2.xml", tree, std::locale(), xcfg);
+  auto rend1 = std::remove_if(li.begin(), li.end(), [&li_defined_parent](auto& s){
+    return std::find(li_defined_parent.begin(), li_defined_parent.end(), s) != li_defined_parent.end();
+  });
 
+  std::vector<std::string> li2;
+
+  for(auto it = li.begin(); it != rend1; ++it) {
+    li2.emplace_back(*it);
+  }
+
+  std::cout << li2.size() << "\n";
+  
+  for (auto& s : li2) {
+    std::string p{"//Attribute[@path='" + s + "']"};
+    pugi::xpath_node_set ns = doc.select_nodes(p.c_str());
+
+    for (auto& n: ns)
+      n.node().parent().remove_child(n.node());
+  }
+
+  std::string p1{"//Attribute[@ReferenceType='SetType']/WebService"};
+  pugi::xpath_node_set ns = doc.select_nodes(p1.c_str());
+  for (auto& n: ns)
+    n.node().parent().remove_child(n.node());
+
+  doc.save_file("output-2.xml");
+  // doc.save(std::cout);
 
   return 0;
 }
