@@ -63,6 +63,13 @@ std::vector<std::string> split(char* line, char* tk = ":") {
   return ret;
 }
 
+void removeNodes(pugi::xml_document& doc, const char* query) {
+  pugi::xpath_node_set ns = doc.select_nodes(query);
+
+  for (auto& n: ns)
+    n.node().parent().remove_child(n.node());
+}
+
 std::regex slash_rgx("(%2F)");
 std::regex colon_rgx("(%3A)");
 
@@ -86,6 +93,7 @@ auto main(int argc, char* argv[]) -> int {
 
   std::vector<std::string> li_defined;
   std::set<std::string> li_defined_parent;
+  std::set<int> li_depth;
   
   struct evkeyval* kv = headers->tqh_first;
   while (kv) {
@@ -155,16 +163,32 @@ auto main(int argc, char* argv[]) -> int {
   
   for (auto& s : li2) {
     std::string p{"//Attribute[@path='" + s + "']"};
-    pugi::xpath_node_set ns = doc.select_nodes(p.c_str());
-
-    for (auto& n: ns)
-      n.node().parent().remove_child(n.node());
+    removeNodes(doc, p.c_str());
   }
 
-  std::string p1{"//Attribute[@ReferenceType='SetType']/WebService"};
-  pugi::xpath_node_set ns = doc.select_nodes(p1.c_str());
+  removeNodes(doc, "//Attribute[@ReferenceType='SetType']/WebService");
+
+  removeNodes(doc, "//Attribute/WebService[not(Attribute)]");
+  
+  // Reverse order
+  pugi::xpath_node_set ns = doc.select_nodes("//Attribute/WebService");
   for (auto& n: ns)
-    n.node().parent().remove_child(n.node());
+    li_depth.emplace(std::stoi(n.node().attribute("nodeDepth").value()));
+  
+  if(!li_depth.empty()) {
+    int depth = *li_depth.rbegin();
+
+    while (depth > 0) {
+      std::string q{"//Attribute/WebService[@nodeDepth='" + std::to_string(depth) + "']"};
+
+      pugi::xpath_node_set ns = doc.select_nodes(q.c_str());
+      for (auto& n: ns)
+        std::cout << depth << ": " << n.node().attribute("TypeName").value() << "\n";
+
+      depth--;
+    }
+  }
+    
 
   doc.save_file("output-2.xml");
   // doc.save(std::cout);
