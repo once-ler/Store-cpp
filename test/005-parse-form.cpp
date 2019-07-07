@@ -91,6 +91,41 @@ void removeNodes(pugi::xml_document& doc, const char* query) {
     n.node().parent().remove_child(n.node());
 }
 
+void removeUnusedNodes(pugi::xml_document& doc, std::vector<std::string> li2) {
+  // Remove unused attributes from the main type.
+  std::set<std::string> rl;
+  std::vector<std::string> rl2;
+  pugi::xpath_node_set nsr = doc.select_nodes("//Attribute[count(./WebService) > 0]");
+  for (auto& n: nsr) {
+    rl.emplace(n.node().attribute("path").value());
+    // std::cout << n.node().attribute("path").value() << "\n";
+  }
+  for (auto& a : rl)
+    rl2.emplace_back(a);
+
+  std::sort(rl2.begin(), rl2.end(), [](const auto& a, const auto& b){ return split(a, '/').size() < split(b, '/').size(); });
+  for (auto& a : rl2) {
+    if (std::find(li2.begin(), li2.end(), a) != li2.end()) {
+      std::cout << "Removing " << a << "\n";
+      std::string p{"//Attribute[@path='" + a + "']"};
+      removeNodes(doc, p.c_str());
+    }    
+  }
+
+  /*
+  // Extremely slow.
+  for (auto& s : li2) {
+    std::string p{"//Attribute[@path='" + s + "']"};
+    // std::cout << p << "\n";
+    // removeNodes(doc, p.c_str());
+  }
+  */
+
+  removeNodes(doc, "//Attribute[@ReferenceType='SetType']/WebService");
+
+  removeNodes(doc, "//Attribute/WebService[not(Attribute)]");
+}
+
 std::regex slash_rgx("(%2F)");
 std::regex colon_rgx("(%3A)");
 
@@ -99,13 +134,12 @@ auto main(int argc, char* argv[]) -> int {
   char* buf = readFile("sample-post-data.txt");
   struct evkeyvalq* headers = (struct evkeyvalq*) malloc(sizeof(struct evkeyvalq));
 
-  pugi::xml_document doc, doc2, doc3, doc4, doc5, docF;
+  pugi::xml_document doc, doc2, doc3, doc4, doc5;
   // Add root to temp doc.
   doc2.append_child("WebServiceRoot");
   doc3.append_child("WebServiceRoot");
   doc4.append_child("WebServiceRoot");
   doc5.append_child("WebServiceRoot");
-  docF.append_child("WebServiceRoot");
   
   pugi::xml_parse_result result = doc.load_file("recurse-map.xml");
   pugi::xpath_node_set attrs = doc.select_nodes("//Attribute");
@@ -114,8 +148,6 @@ auto main(int argc, char* argv[]) -> int {
     // std::cout << node.node().attribute("path").value() << "\n";
     li.emplace_back(node.node().attribute("path").value());
   }
-
-  // sort(v.begin(), v.end()); 
 
   evhttp_parse_query_str(buf, headers);
 
@@ -133,16 +165,15 @@ auto main(int argc, char* argv[]) -> int {
     std::string key(kv->key);
     key = std::regex_replace(key, slash_rgx, "/");
 
-    // std::cout << kv->key << "\n";
-    // std::cout << key << "\n";
-
     li_defined.emplace_back(key);
 
     auto tokens = split(key, '/');
 
     std::string parentPath;
     for (int i = 0; i < tokens.size() - 1; i++) {
-      parentPath.append(tokens.at(i));
+      auto tok = tokens.at(i);
+      if (tok.size() > 0)
+        parentPath.append("/" + tok);
     }
     li_defined_parent.emplace(parentPath);
 
@@ -202,6 +233,10 @@ auto main(int argc, char* argv[]) -> int {
     return std::find(li_defined.begin(), li_defined.end(), s) != li_defined.end();
   });
 
+  for (auto& a : li_defined_parent) {
+    std::cout << a << "\n";
+  }
+
   auto rend1 = std::remove_if(li.begin(), li.end(), [&li_defined_parent](auto& s){
     return std::find(li_defined_parent.begin(), li_defined_parent.end(), s) != li_defined_parent.end();
   });
@@ -212,50 +247,23 @@ auto main(int argc, char* argv[]) -> int {
     li2.emplace_back(*it);
   }
 
+  /*
   // Final
   std::set<std::string> li_defined_parent_root;
   for (auto& a : li_defined_parent) {
     auto v = split(a, '/');
     if (v.size() > 0)
-      li_defined_parent_root.emplace(v.at(0));
+      li_defined_parent_root.emplace("/" + v.at(0));
   }
 
   for (auto& a : li_defined_parent_root) {
-    // std::cout << a << "\n";
-    std::string q{"//Attribute[@path='/" + a + "']"};
+    std::string q{"//Attribute[@path='" + a + "']"};
     pugi::xpath_node_set ns1 = doc.select_nodes(q.c_str());
     for (auto& n: ns1) {
       docF.document_element().append_copy(n.node());
     }
   }
-
-/*
-  pugi::xpath_node_set attrs2 = docF.select_nodes("//Attribute");
-  std::vector<std::string> li3, li4;
-  for (auto node : attrs2) {
-    // std::cout << node.node().attribute("path").value() << "\n";
-    li3.emplace_back(node.node().attribute("path").value());
-  }
-
-  auto rend2 = std::remove_if(li3.begin(), li3.end(), [&li_defined](auto& s){
-    return std::find(li_defined.begin(), li_defined.end(), s) != li_defined.end();
-  });
-
-  auto rend3 = std::remove_if(li3.begin(), li3.end(), [&li_defined_parent](auto& s){
-    return std::find(li_defined_parent.begin(), li_defined_parent.end(), s) != li_defined_parent.end();
-  });
-
-  for(auto it = li3.begin(); it != rend3; ++it) {
-    li4.emplace_back(*it);
-  }
-
-  for (auto& s : li4) {
-    std::string p{"//WebService[../@path='" + s + "']"};
-    // std::string p{"//Attribute[@path='" + s + "']"};
-    removeNodes(docF, p.c_str());
-  }
-*/
-  
+  */
 
   //
   for (auto& path : li_defined) {
@@ -284,15 +292,10 @@ auto main(int argc, char* argv[]) -> int {
   
   std::cout << li2.size() << "\n";
  
-  // Extremely slow.
-  for (auto& s : li2) {
-    std::string p{"//Attribute[@path='" + s + "']"};
-    removeNodes(doc, p.c_str());
-  }
+  // Remove unused nodes from main type.
+  removeUnusedNodes(doc, li2);
 
-  removeNodes(doc, "//Attribute[@ReferenceType='SetType']/WebService");
-
-  removeNodes(doc, "//Attribute/WebService[not(Attribute)]");
+  
 
   // Reverse order from doc3.  Write to doc5
   pugi::xpath_node_set ns = doc3.select_nodes("//Attribute/WebService");
@@ -324,7 +327,7 @@ auto main(int argc, char* argv[]) -> int {
 
   doc5.save_file("output-5.xml");
 
-  docF.save_file("output-f.xml");
+  // docF.save_file("output-f.xml");
   
   return 0;
 }
