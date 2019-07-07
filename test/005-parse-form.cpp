@@ -22,6 +22,10 @@ using json = nlohmann::json;
 // An implementation of regex replace in c is here:
 // https://gist.github.com/tanbro/4379692
 
+// Reference for pugixml
+// http://www.gerald-fahrnholz.eu/sw/DocGenerated/HowToUse/html/group___grp_pugi_xml_example_cpp_file.html
+// https://source.openmpt.org/svn/openmpt/tags/1.22.07.00/include/pugixml/docs/manual/modify.html#manual.modify.clone
+
 void dumpFile(const std::string& outName, const std::string& content) {
   std::ofstream of;
   of.open(outName);
@@ -78,7 +82,7 @@ auto main(int argc, char* argv[]) -> int {
   char* buf = readFile("sample-post-data.txt");
   struct evkeyvalq* headers = (struct evkeyvalq*) malloc(sizeof(struct evkeyvalq));
 
-  pugi::xml_document doc;
+  pugi::xml_document doc, doc2;
   pugi::xml_parse_result result = doc.load_file("recurse-map.xml");
   pugi::xpath_node_set attrs = doc.select_nodes("//Attribute");
   std::vector<std::string> li;
@@ -119,6 +123,16 @@ auto main(int argc, char* argv[]) -> int {
       for (const auto o : val) {
         std::string code = o["code"].get<std::string>();
         if (code[0] == '{') {
+          std::cout << key << "\n";
+          // Get the WebService element.
+          std::string q{"//Attribute[@path='" + key + "']/WebService"};
+          std::cout << q << "\n";
+          
+          pugi::xpath_node_set ns = doc.select_nodes(q.c_str());
+
+          pugi::xpath_node n = ns.first();
+          ns.first().node().append_copy(doc2.document_element());
+
           // Wrappers parsing.
           json codeVal = json::parse(o.value("code", "{}"));
           for (auto& el : codeVal.items()) {
@@ -191,7 +205,7 @@ auto main(int argc, char* argv[]) -> int {
     
 
   doc.save_file("output-2.xml");
-  // doc.save(std::cout);
+  doc2.save(std::cout);
 
   return 0;
 }
