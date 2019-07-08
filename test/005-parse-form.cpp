@@ -31,6 +31,11 @@ struct SetMember {
   std::map<std::string, std::string> vals;
 };
 
+struct Scalar {
+  std::string key;
+  std::string val;
+};
+
 void dumpFile(const std::string& outName, const std::string& content) {
   std::ofstream of;
   of.open(outName);
@@ -84,6 +89,15 @@ std::vector<std::string> split(const std::string& s, char delim = '/') {
   return tokens;
 }
 
+bool invalid_char(char c) {  
+  return !(c>=0 && c <128);
+}
+
+std::string strip_unicode(std::string str) {
+  str.erase(remove_if(str.begin(),str.end(), invalid_char), str.end());
+  return move(str);
+}
+
 void removeNodes(pugi::xml_document& doc, const char* query) {
   pugi::xpath_node_set ns = doc.select_nodes(query);
 
@@ -95,7 +109,8 @@ void removeUnusedNodes(pugi::xml_document& doc, std::vector<std::string> li2) {
   // Remove unused attributes from the main type.
   std::set<std::string> rl;
   std::vector<std::string> rl2;
-  pugi::xpath_node_set nsr = doc.select_nodes("//Attribute[count(./WebService) > 0]");
+  // pugi::xpath_node_set nsr = doc.select_nodes("//Attribute[count(./WebService) > 0]");
+  pugi::xpath_node_set nsr = doc.select_nodes("//Attribute");
   for (auto& n: nsr) {
     rl.emplace(n.node().attribute("path").value());
     // std::cout << n.node().attribute("path").value() << "\n";
@@ -106,7 +121,7 @@ void removeUnusedNodes(pugi::xml_document& doc, std::vector<std::string> li2) {
   std::sort(rl2.begin(), rl2.end(), [](const auto& a, const auto& b){ return split(a, '/').size() < split(b, '/').size(); });
   for (auto& a : rl2) {
     if (std::find(li2.begin(), li2.end(), a) != li2.end()) {
-      std::cout << "Removing " << a << "\n";
+      // std::cout << "Removing " << a << "\n";
       std::string p{"//Attribute[@path='" + a + "']"};
       removeNodes(doc, p.c_str());
     }    
@@ -132,16 +147,20 @@ std::regex colon_rgx("(%3A)");
 auto main(int argc, char* argv[]) -> int {
 
   char* buf = readFile("sample-post-data.txt");
+  std::string cleaned_str = strip_unicode(std::string{buf});
+  
   struct evkeyvalq* headers = (struct evkeyvalq*) malloc(sizeof(struct evkeyvalq));
 
-  pugi::xml_document doc, doc2, doc3, doc4, doc5;
+  pugi::xml_document doc, doc_c, doc2, doc3, doc5, doc6;
   // Add root to temp doc.
   doc2.append_child("WebServiceRoot");
   doc3.append_child("WebServiceRoot");
-  doc4.append_child("WebServiceRoot");
   doc5.append_child("WebServiceRoot");
+  doc6.append_child("WebServiceRoot");
   
   pugi::xml_parse_result result = doc.load_file("recurse-map.xml");
+  pugi::xml_parse_result result2 = doc_c.load_file("recurse-map.xml");
+  
   pugi::xpath_node_set attrs = doc.select_nodes("//Attribute");
   std::vector<std::string> li;
   for (auto node : attrs) {
@@ -149,14 +168,17 @@ auto main(int argc, char* argv[]) -> int {
     li.emplace_back(node.node().attribute("path").value());
   }
 
-  evhttp_parse_query_str(buf, headers);
+  int rc = evhttp_parse_query_str(cleaned_str.c_str(), headers);
 
-  std::vector<std::string> li_defined;
+  std::cout << rc << "\n";
+
+  std::set<std::string> li_defined;
   std::set<std::string> li_defined_parent;
   std::set<int> li_depth;
   
   // Hold set parsed values.
   std::vector<SetMember> members;
+  std::vector<Scalar> scalars;
 
 
   struct evkeyval* kv = headers->tqh_first;
@@ -165,7 +187,7 @@ auto main(int argc, char* argv[]) -> int {
     std::string key(kv->key);
     key = std::regex_replace(key, slash_rgx, "/");
 
-    li_defined.emplace_back(key);
+    li_defined.emplace(key);
 
     auto tokens = split(key, '/');
 
@@ -183,13 +205,12 @@ auto main(int argc, char* argv[]) -> int {
     if (kv->value[0] == '[') {
       
       for (const auto o : val) {
+        // Wrappers parsing.
+        SetMember mem;
+        mem.key = key;
+
         std::string code = o["code"].get<std::string>();
         if (code[0] == '{') {
-          
-          // Wrappers parsing.
-          SetMember mem;
-          mem.key = key;
-
           json codeVal = json::parse(o.value("code", "{}"));
           for (auto& el : codeVal.items()) {
             std::string v = el.value()["code"];
@@ -198,44 +219,96 @@ auto main(int argc, char* argv[]) -> int {
               mem.vals.insert({el.key(), el.value()["code"]});
             }
           }
-
-          members.emplace_back(mem);
         } else {
           // Non wrapper
           // std::cout << key << ": " << code << std::endl;
+          mem.vals.insert({"code", code});
         }
+        members.emplace_back(mem);
       }
     } else {
       // Scalar
+      Scalar sca{key, val};
+      scalars.emplace_back(sca);
     }
 
     
     // std::cout << key << ": " << val.dump(2) << std::endl;
     kv = kv->next.tqe_next;
   }
-  
+
   free(buf);
   free(headers);
 
+
+  // Add parent to defined before copying.  
+  int counter = 0;
+  for (auto& path : li_defined_parent) {
+    std::cout << counter << ": " << path << "\n";
+    if (path.size() > 0)
+      li_defined.emplace(path);
+    /*
+    // EntityType
+    std::string q2{"//Attribute[@ReferenceType='EntityType' and @path='" + path + "']"};
+    pugi::xpath_node_set ns2 = doc.select_nodes(q2.c_str());
+    for (auto& n: ns2) {
+      doc3.document_element().append_copy(n.node());
+    }
+    */
+    counter++;
+  }
+  
+
+  std::cout << "Sets =================================================\n";
   for (auto& a : members) {
     std::cout << a.key << "\n";
 
     for (auto& b : a.vals) {
       std::cout << b.first << ": " << b.second << "\n";
+
+      if (b.first == "code") {
+        // Non wrapper
+        std::string q{"//Attribute[@path='" + a.key + "']"};
+        pugi::xpath_node_set ns = doc.select_nodes(q.c_str());
+        
+        auto container = ns.first().node();
+
+        std::string q1{"AttributeMember[@Value='" + b.second + "']"};
+        pugi::xpath_node mSearch = container.select_node(q1.c_str());
+        
+        // Add if not found
+        if (!mSearch) {
+          pugi::xml_node m = container.append_child("AttributeMember");
+          m.append_attribute("Value") = b.second.c_str();
+        }        
+      } else {
+        // Wrapper
+
+        // Make a copy of the element
+        std::string q1{"AttributeMember[@Value='" + b.second + "']"};
+        pugi::xpath_node mSearch = doc_c.select_node(q1.c_str());
+        
+
+
+      }
+
     }
   }
 
-
+  std::cout << "Scalars =================================================\n";
+  for (auto& a : scalars) {
+    std::cout << "k: " << a.key << " v: " << a.val << "\n";
+    //
+    std::string q{"//Attribute[@path='" + a.key + "']"};
+    pugi::xpath_node_set ns = doc.select_nodes(q.c_str());
+    ns.first().node().attribute("Value").set_value(a.val.c_str());
+  }
 
   std::cout << li.size() << "\n";
 
   auto rend = std::remove_if(li.begin(), li.end(), [&li_defined](auto& s){
     return std::find(li_defined.begin(), li_defined.end(), s) != li_defined.end();
   });
-
-  for (auto& a : li_defined_parent) {
-    std::cout << a << "\n";
-  }
 
   auto rend1 = std::remove_if(li.begin(), li.end(), [&li_defined_parent](auto& s){
     return std::find(li_defined_parent.begin(), li_defined_parent.end(), s) != li_defined_parent.end();
@@ -247,33 +320,21 @@ auto main(int argc, char* argv[]) -> int {
     li2.emplace_back(*it);
   }
 
-  /*
-  // Final
-  std::set<std::string> li_defined_parent_root;
-  for (auto& a : li_defined_parent) {
-    auto v = split(a, '/');
-    if (v.size() > 0)
-      li_defined_parent_root.emplace("/" + v.at(0));
+  for (auto& a : li_defined) {
+    std::cout << a << "\n"; 
   }
 
-  for (auto& a : li_defined_parent_root) {
-    std::string q{"//Attribute[@path='" + a + "']"};
-    pugi::xpath_node_set ns1 = doc.select_nodes(q.c_str());
-    for (auto& n: ns1) {
-      docF.document_element().append_copy(n.node());
-    }
-  }
-  */
+  // Remove unused nodes from main type.
+  removeUnusedNodes(doc, li2);
 
-  //
   for (auto& path : li_defined) {
     // SetType
     std::string q{"//Attribute[@ReferenceType='SetType' and @path='" + path + "']"};
-    pugi::xpath_node_set ns1 = doc.select_nodes(q.c_str());
+    pugi::xpath_node_set ns1 = doc_c.select_nodes(q.c_str());
     for (auto& n: ns1) {
       doc2.document_element().append_copy(n.node());
     }
-
+    
     // EntityType
     std::string q2{"//Attribute[@ReferenceType='EntityType' and @path='" + path + "']"};
     pugi::xpath_node_set ns2 = doc.select_nodes(q2.c_str());
@@ -281,22 +342,19 @@ auto main(int argc, char* argv[]) -> int {
       doc3.document_element().append_copy(n.node());
     }
 
+    /*
     // Scalar
     std::string q3{"//Attribute[@ReferenceType='' and @path='" + path + "']"};
     pugi::xpath_node_set ns3 = doc.select_nodes(q3.c_str());
     for (auto& n: ns3) {
       doc4.document_element().append_copy(n.node());
     }
+    */
   }
   //
   
   std::cout << li2.size() << "\n";
  
-  // Remove unused nodes from main type.
-  removeUnusedNodes(doc, li2);
-
-  
-
   // Reverse order from doc3.  Write to doc5
   pugi::xpath_node_set ns = doc3.select_nodes("//Attribute/WebService");
   for (auto& n: ns)
@@ -305,7 +363,7 @@ auto main(int argc, char* argv[]) -> int {
   if(!li_depth.empty()) {
     int depth = *li_depth.rbegin();
 
-    while (depth > 0) {
+    while ((depth + 1) > 0) {
       std::string q{"//Attribute[./WebService[@nodeDepth='" + std::to_string(depth) + "']]"};
 
       pugi::xpath_node_set ns = doc3.select_nodes(q.c_str());
@@ -318,16 +376,14 @@ auto main(int argc, char* argv[]) -> int {
     }
   }
     
+  removeUnusedNodes(doc5, li2);
 
+  
   doc.save_file("output.xml");
   // doc2.save(std::cout);
   doc2.save_file("output-2.xml");
 
-  doc4.save_file("output-4.xml");
-
   doc5.save_file("output-5.xml");
-
-  // docF.save_file("output-f.xml");
   
   return 0;
 }
