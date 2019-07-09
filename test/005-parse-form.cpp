@@ -29,6 +29,7 @@ using json = nlohmann::json;
 struct SetMember {
   std::string key;
   std::map<std::string, std::string> vals;
+  bool isWrapper;
 };
 
 struct Scalar {
@@ -141,6 +142,105 @@ void removeUnusedNodes(pugi::xml_document& doc, std::vector<std::string> li2) {
   removeNodes(doc, "//Attribute/WebService[not(Attribute)]");
 }
 
+/*
+  @param doc: the original document definition (recurse-map.xml).
+  @param doc_c: copies of set member defintions.
+  @param doc6: destination document for wrapper elements.
+*/
+void populateSets(std::vector<SetMember>& members, pugi::xml_document& doc, pugi::xml_document& doc_c, pugi::xml_document& doc6) {
+  for (auto& a : members) {
+    std::cout << a.key << "\n";
+
+    // Check if this is a wrapper.
+    if (a.isWrapper) {
+      // Make a copy of the element
+      std::cout << "Wrapper: " << a.key << "\n";
+
+      std::string q1{"//Attribute[@path='" + a.key + "']"};
+      pugi::xpath_node mSearch = doc_c.select_node(q1.c_str());
+
+      if (mSearch) {
+        auto newNode = doc6.document_element().append_copy(mSearch.node());
+        for (auto& b : a.vals) {
+          // wrapper
+          std::string q{"//Attribute[@path='" + b.first + "']"};
+          pugi::xpath_node n = newNode.select_node(q.c_str());
+          if (n) {
+            if (b.second.size() > 0) {
+              n.node().attribute("Value") = b.second.c_str();
+            } else {
+              // Remove node if empty value from form.
+              n.node().parent().remove_child(n.node());
+            }
+          }          
+        }
+      }
+    } else {
+      for (auto& b : a.vals) {
+        // Non wrapper
+        std::string q{"//Attribute[@path='" + a.key + "']"};
+        pugi::xpath_node_set ns = doc.select_nodes(q.c_str());
+        
+        auto container = ns.first().node();
+
+        std::string q1{"AttributeMember[@Value='" + b.second + "']"};
+        pugi::xpath_node mSearch = container.select_node(q1.c_str());
+        
+        // Add if not found
+        if (!mSearch) {
+          pugi::xml_node m = container.append_child("AttributeMember");
+          m.append_attribute("Value") = b.second.c_str();
+        }
+      }  
+    }   
+
+  }
+}
+
+void populateScalars(std::vector<Scalar>& scalars, pugi::xml_document& doc) {
+  for (auto& a : scalars) {
+    std::cout << "k: " << a.key << " v: " << a.val << "\n";
+    //
+    std::string q{"//Attribute[@path='" + a.key + "']"};
+    pugi::xpath_node_set ns = doc.select_nodes(q.c_str());
+    ns.first().node().attribute("Value").set_value(a.val.c_str());
+  }
+}
+
+/*
+  @param li - the full list of all nested attribuutes.
+  @param li_defined - the list of all defined attribute from the incoming form.
+  @param li_defined_parent - the list of all immediate parent attribute of the above defined attributes.
+*/
+std::vector<std::string> tidyDocument(pugi::xml_document& doc, std::vector<std::string> li, std::set<std::string> li_defined, std::set<std::string> li_defined_parent) {
+  std::cout << li.size() << "\n";
+
+  auto rend = std::remove_if(li.begin(), li.end(), [&li_defined](auto& s){
+    return std::find(li_defined.begin(), li_defined.end(), s) != li_defined.end();
+  });
+
+  auto rend1 = std::remove_if(li.begin(), li.end(), [&li_defined_parent](auto& s){
+    return std::find(li_defined_parent.begin(), li_defined_parent.end(), s) != li_defined_parent.end();
+  });
+
+  std::vector<std::string> li2;
+
+  for(auto it = li.begin(); it != rend1; ++it) {
+    li2.emplace_back(*it);
+  }
+
+  for (auto& a : li_defined) {
+    std::cout << a << "\n"; 
+  }
+
+  // Remove unused nodes from main type.
+  removeUnusedNodes(doc, li2);
+
+  std::cout << li2.size() << "\n";
+
+  return li2;
+}
+
 std::regex slash_rgx("(%2F)");
 std::regex colon_rgx("(%3A)");
 
@@ -151,9 +251,8 @@ auto main(int argc, char* argv[]) -> int {
   
   struct evkeyvalq* headers = (struct evkeyvalq*) malloc(sizeof(struct evkeyvalq));
 
-  pugi::xml_document doc, doc_c, doc2, doc3, doc5, doc6;
+  pugi::xml_document doc, doc_c, doc3, doc5, doc6;
   // Add root to temp doc.
-  doc2.append_child("WebServiceRoot");
   doc3.append_child("WebServiceRoot");
   doc5.append_child("WebServiceRoot");
   doc6.append_child("WebServiceRoot");
@@ -211,17 +310,16 @@ auto main(int argc, char* argv[]) -> int {
 
         std::string code = o["code"].get<std::string>();
         if (code[0] == '{') {
+          mem.isWrapper = true;
           json codeVal = json::parse(o.value("code", "{}"));
           for (auto& el : codeVal.items()) {
             std::string v = el.value()["code"];
-            if (v.size() > 0) {
-              // std::cout << el.key() << " : " << el.value()["code"] << std::endl;
-              mem.vals.insert({el.key(), el.value()["code"]});
-            }
+            mem.vals.insert({el.key(), el.value()["code"]});
           }
         } else {
           // Non wrapper
           // std::cout << key << ": " << code << std::endl;
+          mem.isWrapper = false;
           mem.vals.insert({"code", code});
         }
         members.emplace_back(mem);
@@ -232,8 +330,6 @@ auto main(int argc, char* argv[]) -> int {
       scalars.emplace_back(sca);
     }
 
-    
-    // std::cout << key << ": " << val.dump(2) << std::endl;
     kv = kv->next.tqe_next;
   }
 
@@ -244,117 +340,42 @@ auto main(int argc, char* argv[]) -> int {
   // Add parent to defined before copying.  
   int counter = 0;
   for (auto& path : li_defined_parent) {
-    std::cout << counter << ": " << path << "\n";
+    // std::cout << counter << ": " << path << "\n";
     if (path.size() > 0)
       li_defined.emplace(path);
-    /*
-    // EntityType
-    std::string q2{"//Attribute[@ReferenceType='EntityType' and @path='" + path + "']"};
-    pugi::xpath_node_set ns2 = doc.select_nodes(q2.c_str());
-    for (auto& n: ns2) {
-      doc3.document_element().append_copy(n.node());
-    }
-    */
+    
     counter++;
   }
   
 
   std::cout << "Sets =================================================\n";
-  for (auto& a : members) {
-    std::cout << a.key << "\n";
-
-    for (auto& b : a.vals) {
-      std::cout << b.first << ": " << b.second << "\n";
-
-      if (b.first == "code") {
-        // Non wrapper
-        std::string q{"//Attribute[@path='" + a.key + "']"};
-        pugi::xpath_node_set ns = doc.select_nodes(q.c_str());
-        
-        auto container = ns.first().node();
-
-        std::string q1{"AttributeMember[@Value='" + b.second + "']"};
-        pugi::xpath_node mSearch = container.select_node(q1.c_str());
-        
-        // Add if not found
-        if (!mSearch) {
-          pugi::xml_node m = container.append_child("AttributeMember");
-          m.append_attribute("Value") = b.second.c_str();
-        }        
-      } else {
-        // Wrapper
-
-        // Make a copy of the element
-        std::string q1{"AttributeMember[@Value='" + b.second + "']"};
-        pugi::xpath_node mSearch = doc_c.select_node(q1.c_str());
-        
-
-
-      }
-
-    }
-  }
+  populateSets(members, doc, doc_c, doc6);
 
   std::cout << "Scalars =================================================\n";
-  for (auto& a : scalars) {
-    std::cout << "k: " << a.key << " v: " << a.val << "\n";
-    //
-    std::string q{"//Attribute[@path='" + a.key + "']"};
-    pugi::xpath_node_set ns = doc.select_nodes(q.c_str());
-    ns.first().node().attribute("Value").set_value(a.val.c_str());
-  }
+  populateScalars(scalars, doc);
 
-  std::cout << li.size() << "\n";
-
-  auto rend = std::remove_if(li.begin(), li.end(), [&li_defined](auto& s){
-    return std::find(li_defined.begin(), li_defined.end(), s) != li_defined.end();
-  });
-
-  auto rend1 = std::remove_if(li.begin(), li.end(), [&li_defined_parent](auto& s){
-    return std::find(li_defined_parent.begin(), li_defined_parent.end(), s) != li_defined_parent.end();
-  });
-
-  std::vector<std::string> li2;
-
-  for(auto it = li.begin(); it != rend1; ++it) {
-    li2.emplace_back(*it);
-  }
-
-  for (auto& a : li_defined) {
-    std::cout << a << "\n"; 
-  }
-
-  // Remove unused nodes from main type.
-  removeUnusedNodes(doc, li2);
+  std::vector<std::string> li2 = tidyDocument(doc, li, li_defined, li_defined_parent);
 
   for (auto& path : li_defined) {
+    /*
+    // doc2 may not be necessary
     // SetType
     std::string q{"//Attribute[@ReferenceType='SetType' and @path='" + path + "']"};
     pugi::xpath_node_set ns1 = doc_c.select_nodes(q.c_str());
     for (auto& n: ns1) {
       doc2.document_element().append_copy(n.node());
     }
+    */
     
-    // EntityType
+    // EntityType and Native types
     std::string q2{"//Attribute[@ReferenceType='EntityType' and @path='" + path + "']"};
     pugi::xpath_node_set ns2 = doc.select_nodes(q2.c_str());
     for (auto& n: ns2) {
       doc3.document_element().append_copy(n.node());
     }
-
-    /*
-    // Scalar
-    std::string q3{"//Attribute[@ReferenceType='' and @path='" + path + "']"};
-    pugi::xpath_node_set ns3 = doc.select_nodes(q3.c_str());
-    for (auto& n: ns3) {
-      doc4.document_element().append_copy(n.node());
-    }
-    */
   }
   //
   
-  std::cout << li2.size() << "\n";
- 
   // Reverse order from doc3.  Write to doc5
   pugi::xpath_node_set ns = doc3.select_nodes("//Attribute/WebService");
   for (auto& n: ns)
@@ -378,12 +399,11 @@ auto main(int argc, char* argv[]) -> int {
     
   removeUnusedNodes(doc5, li2);
 
-  
   doc.save_file("output.xml");
-  // doc2.save(std::cout);
-  doc2.save_file("output-2.xml");
-
+  
   doc5.save_file("output-5.xml");
+
+  doc6.save_file("output-6.xml");
   
   return 0;
 }
