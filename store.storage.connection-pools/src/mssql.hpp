@@ -11,6 +11,7 @@
 using namespace std;
 using namespace com::eztier;
 using namespace store::extensions;
+using namespace store::models;
 namespace ioc = store::ioc;
 
 using json = nlohmann::json;
