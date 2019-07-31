@@ -81,7 +81,9 @@ namespace store::storage::connection_pools::pgsql {
       // Register pool
       ioc::ServiceProvider->RegisterInstanceWithKey<ConnectionPool<PostgreSQLConnection>>(poolKey, pool);
 
+      #ifdef DEBUG
       testPool(poolKey);
+      #endif
     }
   };
 

@@ -109,7 +109,9 @@ namespace store::storage::connection_pools::mssql::dblib {
       // Register pool
       ioc::ServiceProvider->RegisterInstanceWithKey<ConnectionPool<MSSQLDbLibConnection>>(poolKey, pool);
 
+      #ifdef DEBUG
       testPool(poolKey);
+      #endif
     }
   };
 

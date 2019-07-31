@@ -88,7 +88,9 @@ namespace store::storage::connection_pools::mssql {
       // Register pool
       ioc::ServiceProvider->RegisterInstanceWithKey<ConnectionPool<MSSQLConnection>>(poolKey, pool);
 
+      #ifdef DEBUG
       testPool(poolKey);
+      #endif
     }
   };
 
