@@ -32,6 +32,13 @@ namespace store {
       return move(d);
     }
 
+    string upper_case(const string& l) {
+      string d;
+      d.resize(l.size());
+      transform(l.begin(), l.end(), d.begin(), ::toupper);
+      return move(d);
+    }
+
     template<typename U>
     string resolve_type_to_string(bool lowercase = true) {
       const auto& ti = typeid(U);
