@@ -81,8 +81,11 @@ namespace store {
           Holder<T> * holder = dynamic_cast<Holder<T>*>(iholder.get());
           return holder->instance_;
         } else {
-          return std::shared_ptr<T>(static_cast<T*>
-            (creatorMap_[typeid(T).name()]()));
+          if (creatorMap_.find(typeid(T).name()) != creatorMap_.end())
+            return std::shared_ptr<T>(static_cast<T*>
+              (creatorMap_[typeid(T).name()]()));
+
+            return nullptr;
         }
       }
 
@@ -98,12 +101,18 @@ namespace store {
             Holder<T> * holder = dynamic_cast<Holder<T>*>(iholder.get());
             return holder->instance_;
           } else {
-            return std::shared_ptr<T>(static_cast<T*>
-              (creatorMapWithKey_[typeid(T).name()][key]()));
+            if (creatorMapWithKey_.find(typeid(T).name()) != creatorMapWithKey_.end())
+              return std::shared_ptr<T>(static_cast<T*>
+                (creatorMapWithKey_[typeid(T).name()][key]()));
+            
+            return nullptr;
           }          
         } else {
-          return std::shared_ptr<T>(static_cast<T*>
-            (creatorMapWithKey_[typeid(T).name()][key]()));
+          if (creatorMapWithKey_.find(typeid(T).name()) != creatorMapWithKey_.end())
+            return std::shared_ptr<T>(static_cast<T*>
+              (creatorMapWithKey_[typeid(T).name()][key]()));
+
+          return nullptr;
         }
       }
 
