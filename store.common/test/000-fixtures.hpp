@@ -22,6 +22,23 @@ openssl req -in csr.txt -noout -pubkey -out pubkey.pem
 # Can now use the same key to sign the message.  Recipient can either use id_rsa.pub or pubkey.pem
 */
 
+/*
+reference: https://gist.github.com/ygotthilf/baa58da5c3dd1f69fae9
+
+ssh-keygen -t rsa -P "" -b 4096 -m PEM -f jwtRS256.key
+ssh-keygen -e -m PEM -f jwtRS256.key > jwtRS256.key.pub
+
+-- or --
+
+openssl genrsa -out private.pem 2048
+openssl rsa -in private.pem -pubout -out public.pem
+
+To encode the private key in single line
+
+cat jwtRS256.key | base64
+
+*/
+
 #include <iostream>
 
 using namespace std;
