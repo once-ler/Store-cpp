@@ -18,6 +18,45 @@ namespace store::common {
     std::string timeString;
   };
 
+  struct RS256KeyPair {
+    string privateKey;
+    string publicKey;
+
+    RS256KeyPair() {}
+    explicit RS256KeyPair(const string& privateKey_, const string& publicKey_): privateKey(privateKey_), publicKey(publicKey_) {}
+
+    RS256KeyPair(const RS256KeyPair& next)
+      : privateKey(next.privateKey), publicKey(next.publicKey) {}
+
+    RS256KeyPair& operator=(const RS256KeyPair& next) {
+      if (this != &next) {
+        privateKey = next.privateKey;
+        publicKey = next.publicKey;
+      }
+      return *this;
+    }
+
+    RS256KeyPair(const RS256KeyPair&& next)
+      : privateKey(""), publicKey("") {
+        privateKey = next.privateKey;
+        publicKey = next.publicKey;
+
+        next.privateKey.empty();
+        next.publicKey.empty();
+      }
+
+    RS256KeyPair& operator=(RS256KeyPair&& next){
+      if (this != &next) {
+        privateKey = next.privateKey;
+        publicKey = next.publicKey;
+
+        next.privateKey.empty();
+        next.publicKey.empty();
+      }
+      return *this;
+    }
+  };
+
   auto getExpirationTime = [](int num_hr) {
     auto exp = std::chrono::system_clock::now() + std::chrono::hours{num_hr};
     std::time_t exp_time = std::chrono::system_clock::to_time_t(exp); 
