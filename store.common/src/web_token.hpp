@@ -5,6 +5,7 @@
 #include "json.hpp"
 #include "jwt/jwt.hpp"
 #include "store.models/src/extensions.hpp"
+#include "store.common/src/file.hpp"
 
 using namespace jwt::params;
 using namespace store::extensions;
@@ -140,6 +141,23 @@ namespace store::common {
 
     return make_pair(error, dec);
 
+  };
+
+  /*
+    Use case: in main() of a server, load the private/public key into memory.
+    Later, on routes that require authorization, decryption of the RS256 encrypted key can be done in memory.
+  */
+  auto tryGetRS256Key = [](const json& config_j, const string& privateKeyFieldName = "privateKeyFile", const string& publicKeyFieldName = "publicKeyFile") -> RS256KeyPair {
+    RS256KeyPair rs256KeyPair;
+    string privateKeyFile = config_j.value(privateKeyFieldName, "");
+    string publicKeyFile = config_j.value(publicKeyFieldName, "");
+    // If private key location was provided in the config, read it and include it.
+    if (privateKeyFile.size() > 0 && publicKeyFile.size() > 0) {
+      auto privateKey = getFile(privateKeyFile);
+      auto publicKey = getFile(publicKeyFile);
+      rs256KeyPair = std::move(RS256KeyPair(privateKey, publicKey));
+    }
+    return rs256KeyPair;
   };
 
 }
