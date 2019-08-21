@@ -10,13 +10,41 @@ using namespace store::common;
 namespace ioc = store::ioc;
 
 namespace store::servers {
+  
+  namespace secured::routes {
+
+    using Route = std::pair<string, function<void((struct evhttp_request*, vector<string>, json&))>>;
+  
+    Route getSession = {
+      "^/api/session$",
+      [](struct evhttp_request* req, vector<string> segments = {}, json& j){
+      
+        if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
+          evhttp_send_error(req, HTTP_BADREQUEST, "Bad Request");
+          return;
+        }
+
+        evhttp_add_header(evhttp_request_get_output_headers(req),
+		      "Content-Type", "application/json");
+          
+        struct evbuffer *resp = evbuffer_new();
+        evbuffer_add_printf(resp, "%s", j.dump(2).c_str());
+        evhttp_send_reply(req, HTTP_OK, "OK", resp);
+        evbuffer_free(resp);
+      }
+    };
+
+  }
 
   class RS256SecureServer : public HTTPServer {
     using HTTPServer::HTTPServer;
     
   public:
     RS256SecureServer() : HTTPServer() {
+      using namespace secured::routes;
+
       rs256KeyPair = ioc::ServiceProvider->GetInstance<RS256KeyPair>();
+      routes = { getSession };
     }
 
     map<string, function<void((struct evhttp_request*, vector<string>, json&))>> routes{};

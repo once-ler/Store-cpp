@@ -12,30 +12,9 @@ using namespace store::common;
 
 namespace ioc = store::ioc;
 
-namespace app::routes {
-  using Route = std::pair<string, function<void((struct evhttp_request*, vector<string>, json&))>>;
-
-  Route getSession = {
-    "^/api/session$",
-    [](struct evhttp_request* req, vector<string> segments = {}, json& j){
-    
-      if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_error(req, HTTP_BADREQUEST, "Bad Request");
-        return;
-      }
-
-      struct evbuffer *resp = evbuffer_new();
-      evbuffer_add_printf(resp, "%s", j.dump(2).c_str());
-      evhttp_send_reply(req, HTTP_OK, "OK", resp);
-      evbuffer_free(resp);
-    }
-  };
-}
-
 auto main(int argc, char *argv[]) -> int {
   using namespace store::servers;
-  using namespace app::routes;
-
+  
   json config_j = json::parse(R"(
     {
       "port": 5555,
@@ -57,7 +36,6 @@ auto main(int argc, char *argv[]) -> int {
   ofs.close();
 
   RS256SecureServer rs256SecureServer;
-  rs256SecureServer.routes = { getSession };
   rs256SecureServer.serv(config_j["port"].get<int>(), 10);
 
   /*
