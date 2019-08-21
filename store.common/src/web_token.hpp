@@ -103,6 +103,7 @@ namespace store::common {
     };
 
     obj.add_claim("exp", j["expire"].get<int64_t>());
+    obj.add_claim("exp_ts", j["expire_ts"].get<string>());
     obj.header().add_header("sid", sid);
 
     j["signature"] = obj.signature();
@@ -158,6 +159,35 @@ namespace store::common {
       rs256KeyPair = std::move(RS256KeyPair(privateKey, publicKey));
     }
     return rs256KeyPair;
+  };
+
+  auto jwtObjectToJson = [](const jwt::jwt_object& obj) -> json {
+    ostringstream oss;
+    json j;
+
+    oss << obj.header();
+    string header = oss.str();
+    auto header_j = json::parse(header);
+    j["header"] = header_j;
+
+    oss.str("");
+    oss << obj.payload();
+    string payload = oss.str();
+    auto payload_j = json::parse(payload);
+    j["payload"] = payload_j;
+
+    return move(j);
+  };
+
+  auto tokenExpired = [](const json& j) -> bool {
+    using namespace std::chrono;
+    int64_t now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    int64_t exp = 0;
+    auto payload = j.value("payload", json(nullptr));
+    if (!payload.is_null() && !payload["exp"].is_null())
+      exp = payload["exp"].get<int64_t>();
+
+    return now > exp;
   };
 
 }

@@ -1,0 +1,101 @@
+#pragma once
+
+#include <regex>
+#include "store.common/src/web_token.hpp"
+#include "store.servers/src/http-server.hpp"
+#include "store.models/src/ioc/service_provider.hpp"
+
+using namespace store::common;
+
+namespace ioc = store::ioc;
+
+namespace store::servers {
+
+  class RS256SecureServer : public HTTPServer {
+    using HTTPServer::HTTPServer;
+    
+  public:
+    RS256SecureServer() : HTTPServer() {
+      rs256KeyPair = ioc::ServiceProvider->GetInstance<RS256KeyPair>();
+    }
+
+    map<string, function<void((struct evhttp_request*, vector<string>, json&))>> routes{};
+
+    void ProcessRequest(struct evhttp_request* req) override {
+      json j;
+      bool authenticated = isAuthenticated(req, j);
+
+      if (!authenticated) {
+        evhttp_send_error(req, 401, NULL);
+        return;
+      }
+      
+      // localhost:1718/a/b/c
+      // uri -> /a/b/c
+
+      // Pass the decrypted payload to expose fields such as "user" if needed.
+      bool uri_matched = tryMatchUri(req, j);
+      
+      if (uri_matched)
+        return;
+
+      evhttp_send_error(req, HTTP_NOTFOUND, "Not Found");
+    }
+
+  private:
+    shared_ptr<RS256KeyPair> rs256KeyPair;
+
+    bool isAuthenticated(struct evhttp_request* req, json& j) {
+      struct evkeyvalq* headers;
+      struct evkeyval *header;
+
+      headers = evhttp_request_get_input_headers(req);
+      for (header = headers->tqh_first; header; header = header->next.tqe_next) {
+        // printf("  %s: %s\n", header->key, header->value);
+        std::string key(header->key), val(header->value);
+
+        if (key == "x-access-token") {
+          auto pa = decryptJwt(rs256KeyPair->publicKey, val);
+          if (pa.first.size() > 0) {
+            cerr << pa.first << endl;
+            return false;
+          }
+
+          j = jwtObjectToJson(*(pa.second));
+
+          // Has the token expired?
+          bool expired = tokenExpired(j);
+
+          if (expired)
+            return false;
+          else
+            return true;          
+        }
+      }
+
+      return false;
+    }
+
+    bool tryMatchUri(struct evhttp_request* req, json& j) {
+      const char* uri = evhttp_request_uri(req);
+      string uri_str = string{uri};
+      bool uri_matched = false;
+
+      for (const auto& a : routes) {
+        std::smatch seg_match;
+        vector<string> segments;
+        if (std::regex_search(uri_str, seg_match, std::regex((a.first)))) {
+          for (size_t i = 0; i < seg_match.size(); ++i)
+            segments.emplace_back(seg_match[i]); 
+          
+          uri_matched = true;
+          
+          a.second(req, segments, j);
+          break;
+        }        
+      }
+
+      return uri_matched;
+    }
+  };
+}
