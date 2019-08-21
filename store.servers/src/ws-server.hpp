@@ -5,6 +5,7 @@
     https://github.com/caosiyang/websocket.git
 */
 
+#include <functional>
 #include "libwebsocket/include/websocket.h"
 #include "libwebsocket/include/connection.h"
 #include "store.servers/src/ws-user.hpp"
@@ -13,13 +14,13 @@
 #include "event2/bufferevent.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <assert.h>
-#include <signal.h>
+// #include <assert.h>
+// #include <signal.h>
 #include <iostream>
-#include <vector>
-#include <string>
-#include <fstream>
-#include <map>
+// #include <vector>
+// #include <string>
+// #include <fstream>
+// #include <map>
 
 namespace store::servers {
 
@@ -27,37 +28,36 @@ namespace store::servers {
   public:
     WebSocketServer() {}
     ~WebSocketServer() {}
-    int serv(int port, int nthreads);
+    int serv(int port);
+    
   protected:
-    void listencb(struct evconnlistener *listener, evutil_socket_t clisockfd, struct sockaddr *addr, int len, void *ptr);
-    void user_disconnect(user_t *user);
-    void user_disconnect_cb(void *arg);
-    virtual void frame_recv_cb(void *arg);
+    static void listencb(struct evconnlistener *listener, evutil_socket_t clisockfd, struct sockaddr *addr, int len, void *ptr);
+    static void user_disconnect_cb(void *arg);
+    static void user_disconnect(user_t *user);
+    static void frame_recv_cb(void* arg);
+    static function<void(void* arg)> frame_recv_cb_handler;
 
     int bindSocket(int port);
 
-    vector<user_t*> user_vec;
+    static vector<user_t*> user_vec;
     struct event_base *base = NULL;
     evconnlistener *listener = NULL;
 
   };
 
+  vector<user_t*> WebSocketServer::user_vec = {};
+
+  // Override the callback by redefining the handler in the inherited class.  See test/001-ws-server.cpp
+  function<void(void* arg)> WebSocketServer::frame_recv_cb_handler = [](void* arg){};
+
   void WebSocketServer::frame_recv_cb(void *arg) {
-    user_t *user = (user_t*)arg;
-    if (user->wscon->frame->payload_len > 0) {
-      user->msg += string(user->wscon->frame->payload_data, user->wscon->frame->payload_len);
-    }
-    
-    if (user->wscon->frame->fin == 1) {
-      
-      user->msg = "";
-    }
+    frame_recv_cb_handler(arg);
   }
 
   void WebSocketServer::user_disconnect(user_t *user) {
     if (user) {
       //update user list
-      for (vector<user_t*>::iterator iter = this->user_vec.begin(); iter != user_vec.end(); ++iter) {
+      for (vector<user_t*>::iterator iter = user_vec.begin(); iter != user_vec.end(); ++iter) {
         if (*iter == user) {
           user_vec.erase(iter);
           break;
@@ -69,20 +69,20 @@ namespace store::servers {
 
   void WebSocketServer::user_disconnect_cb(void *arg) {
     user_t* user = (user_t*)arg;
-    this->user_disconnect(user);
+    user_disconnect(user);
   }
 
   void WebSocketServer::listencb(struct evconnlistener *listener, evutil_socket_t clisockfd, struct sockaddr *addr, int len, void *ptr) {
     struct event_base *eb = evconnlistener_get_base(listener);
     struct bufferevent *bev = bufferevent_socket_new(eb, clisockfd, BEV_OPT_CLOSE_ON_FREE);
-    LOG("a user logined in, socketfd = %d", bufferevent_getfd(bev));
+    // LOG("a user logined in, socketfd = %d", bufferevent_getfd(bev));
 
     //create a user
     user_t *user = user_create();
     user->wscon->bev = bev;
     user_vec.push_back(user);
-    ws_conn_setcb(user->wscon, FRAME_RECV, this->frame_recv_cb, user);
-    ws_conn_setcb(user->wscon, CLOSE, this->user_disconnect_cb, user);
+    ws_conn_setcb(user->wscon, FRAME_RECV, frame_recv_cb, user);
+    ws_conn_setcb(user->wscon, CLOSE, user_disconnect_cb, user);
 
     ws_serve_start(user->wscon);
   }
@@ -90,15 +90,24 @@ namespace store::servers {
   int WebSocketServer::bindSocket(int port) {
     setbuf(stdout, NULL);
     base = event_base_new();
-    assert(base);
-
+    
     struct sockaddr_in srvaddr;
     srvaddr.sin_family = AF_INET;
     srvaddr.sin_addr.s_addr = INADDR_ANY;
     srvaddr.sin_port = htons(10086);
 
-    listener = evconnlistener_new_bind(base, this->listencb, NULL, LEV_OPT_REUSEABLE | LEV_OPT_CLOSE_ON_FREE, 500, (const struct sockaddr*)&srvaddr, sizeof(struct sockaddr));
-    
+    listener = evconnlistener_new_bind(base, WebSocketServer::listencb, NULL, LEV_OPT_REUSEABLE | LEV_OPT_CLOSE_ON_FREE, 500, (const struct sockaddr*)&srvaddr, sizeof(struct sockaddr));
+  }
+
+  int WebSocketServer::serv(int port) {
+    bindSocket(port);
+
+    event_base_dispatch(base);
+
+    evconnlistener_free(listener);
+    event_base_free(base);
+
+    return 0;
   }
 
 }
