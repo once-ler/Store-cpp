@@ -1,6 +1,6 @@
 /*
 cp -r ../resources bin
-g++ -std=c++14 -Wall -O0 -g3 -I ../../../ -I /usr/local/include -I ../../../../cpp-jwt/include -I ../../../../json/single_include/nlohmann ../003-jwt-rsa-from-server.cpp -o bin/testing -L /usr/lib/x86_64-linux-gnu -L /usr/local/lib -lpthread -luuid -lcrypto
+g++ -std=c++14 -Wall -O0 -g3 -I ../../../ -I /usr/local/include -I ../../../../cpp-jwt/include -I ../../../../json/single_include/nlohmann ../003-jwt-rsa-from-server.cpp -o bin/testing -L /usr/lib/x86_64-linux-gnu -L /usr/local/lib -lpthread -luuid -lcrypto -levent
 */
 #include <regex>
 #include <chrono>
@@ -79,7 +79,7 @@ namespace store::servers {
           // Get the payload.
           ostringstream oss;
           auto obj = *(pa.second);
-          oss << obj.payload << endl;
+          oss << obj.payload();
           string payload = oss.str();
           payload_j = json::parse(payload);
 

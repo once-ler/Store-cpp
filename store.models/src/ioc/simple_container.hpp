@@ -85,7 +85,7 @@ namespace store {
             return std::shared_ptr<T>(static_cast<T*>
               (creatorMap_[typeid(T).name()]()));
 
-            return nullptr;
+          return nullptr;
         }
       }
 
