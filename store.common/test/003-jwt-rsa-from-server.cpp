@@ -48,7 +48,7 @@ namespace store::servers {
   private:
     shared_ptr<RS256KeyPair> rs256KeyPair;
 
-    bool isAuthenticated(struct evhttp_request* req, json& payload_j) {
+    bool isAuthenticated(struct evhttp_request* req, json& j) {
       struct evkeyvalq* headers;
       struct evkeyval *header;
 
@@ -76,12 +76,20 @@ namespace store::servers {
             }
           }
           */
-          // Get the payload.
+          
           ostringstream oss;
           auto obj = *(pa.second);
+
+          oss << obj.header();
+          string header = oss.str();
+          auto header_j = json::parse(header);
+          j["header"] = header_j.value("header", json(nullptr));
+
+          oss.str("");
           oss << obj.payload();
           string payload = oss.str();
-          payload_j = json::parse(payload);
+          auto payload_j = json::parse(payload);
+          j["payload"] = payload_j.value("payload", json(nullptr));
 
           // Has the token expired?
           // double now = util::currentMilliseconds;
@@ -97,6 +105,23 @@ namespace store::servers {
       }
 
       return false;
+    }
+
+    json jwtObjectToJson(const jwt::jwt_object& obj, json& j) {
+      ostringstream oss;
+      
+      oss << obj.header();
+      string header = oss.str();
+      auto header_j = json::parse(header);
+      j["header"] = header_j.value("header", json(nullptr));
+
+      oss.str("");
+      oss << obj.payload();
+      string payload = oss.str();
+      auto payload_j = json::parse(payload);
+      j["payload"] = payload_j.value("payload", json(nullptr));
+
+      return j;
     }
 
     bool tryMatchUri(struct evhttp_request* req, json& j) {
@@ -121,4 +146,42 @@ namespace store::servers {
       return uri_matched;
     }
   };
+}
+
+namespace app::routes {
+  using Route = std::pair<string, function<void((struct evhttp_request*, vector<string>, json&))>>;
+
+  Route getSession = {
+    "^/api/session$",
+    [](struct evhttp_request* req, vector<string> segments = {}, json& j){
+    
+      if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
+        evhttp_send_error(req, HTTP_BADREQUEST, "Bad Request");
+        return;
+      }
+
+      struct evbuffer *resp = evbuffer_new();
+      evbuffer_add_printf(resp, "%s", j.dump(2).c_str());
+      evhttp_send_reply(req, HTTP_OK, "OK", resp);
+      evbuffer_free(resp);
+    }
+  };
+}
+
+auto main(int argc, char *argv[]) -> int {
+  using namespace store::servers;
+
+  json config_j = json::parse(R"(
+    {
+      "port": 5555,
+      "privateKeyFile": "resources/jwtRS256.key",
+      "publicKeyFile": "resources/jwtRS256.key.pub"
+    }
+  )");
+  auto rs256KeyPair = tryGetRS256Key(config_j);
+  
+  ioc::ServiceProvider->RegisterInstance<RS256KeyPair>(make_shared<RS256KeyPair>(rs256KeyPair));
+
+  SecureServer secureServer;
+  secureServer.serv(config_j["port"].get<int>(), 10);
 }
