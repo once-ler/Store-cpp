@@ -37,6 +37,8 @@ namespace store::servers {
     static void frame_recv_cb(void* arg);
     static function<void(void* arg)> frame_recv_cb_handler;
 
+    static function<void(user_t* user)> handshake_cb_handler;
+
     int bindSocket(int port);
 
     static vector<user_t*> user_vec;
@@ -49,6 +51,16 @@ namespace store::servers {
 
   // Override the callback by redefining the handler in the inherited class.  See test/001-ws-server.cpp
   function<void(void* arg)> WebSocketServer::frame_recv_cb_handler = [](void* arg){};
+
+  // Override the callback by redefining the handler in the inherited class.
+  function<void(user_t* user)> WebSocketServer::handshake_cb_handler = [](user_t* user){
+    cout << "ws_req_str >> " << user->wscon->ws_req_str << endl;
+    // GET /token?a=2 HTTP/1.1
+    // TODO: parse this req str for path and querystrings.
+    // authenticate the user with the JWT token.
+    // If the JWT doesn't check out, use"
+    // ws_serve_exit(user->wsconn);
+  };
 
   void WebSocketServer::frame_recv_cb(void *arg) {
     frame_recv_cb_handler(arg);
@@ -80,11 +92,18 @@ namespace store::servers {
     //create a user
     user_t *user = user_create();
     user->wscon->bev = bev;
+
+    user->wscon->handshake_cb_unit.cbarg = user;
+    user->wscon->handshake_cb_unit.cb = [](void* arg) {
+      user_t* user = (user_t*) arg;
+      handshake_cb_handler(user);
+    };
+
     user_vec.push_back(user);
     ws_conn_setcb(user->wscon, FRAME_RECV, frame_recv_cb, user);
     ws_conn_setcb(user->wscon, CLOSE, user_disconnect_cb, user);
-
     ws_serve_start(user->wscon);
+
   }
 
   int WebSocketServer::bindSocket(int port) {

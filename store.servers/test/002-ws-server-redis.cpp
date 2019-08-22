@@ -108,11 +108,16 @@ auto main(int argc, char* argv[]) -> int {
 
   // Register subscriber.
   auto sub = make_shared<cpp_redis::subscriber>();
-  sub->connect("127.0.0.1", 6379, [](const std::string& host, std::size_t port, cpp_redis::subscriber::connect_state status) {
-    if (status == cpp_redis::subscriber::connect_state::dropped) {
-      std::cout << "client disconnected from " << host << ":" << port << std::endl;
-    }
-  });
+  try {
+    sub->connect("127.0.0.1", 6379, [](const std::string& host, std::size_t port, cpp_redis::subscriber::connect_state status) {
+      if (status == cpp_redis::subscriber::connect_state::dropped) {
+        std::cout << "client disconnected from " << host << ":" << port << std::endl;
+      }
+    });
+  } catch (const cpp_redis::redis_error& ex) {
+    cout << ex.what() << endl;
+    return 1;
+  }
 
   ioc::ServiceProvider->RegisterInstanceWithKey<cpp_redis::subscriber>(REDIS_SUBSCRIPTION_KEY, sub);
 
