@@ -40,4 +40,5 @@ auto main(int argc, char *argv[]) -> int {
   EchoServer echoServer;
   echoServer.serv(3001);
   
+  return 0;
 }
