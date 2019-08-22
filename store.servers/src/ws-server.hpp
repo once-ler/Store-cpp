@@ -94,7 +94,7 @@ namespace store::servers {
     struct sockaddr_in srvaddr;
     srvaddr.sin_family = AF_INET;
     srvaddr.sin_addr.s_addr = INADDR_ANY;
-    srvaddr.sin_port = htons(10086);
+    srvaddr.sin_port = htons(port);
 
     listener = evconnlistener_new_bind(base, WebSocketServer::listencb, NULL, LEV_OPT_REUSEABLE | LEV_OPT_CLOSE_ON_FREE, 500, (const struct sockaddr*)&srvaddr, sizeof(struct sockaddr));
   }
