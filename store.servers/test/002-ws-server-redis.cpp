@@ -23,6 +23,8 @@ namespace store::servers {
     EchoServer() : WebSocketServer() {
       redis_client = ioc::ServiceProvider->GetInstanceWithKey<cpp_redis::subscriber>(REDIS_SUBSCRIPTION_KEY);
 
+      this->subscribe(REDIS_SUBSCRIPTION_KEY);
+
       this->frame_recv_cb_handler = [](void* arg) {
         user_t *user = (user_t*)arg;
         if (user->wscon->frame->payload_len > 0) {
@@ -55,23 +57,31 @@ namespace store::servers {
     }
 
     void subscribe(const string& topic) {
-      redis_client->psubscribe(REDIS_SUBSCRIPTION_KEY, [this](const std::string& chan, const std::string& msg) {
-        // std::cout << "MESSAGE " << chan << ": " << msg << std::endl;
+      redis_client->psubscribe(topic, [this](const std::string& chan, const std::string& msg) {
+        std::cout << "MESSAGE " << chan << ": " << msg << std::endl;
         broadcast(msg);
       });
+
+      redis_client->commit();
     }
 
   };
 }
 
 auto getSomeRandomString = [](int range) -> string {
-  std::ostringstream oss;
+  string ret;
+  ret.resize(range + 1);
+
+  // std::ostringstream oss;
+
   for (int i = 0; i < range; i++) {
-    int rd = 97 + (rand() % (int)122-97+1);
+    int rd = 97 + (rand() % (int)(122-97+1));
     char ltr = (char)rd;
-    oss << ltr;
+    // oss << ltr;
+    ret.at(i) = ltr;
   }
-  return oss.str();
+  ret.at(range) = '\0';
+  return ret;
 };
 
 auto publishIndefinitely = []() -> void {
@@ -84,7 +94,11 @@ auto publishIndefinitely = []() -> void {
   });
 
   while (1) {
+    // "sess:" + generate_uuid()
+    // redis_client.publish("session", getSomeRandomString(16));
     redis_client.publish("sess:" + generate_uuid(), getSomeRandomString(16));
+    
+    redis_client.sync_commit();
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }  
 };
