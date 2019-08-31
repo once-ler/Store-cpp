@@ -4,10 +4,17 @@
 
 namespace store::servers {
 
+  struct webrequest_t {
+    string method;
+    string path;
+    string http_version;
+  };
+
   struct user_t {
     uint32_t id;
     ws_conn_t *wscon;
     string msg;
+    webrequest_t req;
   };
 
   user_t* user_create() {
