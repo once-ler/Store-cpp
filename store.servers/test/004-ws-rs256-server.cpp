@@ -32,6 +32,6 @@ auto main(int argc, char* argv[]) -> int {
 
 
   RS256SecureWsServer rs256WsServer;
-  cout << "Starting rs256WsServer Server...\n";
+  cout << "Starting RS256WsServer Server...\n";
   rs256WsServer.serv(port);
 }

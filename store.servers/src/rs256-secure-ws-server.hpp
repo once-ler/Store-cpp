@@ -35,7 +35,9 @@ namespace store::servers {
         user->sess.exp_ts = j["payload"].value("exp_ts", "");
         user->sess.is_valid = true;
 
-        // cout << user->sess.sid << " " << user->sess.user << " " << user->sess.exp_ts << endl;
+        #ifdef DEBUG
+        cout << user->sess.sid << " " << user->sess.user << " " << user->sess.exp_ts << endl;
+        #endif
       };
     }
 
