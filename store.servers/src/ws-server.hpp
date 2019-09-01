@@ -59,7 +59,7 @@ namespace store::servers {
     // TODO: parse this req str for path and querystrings.
     // authenticate the user with the JWT token.
     // If the JWT doesn't check out, use"
-    // ws_serve_exit(user->wsconn);
+    // ws_serve_exit(user->wscon);
   };
 
   void WebSocketServer::frame_recv_cb(void *arg) {

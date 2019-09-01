@@ -10,11 +10,19 @@ namespace store::servers {
     string http_version;
   };
 
+  struct session_t {
+    string sid;
+    string exp_ts;
+    string user;
+    bool is_valid = false;
+  };
+
   struct user_t {
     uint32_t id;
     ws_conn_t *wscon;
     string msg;
     webrequest_t req;
+    session_t sess;
   };
 
   user_t* user_create() {

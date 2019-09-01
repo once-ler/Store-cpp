@@ -20,17 +20,22 @@ namespace store::servers {
       
       // Override handshake callback.
       this->handshake_cb_handler = [this](user_t* user) {
-        // GET /token?a=2 HTTP/1.1
         std::string req = user->wscon->ws_req_str;
         parseWebRequestLine(req, user);
 
-        cout << user->req.method << "\n";
-        cout << user->req.path << "\n";
-
+        bool tokenIsValid = false;
         json j;
-        parseQuerystring(user->req.path, j);
-        cout << user->req.http_version << "\n";
-        
+        parseQuerystringForAuthentication(user->req.path, j, tokenIsValid);
+
+        if (!tokenIsValid || !j["header"].is_object() || !j["payload"].is_object())
+          return;
+
+        user->sess.sid = j["header"].value("sid", "");
+        user->sess.user = j["payload"].value("user", "");
+        user->sess.exp_ts = j["payload"].value("exp_ts", "");
+        user->sess.is_valid = true;
+
+        // cout << user->sess.sid << " " << user->sess.user << " " << user->sess.exp_ts << endl;
       };
     }
 
@@ -55,7 +60,7 @@ namespace store::servers {
         return true;
     }
 
-    void parseQuerystring(const std::string& path, json& j) {
+    void parseQuerystringForAuthentication(const std::string& path, json& j, bool& tokenIsValid) {
       struct evkeyvalq* headers = (struct evkeyvalq*) malloc(sizeof(struct evkeyvalq));
       int rc = evhttp_parse_query(path.c_str(), headers);
       struct evkeyval* kv = headers->tqh_first;
@@ -66,7 +71,8 @@ namespace store::servers {
         cout << key << endl << val << endl;
 
         if (key == "x-access-token") {
-          isAuthenticated(val, j);
+          tokenIsValid = isAuthenticated(val, j);
+          break;
         }        
         kv = kv->next.tqe_next;
       }
@@ -78,7 +84,6 @@ namespace store::servers {
       if(!req.size())
         return;
 
-      std::string method, path, query_string, http_version;
       string buf = "";
       vector<string> v;
       size_t i = 0;
