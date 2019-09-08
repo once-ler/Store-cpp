@@ -85,7 +85,6 @@ namespace store::servers {
         if (key == "x-access-token") {
           auto pa = decryptJwt(rs256KeyPair->publicKey, val);
           if (pa.first.size() > 0) {
-            cerr << pa.first << endl;
             return false;
           }
 

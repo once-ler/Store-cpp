@@ -47,7 +47,6 @@ namespace store::servers {
     bool isAuthenticated(const string& val, json& j) {
       auto pa = decryptJwt(rs256KeyPair->publicKey, val);
       if (pa.first.size() > 0) {
-        cerr << pa.first << endl;
         return false;
       }
 
@@ -70,8 +69,7 @@ namespace store::servers {
 
         std::string key(kv->key);
         std::string val(kv->value);
-        cout << key << endl << val << endl;
-
+        
         if (key == "x-access-token") {
           tokenIsValid = isAuthenticated(val, j);
           break;
