@@ -45,20 +45,7 @@ namespace store::servers {
     shared_ptr<RS256KeyPair> rs256KeyPair;
 
     bool isAuthenticated(const string& val, json& j) {
-      auto pa = decryptJwt(rs256KeyPair->publicKey, val);
-      if (pa.first.size() > 0) {
-        return false;
-      }
-
-      j = jwtObjectToJson(*(pa.second));
-
-      // Has the token expired?
-      bool expired = tokenExpired(j);
-
-      if (expired)
-        return false;
-      else
-        return true;
+      return isRS256Authenticated(rs256KeyPair->publicKey, val, j);      
     }
 
     void parseQuerystringForAuthentication(const std::string& path, json& j, bool& tokenIsValid) {

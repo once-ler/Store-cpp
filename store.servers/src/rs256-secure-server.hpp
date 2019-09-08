@@ -83,20 +83,7 @@ namespace store::servers {
         std::string key(header->key), val(header->value);
 
         if (key == "x-access-token") {
-          auto pa = decryptJwt(rs256KeyPair->publicKey, val);
-          if (pa.first.size() > 0) {
-            return false;
-          }
-
-          j = jwtObjectToJson(*(pa.second));
-
-          // Has the token expired?
-          bool expired = tokenExpired(j);
-
-          if (expired)
-            return false;
-          else
-            return true;          
+          return isRS256Authenticated(rs256KeyPair->publicKey, val, j);       
         }
       }
 

@@ -190,4 +190,21 @@ namespace store::common {
     return now > exp;
   };
 
+  auto isRS256Authenticated = [](const string& publicKey, const string& token, json& j) -> bool {
+    auto pa = decryptJwt(publicKey, token);
+    if (pa.first.size() > 0) {
+      return false;
+    }
+
+    j = jwtObjectToJson(*(pa.second));
+
+    // Has the token expired?
+    bool expired = tokenExpired(j);
+
+    if (expired)
+      return false;
+    else
+      return true;
+  };
+
 }
