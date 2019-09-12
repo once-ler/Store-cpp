@@ -29,14 +29,16 @@ namespace store::servers {
     WebSocketServer() {}
     ~WebSocketServer() {}
     int serv(int port);
+    function<void(user_t*, string)> onMessageReceived = [](user_t* user, string message){};
     
   protected:
     static void listencb(struct evconnlistener *listener, evutil_socket_t clisockfd, struct sockaddr *addr, int len, void *ptr);
     static void user_disconnect_cb(void *arg);
     static void user_disconnect(user_t *user);
     static void frame_recv_cb(void* arg);
+    static void frame_write_cb(void* arg);
     static function<void(void* arg)> frame_recv_cb_handler;
-
+    static function<void(void* arg)> frame_write_cb_handler;
     static function<void(user_t* user)> handshake_cb_handler;
 
     int bindSocket(int port);
@@ -52,6 +54,8 @@ namespace store::servers {
   // Override the callback by redefining the handler in the inherited class.  See test/001-ws-server.cpp
   function<void(void* arg)> WebSocketServer::frame_recv_cb_handler = [](void* arg){};
 
+  function<void(void* arg)> WebSocketServer::frame_write_cb_handler = [](void* arg){};
+
   // Override the callback by redefining the handler in the inherited class.
   function<void(user_t* user)> WebSocketServer::handshake_cb_handler = [](user_t* user){
     cout << "ws_req_str >> " << user->wscon->ws_req_str << endl;
@@ -64,6 +68,10 @@ namespace store::servers {
 
   void WebSocketServer::frame_recv_cb(void *arg) {
     frame_recv_cb_handler(arg);
+  }
+
+  void WebSocketServer::frame_write_cb(void *arg) {
+    frame_write_cb_handler(arg);
   }
 
   void WebSocketServer::user_disconnect(user_t *user) {
@@ -101,6 +109,7 @@ namespace store::servers {
 
     user_vec.push_back(user);
     ws_conn_setcb(user->wscon, FRAME_RECV, frame_recv_cb, user);
+    ws_conn_setcb(user->wscon, WRITE, frame_write_cb, user);
     ws_conn_setcb(user->wscon, CLOSE, user_disconnect_cb, user);
     ws_serve_start(user->wscon);
 

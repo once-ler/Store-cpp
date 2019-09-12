@@ -39,6 +39,36 @@ namespace store::servers {
         cout << user->sess.sid << " " << user->sess.user << " " << user->sess.exp_ts << endl;
         #endif
       };
+
+      // Override after message has been sent to client.
+      this->frame_write_cb_handler = [](void* arg) {
+        user_t *user = (user_t*)arg;
+
+        if (!user->sess.is_valid) {
+          user_disconnect(user);
+          return;
+        }
+      };
+
+      // Override client message callback.
+      this->frame_recv_cb_handler = [this](void* arg) {
+        user_t *user = (user_t*)arg;
+
+        if (!user->sess.is_valid) {
+          auto fb = frame_buffer_new(1, 1, 12, "Unauthorized");
+          send_a_frame(user->wscon, fb);
+          return;
+        }
+
+        if (user->wscon->frame->payload_len > 0) {
+          user->msg += string(user->wscon->frame->payload_data, user->wscon->frame->payload_len);
+        }
+        
+        if (user->wscon->frame->fin == 1) {
+          onMessageReceived(user, user->msg);
+          user->msg = "";
+        }
+      };
     }
 
   private:

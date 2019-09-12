@@ -32,6 +32,17 @@ auto main(int argc, char* argv[]) -> int {
 
 
   RS256SecureWsServer rs256WsServer;
+  rs256WsServer.onMessageReceived = [](user_t* user, string message) {
+    string resp = user->sess.user + "\n" + user->sess.sid + "\n" + user->sess.exp_ts; 
+
+    frame_buffer_t *fb = frame_buffer_new(1, 1, 
+      resp.size(), 
+      resp.c_str()
+    );
+    if (fb)
+      send_a_frame(user->wscon, fb);
+    
+  };
   cout << "Starting RS256WsServer Server...\n";
   rs256WsServer.serv(port);
 }
