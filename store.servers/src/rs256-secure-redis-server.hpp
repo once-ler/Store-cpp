@@ -18,13 +18,13 @@ namespace store::servers {
       redis_client = ioc::ServiceProvider->GetInstance<cpp_redis::client>();
     }
 
-  private:
-    shared_ptr<cpp_redis::client> redis_client;
-    
     void publish(const string& session_id, const string& message) {
       redis_client->publish(session_id, message);    
       redis_client->sync_commit();
     }
+    
+  private:
+    shared_ptr<cpp_redis::client> redis_client;
   };
 
 }
