@@ -19,8 +19,6 @@ namespace store::servers {
     }
 
     void publish(const string& session_id, const string& message) {
-      // TODO need to check if there are subscribers before publishing using:
-      // PUBSUB CHANNELS [pattern] 
       redis_client->publish(session_id, message);    
       redis_client->sync_commit();
     }
