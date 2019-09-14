@@ -47,11 +47,28 @@ auto main(int argc, char *argv[]) -> int {
 
   RS256SecureRedisServer rs256SecureRedisServer;
 
+  class Worker {
+  public:
+    Worker(const std::function<void(const string&)>& func_) : func(func_) {}
+    void do_it (const string& message) { func(message); }
+  private:
+    std::function<void(const string&)> func;
+  };
+
+  auto process = [](std::function<void(const string&)> func){
+    auto pmPtr = unique_ptr<Worker>(new Worker(func));
+    pmPtr->do_it("HELLO");
+  };
+
+  auto route = [](store::servers::RS256SecureRedisServer* secureServer) {
+    return [&secureServer](string message){ secureServer->publish("sess:", message); };
+  };
+
   thread t1(
-    [&rs256SecureRedisServer]() -> void { 
+    [&]() -> void { 
 
       while (1) {  
-        rs256SecureRedisServer.publish("sess:", "HELLO");
+        // rs256SecureRedisServer.publish("sess:", "HELLO");
         std::this_thread::sleep_for(std::chrono::seconds(1));
       }
     });
