@@ -3,6 +3,7 @@
 #include <regex>
 #include "store.common/src/web_token.hpp"
 #include "store.servers/src/http-server.hpp"
+#include "store.servers/src/session.hpp"
 #include "store.models/src/ioc/service_provider.hpp"
 
 using namespace store::common;
@@ -13,11 +14,11 @@ namespace store::servers {
   
   namespace secured::routes {
 
-    using Route = std::pair<string, function<void((struct evhttp_request*, vector<string>, json&))>>;
+    using Route = std::pair<string, function<void((struct evhttp_request*, vector<string>, session_t&))>>;
   
     Route getSession = {
       "^/api/session$",
-      [](struct evhttp_request* req, vector<string> segments = {}, json& j){
+      [](struct evhttp_request* req, vector<string> segments = {}, session_t& sess){
       
         if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
           evhttp_send_error(req, HTTP_BADREQUEST, "Bad Request");
@@ -28,6 +29,7 @@ namespace store::servers {
 		      "Content-Type", "application/json");
           
         struct evbuffer *resp = evbuffer_new();
+        json j = sess;
         evbuffer_add_printf(resp, "%s", j.dump(2).c_str());
         evhttp_send_reply(req, HTTP_OK, "OK", resp);
         evbuffer_free(resp);
@@ -47,7 +49,7 @@ namespace store::servers {
       routes = { getSession };
     }
 
-    map<string, function<void((struct evhttp_request*, vector<string>, json&))>> routes{};
+    map<string, function<void((struct evhttp_request*, vector<string>, session_t&))>> routes{};
 
     void ProcessRequest(struct evhttp_request* req) override {
       json j;
@@ -94,6 +96,7 @@ namespace store::servers {
       const char* uri = evhttp_request_uri(req);
       string uri_str = string{uri};
       bool uri_matched = false;
+      session_t sess = j;
 
       for (const auto& a : routes) {
         std::smatch seg_match;
@@ -104,7 +107,7 @@ namespace store::servers {
           
           uri_matched = true;
           
-          a.second(req, segments, j);
+          a.second(req, segments, sess);
           break;
         }        
       }
