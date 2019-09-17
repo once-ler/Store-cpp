@@ -30,11 +30,10 @@ namespace store::servers {
         if (!tokenIsValid || !j["header"].is_object() || !j["payload"].is_object())
           return;
 
-        user->sess.sid = j["header"].value("sid", "");
-        user->sess.user = j["payload"].value("user", "");
-        user->sess.exp_ts = j["payload"].value("exp_ts", "");
-        user->sess.is_valid = true;
+        session_t thisSess = j;
 
+        user->sess = thisSess;
+        
         #ifdef DEBUG
         cout << user->sess.sid << " " << user->sess.user << " " << user->sess.exp_ts << endl;
         #endif

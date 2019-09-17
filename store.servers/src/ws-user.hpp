@@ -1,6 +1,7 @@
 #pragma once
 
 #include "libwebsocket/include/connection.h"
+#include "store.servers/src/session.hpp"
 
 namespace store::servers {
 
@@ -8,13 +9,6 @@ namespace store::servers {
     string method;
     string path;
     string http_version;
-  };
-
-  struct session_t {
-    string sid;
-    string exp_ts;
-    string user;
-    bool is_valid = false;
   };
 
   struct user_t {

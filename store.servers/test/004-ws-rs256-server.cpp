@@ -3,6 +3,8 @@ cp -r ../resources bin
 g++ -std=c++14 -Wall -O0 -g3 -I ../../../ -I ../../../../websocket -I ../../../../cpp-jwt/include -I ../../../../json/single_include/nlohmann  ../004-ws-rs256-server.cpp -o bin/testing -L /usr/lib/x86_64-linux-gnu -L ../../../../websocket/libwebsocket/lib -lwebsocket -levent -lcrypto -lssl -lrt -luuid
 */
 
+#define DEBUG
+
 #include "store.servers/src/rs256-secure-ws-server.hpp"
 
 using namespace store::servers;
