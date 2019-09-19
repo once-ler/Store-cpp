@@ -23,7 +23,7 @@ namespace store::servers {
       redis_client->sync_commit();
     }
     
-  private:
+  protected:
     shared_ptr<cpp_redis::client> redis_client;
   };
 

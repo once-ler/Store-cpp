@@ -27,7 +27,7 @@ auto main(int argc, char *argv[]) -> int {
   ioc::ServiceProvider->RegisterInstance<RS256KeyPair>(make_shared<RS256KeyPair>(rs256KeyPair));
 
   // Dump a token for testing.
-  json j{{"user", "mickeymouse"}};
+  json j{{"user", "taoh02"}};
   j["private_key"] = rs256KeyPair.privateKey;
   auto enc_str = createJwt(j);
   std::ofstream ofs("test.token");
