@@ -52,6 +52,20 @@ namespace store::servers {
     map<string, function<void((struct evhttp_request*, vector<string>, session_t&))>> routes{};
 
     void ProcessRequest(struct evhttp_request* req) override {
+      // Handle CORS preflight.
+      if (evhttp_request_get_command(req) != EVHTTP_REQ_OPTIONS) {
+        evhttp_add_header (evhttp_request_get_output_headers(req),
+          "Access-Control-Allow-Origin", "*");
+        evhttp_add_header (evhttp_request_get_output_headers(req),
+          "Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+        evhttp_add_header (evhttp_request_get_output_headers(req),
+          "Access-Control-Allow-Headers", "x-access-token, Content-Type");
+        evhttp_add_header (evhttp_request_get_output_headers(req),
+          "Access-Control-Max-Age", "86400");
+        evhttp_send_reply(req, HTTP_OK, "OK", NULL);
+        return;
+      }
+      
       json j;
       bool authenticated = isAuthenticated(req, j);
 
