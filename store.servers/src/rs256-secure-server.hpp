@@ -4,6 +4,7 @@
 #include "store.common/src/web_token.hpp"
 #include "store.servers/src/http-server.hpp"
 #include "store.servers/src/session.hpp"
+#include "store.servers/src/replies.hpp"
 #include "store.models/src/ioc/service_provider.hpp"
 
 using namespace store::common;
@@ -24,15 +25,10 @@ namespace store::servers {
           evhttp_send_error(req, HTTP_BADREQUEST, "Bad Request");
           return;
         }
-
-        evhttp_add_header(evhttp_request_get_output_headers(req),
-		      "Content-Type", "application/json");
-          
-        struct evbuffer *resp = evbuffer_new();
+        
         json j = sess;
-        evbuffer_add_printf(resp, "%s", j.dump(2).c_str());
-        evhttp_send_reply(req, HTTP_OK, "OK", resp);
-        evbuffer_free(resp);
+        
+        store::servers::replyOK(req, j.dump(2), "application/json");
       }
     };
 
@@ -53,19 +49,24 @@ namespace store::servers {
 
     void ProcessRequest(struct evhttp_request* req) override {
       // Handle CORS preflight.
-      if (evhttp_request_get_command(req) != EVHTTP_REQ_OPTIONS) {
+      if (evhttp_request_get_command(req) == EVHTTP_REQ_OPTIONS) {
+        auto origin = evhttp_find_header(req->input_headers, "Origin");
         evhttp_add_header (evhttp_request_get_output_headers(req),
-          "Access-Control-Allow-Origin", "*");
+          "Access-Control-Allow-Origin", origin != NULL ? origin : "null");
+        evhttp_add_header (evhttp_request_get_output_headers(req),
+          "Vary", "origin");
+        evhttp_add_header (evhttp_request_get_output_headers(req),
+          "Access-Control-Allow-Credentials", "true");
         evhttp_add_header (evhttp_request_get_output_headers(req),
           "Access-Control-Allow-Methods", "POST, GET, OPTIONS");
         evhttp_add_header (evhttp_request_get_output_headers(req),
-          "Access-Control-Allow-Headers", "x-access-token, Content-Type");
+          "Access-Control-Allow-Headers", "Origin, Accept, Content-Type, x-access-token");
         evhttp_add_header (evhttp_request_get_output_headers(req),
           "Access-Control-Max-Age", "86400");
         evhttp_send_reply(req, HTTP_OK, "OK", NULL);
         return;
       }
-      
+
       json j;
       bool authenticated = isAuthenticated(req, j);
 

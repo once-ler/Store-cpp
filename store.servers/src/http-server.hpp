@@ -69,6 +69,7 @@ namespace store::servers {
       r = evhttp_accept_socket(httpd, nfd);
       if (r != 0) return -1;
       evhttp_set_gencb(httpd, HTTPServer::GenericHandler, this);
+      evhttp_set_allowed_methods(httpd, EVHTTP_REQ_GET|EVHTTP_REQ_POST|EVHTTP_REQ_HEAD|EVHTTP_REQ_PUT|EVHTTP_REQ_DELETE|EVHTTP_REQ_OPTIONS);
       r = pthread_create(&ths[i], NULL, HTTPServer::Dispatch, base);
       if (r != 0) return -1;
     }
