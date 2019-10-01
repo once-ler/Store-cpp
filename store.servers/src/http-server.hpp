@@ -130,6 +130,20 @@ namespace store::servers {
       return content;
     }
 
+    auto tryGetQueryString = [](struct evhttp_request* req) {
+      struct evkeyvalq* headers = (struct evkeyvalq*) malloc(sizeof(struct evkeyvalq));
+      evhttp_parse_query(evhttp_request_get_uri(req), headers);
+      struct evkeyval* kv = headers->tqh_first;
+
+      map<string, string> querystrings;
+      while (kv) {
+        querystrings.insert({kv->key, kv->value});
+        kv = kv->next.tqe_next;
+      }
+      free(headers);
+      return querystrings;
+    };
+
     double currentMilliseconds() {
       std::time_t rawtime;
       std::tm* timeinfo;

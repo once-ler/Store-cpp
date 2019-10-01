@@ -8,6 +8,7 @@
 #include "store.models/src/ioc/service_provider.hpp"
 
 using namespace store::common;
+using namespace store::servers::util;
 
 namespace ioc = store::ioc;
 
@@ -91,18 +92,16 @@ namespace store::servers {
     shared_ptr<RS256KeyPair> rs256KeyPair;
 
     bool isAuthenticated(struct evhttp_request* req, json& j) {
-      struct evkeyvalq* headers;
-      struct evkeyval *header;
+      const char* val = evhttp_find_header(req->input_headers, "x-access-token");
+      if (val != NULL)
+        return isRS256Authenticated(rs256KeyPair->publicKey, val, j);
 
-      headers = evhttp_request_get_input_headers(req);
-      for (header = headers->tqh_first; header; header = header->next.tqe_next) {
-        // printf("  %s: %s\n", header->key, header->value);
-        std::string key(header->key), val(header->value);
-
-        if (key == "x-access-token") {
-          return isRS256Authenticated(rs256KeyPair->publicKey, val, j);       
-        }
-      }
+      // x-access-token not found in header.  Expect in querystring if jsonp.
+      map<string, string> querystrings = tryGetQueryString(req);
+      string xtoken = querystrings["x-access-token"];
+      cout << xtoken << endl;
+      if (xtoken.size() > 0)
+        return isRS256Authenticated(rs256KeyPair->publicKey, xtoken, j);
 
       return false;
     }
