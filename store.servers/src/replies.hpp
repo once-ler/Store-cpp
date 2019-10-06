@@ -1,9 +1,10 @@
 #pragma once
 
-#include <string>
-#include <evhttp.h>
+#include "store.servers/src/util.hpp"
 
 using namespace std;
+
+using namespace store::servers::util;
 
 namespace store::servers {
   
@@ -19,6 +20,20 @@ namespace store::servers {
       "Content-Type", contentType.c_str());
     evhttp_send_reply(req, HTTP_OK, "OK", resp);
     evbuffer_free(resp);
+  };
+
+  auto respondAfterProcessed = [](struct evhttp_request* req, const string& body) {
+    // Handle jsonp requests.
+    map<string, string> querystrings = tryGetQueryString(req);
+
+    string jsonp = querystrings["jsonp"];
+
+    if (jsonp.size() > 0) {
+      replyOK(req, jsonp + "(" + body + ")", "application/javascript");
+      return;
+    } 
+
+    replyOK(req, body, "application/json");
   };
 
 }
