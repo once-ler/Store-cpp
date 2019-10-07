@@ -44,9 +44,13 @@ namespace store::servers {
 
       rs256KeyPair = ioc::ServiceProvider->GetInstance<RS256KeyPair>();
       routes = { getSession };
+      unsecureRoutes = {};
     }
 
     map<string, function<void((struct evhttp_request*, vector<string>, session_t&))>> routes{};
+
+    // For delivering assets
+    map<string, function<void((struct evhttp_request*, vector<string>))>> unsecureRoutes{};
 
     void ProcessRequest(struct evhttp_request* req) override {
       // Handle CORS preflight.
@@ -68,6 +72,12 @@ namespace store::servers {
         return;
       }
 
+      // Check whether route can be unsecured.
+      bool uri_matched = tryMatchUri(req);      
+      if (uri_matched)
+        return;
+
+      // Secure session required.
       json j;
       bool authenticated = isAuthenticated(req, j);
 
@@ -80,7 +90,7 @@ namespace store::servers {
       // uri -> /a/b/c
 
       // Pass the decrypted payload to expose fields such as "user" if needed.
-      bool uri_matched = tryMatchUri(req, j);
+      uri_matched = tryMatchUri(req, j);
       
       if (uri_matched)
         return;
@@ -106,6 +116,7 @@ namespace store::servers {
       return false;
     }
 
+    // Secure routes.
     bool tryMatchUri(struct evhttp_request* req, json& j) {
       const char* uri = evhttp_request_uri(req);
       string uri_str = string{uri};
@@ -122,6 +133,29 @@ namespace store::servers {
           uri_matched = true;
           
           a.second(req, segments, sess);
+          break;
+        }        
+      }
+
+      return uri_matched;
+    }
+
+    // Unsecure routes.
+    bool tryMatchUri(struct evhttp_request* req) {
+      const char* uri = evhttp_request_uri(req);
+      string uri_str = string{uri};
+      bool uri_matched = false;
+
+      for (const auto& a : unsecureRoutes) {
+        std::smatch seg_match;
+        vector<string> segments;
+        if (std::regex_search(uri_str, seg_match, std::regex((a.first)))) {
+          for (size_t i = 0; i < seg_match.size(); ++i)
+            segments.emplace_back(seg_match[i]); 
+          
+          uri_matched = true;
+          
+          a.second(req, segments);
           break;
         }        
       }

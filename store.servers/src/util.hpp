@@ -4,6 +4,7 @@
 #include <map>
 #include <evhttp.h>
 #include <ctime>
+#include <regex>
 
 namespace store::servers::util {
   // Can be called from <namespace>::routes.
@@ -49,6 +50,71 @@ namespace store::servers::util {
     }
     free(headers);
     return querystrings;
+  };
+
+  std::map<string, string> fileTypes{
+    { "txt", "text/plain" },
+	  { "js", "application/javascript" },
+    { "json", "application/json" },
+    { "xml", "text/xml" },
+    { "html", "text/html" },
+	  { "htm", "text/htm" },
+	  { "css", "text/css" },
+	  { "gif", "image/gif" },
+	  { "jpg", "image/jpeg" },
+	  { "jpeg", "image/jpeg" },
+	  { "png", "image/png" },
+	  { "pdf", "application/pdf" },
+  };
+
+  auto guessFileType = [](const string& path) -> string {
+    std::smatch seg_match;
+    if (std::regex_search(path, seg_match, std::regex(".*(\\..+)$"))) {
+      auto ext = seg_match[1];
+      auto m = ext.str();
+      m.erase(0, 1);
+      
+      if (fileTypes.find(m) != fileTypes.end())
+        return fileTypes[m];
+
+      return "application/octet-stream";
+    }
+    
+    return "application/octet-stream";
+  };
+
+  auto fetchAsset = [](struct evhttp_request* req, const string& path) -> void {
+    int fd = -1;
+    struct stat st;
+    
+    if ((fd = open(path.c_str(), O_RDONLY)) < 0) {
+      evhttp_send_error(req, HTTP_NOTFOUND, "Not Found");
+      return;
+    }
+
+    if (fstat(fd, &st) == -1) {
+      /* Make sure the length still matches, now that we
+      * opened the file :/ */
+      evhttp_send_error(req, HTTP_NOTFOUND, "Not Found");
+      
+      if (fd >= 0)
+		    close(fd);
+
+      return;
+    }
+
+    struct evbuffer* resp = evbuffer_new();
+    
+    evhttp_add_header(evhttp_request_get_output_headers(req),
+        "Content-Type", guessFileType(path).c_str());
+    
+    evbuffer_add_file(resp, fd, 0, st.st_size);
+    
+    evhttp_send_reply(req, 200, "OK", resp);
+    evbuffer_free(resp);
+
+    if (fd >= 0)
+		  close(fd);      
   };
 
   double currentMilliseconds() {
