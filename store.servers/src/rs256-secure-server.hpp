@@ -99,7 +99,7 @@ namespace store::servers {
       // x-access-token not found in header.  Expect in querystring if jsonp.
       map<string, string> querystrings = tryGetQueryString(req);
       string xtoken = querystrings["x-access-token"];
-      cout << xtoken << endl;
+      
       if (xtoken.size() > 0)
         return isRS256Authenticated(rs256KeyPair->publicKey, xtoken, j);
 
