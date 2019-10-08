@@ -112,9 +112,7 @@ namespace store::servers::util {
     
     evhttp_send_reply(req, 200, "OK", resp);
     evbuffer_free(resp);
-
-    if (fd >= 0)
-		  close(fd);      
+    // fd will be freed by evbuffer_chain_free
   };
 
   double currentMilliseconds() {
