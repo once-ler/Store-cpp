@@ -255,7 +255,7 @@ namespace store {
           }
         };
 
-        Client(DBContext _dbContext, int poolSize = 10) : BaseClient<T>(_dbContext) {
+        Client(DBContext _dbContext, int poolSize) : BaseClient<T>(_dbContext) {
           connectionInfo = Extensions::string_format("application_name=%s host=%s port=%d dbname=%s connect_timeout=%d user=%s password=%s", 
             this->dbContext.applicationName.c_str(), 
             this->dbContext.server.c_str(), 
@@ -265,6 +265,7 @@ namespace store {
             this->dbContext.user.c_str(), 
             this->dbContext.password.c_str());
 
+          poolSize = poolSize > 0 && poolSize <= 20 ? poolSize : 10;
           PostgreSQLPool::createPoolFromDBContext(this->dbContext, typeid(this).name(), poolSize);
           auto poolKey = typeid(this).name();
           pool = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<PostgreSQLConnection>>(poolKey);
