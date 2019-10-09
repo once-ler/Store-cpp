@@ -48,8 +48,6 @@ namespace store {
       template<typename T>
       class Client : public BaseClient<T> {      
       public:
-        using BaseClient<T>::BaseClient;
-        
         class PgEventStore : public EventStore {
         public:
           explicit PgEventStore(Client<T>* session_) : session(session_) {}
@@ -255,7 +253,7 @@ namespace store {
           }
         };
 
-        Client(DBContext _dbContext, int poolSize) : BaseClient<T>(_dbContext) {
+        Client(DBContext _dbContext, int poolSize = 10) : BaseClient<T>(_dbContext) {
           connectionInfo = Extensions::string_format("application_name=%s host=%s port=%d dbname=%s connect_timeout=%d user=%s password=%s", 
             this->dbContext.applicationName.c_str(), 
             this->dbContext.server.c_str(), 
