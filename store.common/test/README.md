@@ -1,10 +1,10 @@
 __Good openssl coverage:__
 https://www.digitalocean.com/community/tutorials/openssl-essentials-working-with-ssl-certificates-private-keys-and-csrs
 
-ssh-keygen -t rsa -b 4096 (id_rsa/id_rsa.pub)
-
 ___Generate self signed cert using private key___
 ```bash
+ssh-keygen -t rsa -b 4096 (id_rsa/id_rsa.pub)
+
 openssl req \
        -key id_rsa \
        -new \
