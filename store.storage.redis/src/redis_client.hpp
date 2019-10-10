@@ -34,7 +34,9 @@ namespace store::storage::redis {
         createJwt(j);
         
         string sid = j["sid"];
-        string secret = j["secret"];
+        // For RSA asymmetric encryption, we need to save the public key.
+        string publicKey = j.value("public_key", "");
+        string secret = publicKey.size() > 0 ? publicKey : j.value("secret", "");
 
         this->session->set(sid, ttl, secret);
       }

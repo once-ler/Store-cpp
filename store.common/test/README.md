@@ -11,6 +11,12 @@ openssl req \
        -x509 -days 365 -out test.pem
 ```
 
+Or
+
+```
+openssl req -x509 -sha256 -nodes -days 7300 -newkey rsa:4096 -keyout jwtRS256.key -out jwtRS256.key.pub
+```
+
 ___Just get the public key___
 ```bash
 openssl x509 -pubkey -noout -in test.pem  > pubkey.pem
