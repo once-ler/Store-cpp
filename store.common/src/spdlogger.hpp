@@ -108,7 +108,7 @@ namespace store::common {
     bool runtime_err_save = false;
 
     void setupLogging(const std::string& subFolder = "") {
-      string dir = "log";
+      std::string dir = "log";
       if (subFolder.size() > 0) {
         dir.append("/" + subFolder);
       } 
