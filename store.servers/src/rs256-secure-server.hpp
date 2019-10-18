@@ -19,7 +19,7 @@ namespace store::servers {
     using Route = std::pair<string, function<void((struct evhttp_request*, vector<string>, session_t&))>>;
   
     Route getSession = {
-      "^/api/session$",
+      "^/api/session(\\?.*)?",
       [](struct evhttp_request* req, vector<string> segments = {}, session_t& sess){
       
         if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
