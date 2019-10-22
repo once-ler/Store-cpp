@@ -19,7 +19,13 @@ namespace store::servers {
   }
 
   void from_json(const json& j, session_t& p) {
-    if (!j["header"].is_object() || !j["payload"].is_object())
+    if (j.find("sid") != j.end() && j.find("exp_ts") != j.end() && j.find("user") != j.end()) {
+      p.sid = j.value("sid", "");
+      p.user = j.value("user", "");
+      p.exp_ts = j.value("exp_ts", "");
+    }
+
+    if (j.find("header") == j.end() || !j["header"].is_object() || j.find("payload") == j.end() || !j["payload"].is_object())
       return;
 
     p.sid = j["header"].value("sid", "");
