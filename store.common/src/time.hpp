@@ -80,4 +80,15 @@ namespace store::common {
     return 1000 * (time + getTimezoneOffsetSeconds());
   }
 
+  string getCurrentDate(bool with_time = false) {
+    time_t now = time(0);
+    struct tm tstruct;
+    char buf[21];
+    tstruct = *localtime(&now);
+    const char* format = with_time ? "%F %T" : "%F";   
+    strftime(buf, sizeof(buf), format, &tstruct);
+
+    return buf;
+  }
+
 }
