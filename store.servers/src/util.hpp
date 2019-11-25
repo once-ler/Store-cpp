@@ -64,7 +64,8 @@ namespace store::servers::util {
 	  { "jpg", "image/jpeg" },
 	  { "jpeg", "image/jpeg" },
 	  { "png", "image/png" },
-	  { "pdf", "application/pdf" },
+    { "svg", "image/svg+xml" },
+	  { "pdf", "application/pdf" }
   };
 
   auto guessFileType = [](const string& path) -> string {
