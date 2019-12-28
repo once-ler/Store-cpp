@@ -1,5 +1,9 @@
 #pragma once
 
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <iostream>
 #include <map>
 #include <evhttp.h>
@@ -52,7 +56,7 @@ namespace store::servers::util {
     return querystrings;
   };
 
-  std::map<string, string> fileTypes{
+  std::map<std::string, std::string> fileTypes{
     { "txt", "text/plain" },
 	  { "js", "application/javascript" },
     { "json", "application/json" },
@@ -68,7 +72,7 @@ namespace store::servers::util {
 	  { "pdf", "application/pdf" }
   };
 
-  auto guessFileType = [](const string& path) -> string {
+  auto guessFileType = [](const std::string& path) -> std::string {
     std::smatch seg_match;
     if (std::regex_search(path, seg_match, std::regex(".*(\\..+)$"))) {
       auto ext = seg_match[1];
@@ -84,7 +88,7 @@ namespace store::servers::util {
     return "application/octet-stream";
   };
 
-  auto fetchAsset = [](struct evhttp_request* req, const string& path) -> void {
+  auto fetchAsset = [](struct evhttp_request* req, const std::string& path) -> void {
     int fd = -1;
     struct stat st;
     
