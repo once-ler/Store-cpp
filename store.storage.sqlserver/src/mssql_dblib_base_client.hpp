@@ -56,6 +56,8 @@ namespace store::storage::mssql {
 
         fieldNames = std::move(db->fieldNames);
         fieldValues = std::move(db->fieldValues);
+      } catch (active911::ConnectionUnavailable ex) {
+        cerr << ex.what() << endl;
       } catch (std::exception e) {
         cerr << e.what() << endl;
       }
