@@ -16,9 +16,9 @@ namespace store::storage::mssql {
   class MsSqlClient : public BaseClient<T>, public MsSqlBaseClient {
   public:
     const string version = "0.1.11";
-    MsSqlClient(DBContext _dbContext, const string& poolKey) :
+    MsSqlClient(DBContext _dbContext, const string& poolKey, int poolSize = 10) :
       BaseClient<T>(_dbContext),
-      MsSqlBaseClient(_dbContext, poolKey) {}
+      MsSqlBaseClient(_dbContext, poolKey, poolSize) {}
   
     vector<shared_ptr<json>> runQueryJson(const string& sqlStmt) override {
       vector<shared_ptr<json>> a;
