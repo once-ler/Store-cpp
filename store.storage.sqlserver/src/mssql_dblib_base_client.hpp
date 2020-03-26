@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include <sstream>
+#include <mutex>
+#include <condition_variable>
 #include "store.common/src/logger.hpp"
 #include "store.storage.connection-pools/src/mssql_dblib.hpp"
 
@@ -37,32 +39,42 @@ namespace store::storage::mssql {
     int quick(const istream& input, vector<string>& fieldNames, vector<vector<string>>& fieldValues) {
       std::shared_ptr<MSSQLDbLibConnection> conn = nullptr;
       
-      try {
-        conn = pool->borrow();
+      {
+        std::unique_lock<std::mutex> lock(this->dblib_mtx);
+        this->condition.wait(lock, [this]{ return this->available; });
 
-        ostringstream oss;
-        oss << input.rdbuf();
+        available = false;
 
-        auto db = conn->sql_connection;
+        try {
+          conn = pool->borrow();
 
-        db->sql(oss.str());
+          ostringstream oss;
+          oss << input.rdbuf();
 
-        int rc = db->execute();
+          auto db = conn->sql_connection;
 
-        if (rc) {
-          pool->unborrow(conn);
-          return rc;
+          db->sql(oss.str());
+
+          int rc = db->execute();
+
+          if (rc) {
+            pool->unborrow(conn);
+            return rc;
+          }
+
+          fieldNames = std::move(db->fieldNames);
+          fieldValues = std::move(db->fieldValues);
+        } catch (active911::ConnectionUnavailable ex) {
+          cerr << ex.what() << endl;
+        } catch (std::exception e) {
+          cerr << e.what() << endl;
         }
+        if (conn)
+          pool->unborrow(conn);
 
-        fieldNames = std::move(db->fieldNames);
-        fieldValues = std::move(db->fieldValues);
-      } catch (active911::ConnectionUnavailable ex) {
-        cerr << ex.what() << endl;
-      } catch (std::exception e) {
-        cerr << e.what() << endl;
+        available = true;
+        condition.notify_one();  
       }
-      if (conn)
-        pool->unborrow(conn);
     }
 
     // Default logger.
@@ -79,5 +91,8 @@ namespace store::storage::mssql {
     string password;
     string server_port;
 
+    std::mutex dblib_mtx;
+    std::condition_variable condition;
+    bool available = true;
   };
 }
