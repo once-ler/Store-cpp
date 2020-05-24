@@ -57,7 +57,7 @@ static Status CreateClient(const vector<string>& master_addrs,
                            shared_ptr<KuduClient>* client) {
   return KuduClientBuilder()
       .master_server_addrs(master_addrs)
-      .default_admin_operation_timeout(MonoDelta::FromSeconds(60))
+      .default_admin_operation_timeout(MonoDelta::FromSeconds(20))
       .Build(client);
 }
 
@@ -98,6 +98,7 @@ static Status CreateTable(const shared_ptr<KuduClient>& client,
   KuduTableCreator* table_creator = client->NewTableCreator();
   table_creator->table_name(table_name)
       .schema(&schema)
+      .num_replicas(1) // In production, should be at least 3.
       .set_range_partition_columns(column_names);
 
   // Generate and add the range partition splits for the table.
