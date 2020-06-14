@@ -4,6 +4,8 @@
 #include <sstream>
 #include <map>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include "store.storage.sqlserver/src/mssql_dblib_base_client.hpp"
 #include "store.common/src/spdlogger.hpp"
 
@@ -21,17 +23,26 @@ namespace store::storage::mssql {
       identity = ss.str();
     }
 
-    void* start(OnTableChangedFunc callback = [](string msg) { std::cout << msg << endl; }) {
+    void start(OnTableChangedFunc callback = [](string msg) { std::cout << msg << endl; }) {
+      if (subscriber != nullptr)
+        return;
       // Check if service is already installed.
-      if (checkServiceExists())
-        return NULL;
+      if (!checkServiceExists())
+        installNotification();
       
-      installNotification();
-
-      return &(std::thread([&callback, this](){ notificationLoop(callback); }));      
+      subscriber = make_unique<std::thread>([&callback, this](){ notificationLoop(callback); });
     }
 
-    int stop() {
+    void stop() {
+      {
+        std::unique_lock<std::mutex> lock(q_mutex);
+        cancel = true;
+      }
+      condition.notify_all();
+      subscriber->join();
+    }
+
+    int uninstall() {
       string unstallListenerScript = fmt::format(
         SQL_FORMAT_EXECUTE_PROCEDURE, databaseName, uninstallListenerProcedureName(), schemaName
       );
@@ -52,7 +63,12 @@ namespace store::storage::mssql {
     }
 
   private:
+    unique_ptr<std::thread> subscriber = nullptr;
     shared_ptr<MsSqlDbLibBaseClient> client = nullptr;
+    std::mutex q_mutex;
+    std::condition_variable condition;
+    bool cancel = false;
+
     string databaseName;
     string schemaName;
     string tableName;
@@ -112,6 +128,12 @@ namespace store::storage::mssql {
     void notificationLoop(OnTableChangedFunc callback) {
       try {
         while (true) {
+          {
+            std::unique_lock<std::mutex> lock(q_mutex);
+            condition.wait(lock, [this]{ return cancel; });
+            if(cancel)
+              return;
+          }
           vector<string> fieldNames;
           vector<vector<string>> fieldValues;
           quick(istringstream(SQL_FORMAT_RECEIVE_EVENT()), fieldNames, fieldValues);
@@ -276,7 +298,7 @@ namespace store::storage::mssql {
         END
       )__", 
         databaseName, 
-        installListenerProcedureName, 
+        installListenerProcedureName(), 
         SQL_FORMAT_INSTALL_SEVICE_BROKER_NOTIFICATION(), 
         SQL_FORMAT_CREATE_NOTIFICATION_TRIGGER(),
         SQL_FORMAT_CHECK_NOTIFICATION_TRIGGER(),
@@ -340,11 +362,11 @@ namespace store::storage::mssql {
         END
       )__", 
         databaseName, 
-        uninstallListenerProcedureName, 
+        uninstallListenerProcedureName(), 
         SQL_FORMAT_UNINSTALL_SERVICE_BROKER_NOTIFICATION(),
         SQL_FORMAT_DELETE_NOTIFICATION_TRIGGER(),
         schemaName,
-        installListenerProcedureName
+        installListenerProcedureName()
       );
     }
 
