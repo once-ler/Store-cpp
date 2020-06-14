@@ -32,7 +32,7 @@ using Callback = function<void(PGNotifyResult)>;
 
 class ClientHandler {
 public:
-  void operator()(const string& channel) {
+  void operator()(const string& channel, Callback callback) {
     const char *conninfo = "dbname = pccrms";
     PGconn     *conn;
     PGresult   *res;
