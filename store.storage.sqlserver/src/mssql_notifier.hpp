@@ -5,6 +5,7 @@
 #include <map>
 #include <thread>
 #include <mutex>
+#include <chrono>
 #include <condition_variable>
 #include "store.storage.sqlserver/src/mssql_dblib_base_client.hpp"
 #include "store.common/src/spdlogger.hpp"
@@ -14,9 +15,9 @@ using namespace std;
 namespace store::storage::mssql {
   using OnTableChangedFunc = function<void(string)>;
 
-  class Notifier : public MsSqlDbLibBaseClient {
+  class Notifier {
   public:
-    Notifier(const string& databaseName_, const string& schemaName_, const string& tableName_): databaseName(databaseName_), schemaName(schemaName_), tableName(tableName_) {
+    Notifier(shared_ptr<MsSqlDbLibBaseClient> sqlDbLibClient_, const string& databaseName_, const string& schemaName_, const string& tableName_): sqlDbLibClient(sqlDbLibClient_), databaseName(databaseName_), schemaName(schemaName_), tableName(tableName_) {
       // Set Identity;
       stringstream ss;
       ss << std::hex << std::hash<std::string>{}(fmt::format("{}${}${}", databaseName, schemaName, tableName)); 
@@ -30,7 +31,9 @@ namespace store::storage::mssql {
       if (!checkServiceExists())
         installNotification();
       
-      subscriber = make_unique<std::thread>([&callback, this](){ notificationLoop(callback); });
+      subscriber = make_shared<std::thread>([&callback, this](){ notificationLoop(callback); });
+      condition.notify_all();
+      subscriber->detach();
     }
 
     void stop() {
@@ -38,8 +41,6 @@ namespace store::storage::mssql {
         std::unique_lock<std::mutex> lock(q_mutex);
         cancel = true;
       }
-      condition.notify_all();
-      subscriber->join();
     }
 
     int uninstall() {
@@ -50,21 +51,51 @@ namespace store::storage::mssql {
     }
 
     vector<vector<string>> getDependencyDbIdentities() {
-      string sqlstmt = fmt::format(SQL_FORMAT_GET_DEPENDENCY_IDENTITIES, databaseName);
+      string sqlstmt = fmt::format(SQL_FORMAT_GET_DEPENDENCY_IDENTITIES());
       vector<string> fieldNames;
       vector<vector<string>> fieldValues;
-      quick(istringstream(sqlstmt), fieldNames, fieldValues);
+      sqlDbLibClient->quick(istringstream(sqlstmt), fieldNames, fieldValues);
       return fieldValues;
     }
 
+    // Warning: remove ALL listeners in the database.
     int cleanDatabase() {
-      string cleanDbScript = fmt::format(SQL_FORMAT_FORCED_DATABASE_CLEANING(), databaseName);
-      return executeNonQuery(cleanDbScript);
+      cout << "Cleaning started." << endl;
+      return executeNonQuery(SQL_FORMAT_FORCED_DATABASE_CLEANING());
+    }
+
+    vector<vector<string>> monitor() {
+      vector<string> fieldNames;
+      vector<vector<string>> fieldValues;
+      sqlDbLibClient->quick(istringstream(MONITOR_CONVERSATIONS()), fieldNames, fieldValues);
+      return fieldValues;
+    }
+
+    int executeNonQuery(const string& input) {
+      std::shared_ptr<MSSQLDbLibConnection> conn = nullptr;
+      
+      try {
+        conn = sqlDbLibClient->pool->borrow();
+        auto db = conn->sql_connection;
+        db->sql(input);
+        int rc = db->execute();
+
+        if (rc) {
+          sqlDbLibClient->pool->unborrow(conn);
+          return rc;
+        }
+      } catch (active911::ConnectionUnavailable ex) {
+        cerr << ex.what() << endl;
+      } catch (std::exception e) {
+        cerr << e.what() << endl;
+      }
+      if (conn)
+        sqlDbLibClient->pool->unborrow(conn);
     }
 
   private:
-    unique_ptr<std::thread> subscriber = nullptr;
-    shared_ptr<MsSqlDbLibBaseClient> client = nullptr;
+    shared_ptr<MsSqlDbLibBaseClient> sqlDbLibClient = nullptr;
+    shared_ptr<std::thread> subscriber = nullptr;
     std::mutex q_mutex;
     std::condition_variable condition;
     bool cancel = false;
@@ -93,28 +124,6 @@ namespace store::storage::mssql {
       { "NO", "NOT" }
     };
     
-    int executeNonQuery(const string& input) {
-      std::shared_ptr<MSSQLDbLibConnection> conn = nullptr;
-      
-      try {
-        conn = pool->borrow();
-        auto db = conn->sql_connection;
-        db->sql(input);
-        int rc = db->execute();
-
-        if (rc) {
-          pool->unborrow(conn);
-          return rc;
-        }
-      } catch (active911::ConnectionUnavailable ex) {
-        cerr << ex.what() << endl;
-      } catch (std::exception e) {
-        cerr << e.what() << endl;
-      }
-      if (conn)
-        pool->unborrow(conn);
-    }
-
     int installNotification() {
       executeNonQuery(SQL_FORMAT_CREATE_INSTALLATION_PROCEDURE());
       executeNonQuery(SQL_FORMAT_CREATE_UNINSTALLATION_PROCEDURE());
@@ -130,19 +139,22 @@ namespace store::storage::mssql {
         while (true) {
           {
             std::unique_lock<std::mutex> lock(q_mutex);
-            condition.wait(lock, [this]{ return cancel; });
-            if(cancel)
+            if(cancel) {
+              cout << "Cancel requested." << endl;
               return;
+            }
           }
           vector<string> fieldNames;
           vector<vector<string>> fieldValues;
-          quick(istringstream(SQL_FORMAT_RECEIVE_EVENT()), fieldNames, fieldValues);
+
+          sqlDbLibClient->quick(istringstream(SQL_FORMAT_RECEIVE_EVENT()), fieldNames, fieldValues);
           
           string message{};
           if (fieldValues.size() > 0)
             message = fieldValues.at(0).at(0);
           
           callback(message);
+          this_thread::sleep_for(std::chrono::milliseconds(500));
         }
       } catch (...) {
         // NOOP
@@ -150,16 +162,9 @@ namespace store::storage::mssql {
     }
 
     bool checkServiceExists() {
-      string sqlstmt = fmt::format("select name from sys.services where name = '{}'", identity);
-      vector<string> fieldNames;
-      vector<vector<string>> fieldValues;
-      quick(istringstream(sqlstmt), fieldNames, fieldValues);
+      vector<vector<string>> fieldValues = getDependencyDbIdentities();
       return fieldValues.size() > 0;
     }
-
-    // SELECT is_broker_enabled FROM sys.databases WHERE Name = 'mydatabasename'
-    // SELECT * FROM sys.service_queues WHERE name LIKE 'SqlQueryNotificationService-%' (ListenerQueue_{})
-    // select * from sys.dm_qn_subscriptions
 
     // https://www.mssqltips.com/sqlservertip/1197/service-broker-troubleshooting/
     // Error messages in the queue: SELECT * FROM sys.transmission_queue;
@@ -168,13 +173,15 @@ namespace store::storage::mssql {
     string MONITOR_CONVERSATIONS() {
       return fmt::format(R"__(
         SELECT conversation_handle, is_initiator, s.name as 'local service', 
-        far_service, sc.name 'contract', state_desc
+        far_service, sc.name 'contract', state_desc, convert(varchar(30), security_timestamp, 126) ts
         FROM sys.conversation_endpoints ce
-        LEFT JOIN sys.services s
+        JOIN sys.services s
         ON ce.service_id = s.service_id
         LEFT JOIN sys.service_contracts sc
-        ON ce.service_contract_id = sc.service_contract_id;
-      )__");
+        ON ce.service_contract_id = sc.service_contract_id
+        WHERE s.name = '{}'
+        ORDER BY security_timestamp
+      )__", conversationServiceName());
     }
 
     string SQL_FORMAT_INSTALL_SEVICE_BROKER_NOTIFICATION() {
@@ -425,18 +432,18 @@ namespace store::storage::mssql {
       )__", databaseName, conversationQueueName(), COMMAND_TIMEOUT, schemaName);
     }
 
+    string SQL_FORMAT_GET_DEPENDENCY_IDENTITIES() { 
+      return fmt::format(R"__(
+        USE [{}]
+                  
+        SELECT name FROM sys.services WHERE [name] = '{}';
+      )__", databaseName, identity);
+    }
+
     string SQL_FORMAT_EXECUTE_PROCEDURE = R"__(
       USE [{0}]
       IF OBJECT_ID ('{2}.{1}', 'P') IS NOT NULL
           EXEC {2}.{1}
-    )__";
-
-    string SQL_FORMAT_GET_DEPENDENCY_IDENTITIES = R"__(
-      USE [{0}]
-                
-      SELECT REPLACE(name , 'ListenerService_' , '') 
-      FROM sys.services 
-      WHERE [name] like 'ListenerService_%';
     )__";
 
   };

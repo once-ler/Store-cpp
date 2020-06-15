@@ -68,7 +68,6 @@ namespace store::storage::mssql {
     // Default logger.
     shared_ptr<ILogger> logger = make_shared<ILogger>();
 
-  protected:
     shared_ptr<ConnectionPool<MSSQLDbLibConnection>> pool;
 
   private:
