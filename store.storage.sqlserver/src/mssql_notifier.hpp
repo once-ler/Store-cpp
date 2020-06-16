@@ -202,6 +202,9 @@ namespace store::storage::mssql {
         -- Create a service on which tracked information will be sent 
         IF NOT EXISTS(SELECT * FROM sys.services WHERE name = ''{2}'')
             CREATE SERVICE [{2}] ON QUEUE {3}.[{1}] ([DEFAULT])
+        -- Create a local address route.
+        IF NOT EXISTS (SELECT * FROM sys.routes WHERE [address] = ''LOCAL'')
+            CREATE ROUTE [AutoCreatedLocal] with address = N''LOCAL''    
       )__", databaseName, conversationQueueName(), conversationServiceName(), schemaName);
     }
 
