@@ -2,8 +2,9 @@
 g++ -std=c++14 -Wall -I ../../../../Store-cpp \
 -I ../../../../spdlog/include \
 -I ../../../../json/single_include/nlohmann \
--I /usr/lib/x86_64-linux-gnu \
 -o testing ../index-base-client-spec1.cpp \
+-L /usr/lib64 \
+-L /usr/lib/x86_64-linux-gnu \
 -L/usr/local/lib -lpthread \
 -lcassandra \
 -luuid
