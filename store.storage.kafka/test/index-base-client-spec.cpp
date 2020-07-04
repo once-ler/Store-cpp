@@ -1,14 +1,17 @@
 /*
-g++ -std=c++14 -Wall -I ../../../../Store-cpp \
+g++ -g3 -std=c++14 -Wall -I ../../../../Store-cpp \
 -o testing ../index-base-client-spec.cpp \
 -L /usr/lib64 \
 -L /usr/lib/x86_64-linux-gnu \
 -L/usr/local/lib -lpthread \
 -lrdkafka \
 -lcppkafka \
+-lpthread
 */
 
 #include <cppkafka/cppkafka.h>
+#include <thread>
+#include <chrono>
 #include "store.storage.kafka/src/kafka_base_client.hpp"
 
 using namespace std;
@@ -25,6 +28,7 @@ auto main(int agrc, char* argv[]) -> int {
     Consumers can see the message in the order they were stored in the log.
   */
   auto group_id = "test";
+  string topic = "test_topic";
 
   vector<ConfigurationOption> options = {
     { "metadata.broker.list", brokers },
@@ -34,10 +38,24 @@ auto main(int agrc, char* argv[]) -> int {
   };
 
   auto configPtr = make_shared<Configuration>(options);
-  auto client = KafkaBaseClient(configPtr);
+  KafkaBaseClient client(configPtr);
+  // KafkaBaseClient producer(configPtr);
 
-  client.subscribe("test_topic", [](const Message& msg) {
+  size_t cnt = 0;
+  // Produce some messages periodically.
+  thread th([&](){
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    ostringstream oss;
+    auto now = chrono::system_clock::to_time_t(chrono::system_clock::now()); 
+    oss << ctime(&now) << "Message #" << cnt << endl; 
+    client.produce(topic, "KEY1234", oss.str());
+  });
+
+  client.subscribe(topic, [](const Message& msg) {
     cout << "Message Received\n";
+    if (msg.is_eof())
+      return;
+
     if (msg.get_key()) {
       cout << msg.get_key() << " -> ";
     }
