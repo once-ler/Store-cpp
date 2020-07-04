@@ -27,7 +27,7 @@ auto main(int agrc, char* argv[]) -> int {
     Kafka guarantees that a message is only ever read by a single consumer in the group.
     Consumers can see the message in the order they were stored in the log.
   */
-  auto group_id = "test";
+  auto group_id = "test", group_id2 = "test2";
   string topic = "test_topic_2";
 
   vector<ConfigurationOption> options = {
@@ -35,12 +35,18 @@ auto main(int agrc, char* argv[]) -> int {
     { "group.id", group_id },
     // Disable auto commit
     { "enable.auto.commit", false }
+  }, options2 = {
+    { "metadata.broker.list", brokers },
+    { "group.id", group_id2 },
+    { "enable.auto.commit", false }
   };
 
   auto configPtr = make_shared<Configuration>(options);
-  KafkaBaseClient client(configPtr);
-  // KafkaBaseClient producer(configPtr);
+  auto configPtr2 = make_shared<Configuration>(options2);
 
+  KafkaBaseClient client(configPtr);
+  KafkaBaseClient client2(configPtr2);
+  
   cout << "\nBrokers:\n";
   auto brokerMetadata = client.getBrokers();
   for (const BrokerMetadata& broker : brokerMetadata) {
@@ -66,16 +72,33 @@ auto main(int agrc, char* argv[]) -> int {
     }
   });
 
-  client.subscribe(topic, [](const Message& msg) {
-    cout << "Message Received\n";
-    if (msg.is_eof())
-      return;
+  thread th1([&](){
+    client.subscribe(topic, [](const Message& msg) {
+      cout << "Message Received by Consumer 1\n";
+      if (msg.is_eof())
+        return;
 
-    if (msg.get_key()) {
-      cout << msg.get_key() << " -> ";
-    }
-    cout << msg.get_payload() << endl;
+      if (msg.get_key()) {
+        cout << msg.get_key() << " -> ";
+      }
+      cout << msg.get_payload() << endl;
+    });
   });
+
+  thread th2([&](){
+    client2.subscribe(topic, [](const Message& msg) {
+      cout << "Message Received by Consumer 2\n";
+      if (msg.is_eof())
+        return;
+
+      if (msg.get_key()) {
+        cout << msg.get_key() << " -> ";
+      }
+      cout << msg.get_payload() << endl;
+    });
+  });
+
+  th.join();
 
   return 0;
 }
