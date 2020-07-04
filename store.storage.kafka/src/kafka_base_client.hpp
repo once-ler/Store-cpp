@@ -3,6 +3,7 @@
 #include <csignal>
 #include <iostream>
 #include <sstream>
+// #include <librdkafka/rdkafkacpp.h>
 #include <cppkafka/cppkafka.h>
 #include "store.common/src/logger.hpp"
 
@@ -38,14 +39,28 @@ namespace store::storage::kafka {
     }
 
     void createTopic(const string& topic) {
+      // When consumer subscribes to topic, topic <SHOULD> be created if it doesn't exist.
       auto handle = producer->get_handle();
-      // TODO: kafka_topic_conf
-      // rd_kafka_topic_t* rkt = rd_kafka_topic_new(handle, topic.c_str(), kafka_topic_conf);
+      char* errstr;
+      size_t errstr_size; 
+      rd_kafka_topic_conf_t* kafka_topic_conf = rd_kafka_topic_conf_new();
+      // rd_kafka_topic_conf_set(kafka_topic_conf, "", "", errstr, errstr_size);
+      rd_kafka_topic_t* rkt = rd_kafka_topic_new(handle, topic.c_str(), kafka_topic_conf);      
     }
 
     void produce(const string& topic, const string& key, const string& message, int partitionId = 0) {
       producer->produce(MessageBuilder(topic).partition(partitionId).key(key).payload(message));
       producer->flush();
+    }
+
+    vector<cppkafka::BrokerMetadata> getBrokers() {
+      cppkafka::Metadata metadata = producer->get_metadata();
+      return metadata.get_brokers();
+    }
+
+    vector<cppkafka::TopicMetadata> getTopics() {
+      cppkafka::Metadata metadata = producer->get_metadata();
+      return metadata.get_topics();
     }
 
     void subscribe(const string& topic, OnMessageReceivedFunc callback = defaultMessageHandler) {

@@ -28,7 +28,7 @@ auto main(int agrc, char* argv[]) -> int {
     Consumers can see the message in the order they were stored in the log.
   */
   auto group_id = "test";
-  string topic = "test_topic";
+  string topic = "test_topic_2";
 
   vector<ConfigurationOption> options = {
     { "metadata.broker.list", brokers },
@@ -41,14 +41,29 @@ auto main(int agrc, char* argv[]) -> int {
   KafkaBaseClient client(configPtr);
   // KafkaBaseClient producer(configPtr);
 
+  cout << "\nBrokers:\n";
+  auto brokerMetadata = client.getBrokers();
+  for (const BrokerMetadata& broker : brokerMetadata) {
+    cout << broker.get_id() << " " << broker.get_host() << ":" << broker.get_port() << endl;
+  }
+
+  cout << "\nTopics:\n";
+  auto topicMetadata = client.getTopics();
+  for (const TopicMetadata& topic : topicMetadata) {
+    cout << "* " << topic.get_name() << ": " << topic.get_partitions().size()
+      << " partitions" << endl;
+  }
+
   size_t cnt = 0;
   // Produce some messages periodically.
   thread th([&](){
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-    ostringstream oss;
-    auto now = chrono::system_clock::to_time_t(chrono::system_clock::now()); 
-    oss << ctime(&now) << "Message #" << cnt << endl; 
-    client.produce(topic, "KEY1234", oss.str());
+    while (true) {
+      std::this_thread::sleep_for(std::chrono::seconds(2));
+      ostringstream oss;
+      auto now = chrono::system_clock::to_time_t(chrono::system_clock::now()); 
+      oss << ctime(&now) << "Message #" << cnt << endl; 
+      client.produce(topic, "KEY1234", oss.str());
+    }
   });
 
   client.subscribe(topic, [](const Message& msg) {
