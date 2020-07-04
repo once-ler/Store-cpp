@@ -88,6 +88,18 @@ namespace store::storage::kafka {
     shared_ptr<cppkafka::ConsumerDispatcher> dispatcher = nullptr;
     shared_ptr<store::common::ILogger> logger = nullptr;
     
+    void ensureTopicExists(const string& topicName) {
+      auto it = getTopics();
+      auto found = std::find_if(it.begin(), it.end(), [&topicName](const TopicMetadata& topic) {
+        return topic.get_name() == topicName;
+      });
+      
+      if (found == it.end()) {
+        cout << "Creating topic " << topicName << endl; 
+        createTopic(topicName);
+      }
+    }
+
     static void signal_handler(int) {
       on_signal();
     }

@@ -30,6 +30,7 @@ auto main(int agrc, char* argv[]) -> int {
   auto group_id = "test", group_id2 = "test2";
   string topic = "test_topic_2";
 
+  // https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
   vector<ConfigurationOption> options = {
     { "metadata.broker.list", brokers },
     { "group.id", group_id },
@@ -62,6 +63,16 @@ auto main(int agrc, char* argv[]) -> int {
 
   size_t cnt = 0;
   // Produce some messages periodically.
+  /*
+    Keys are mostly useful/necessary if you require strong order for a key 
+    and are developing something like a state machine. 
+    If you require that messages with the same key (for instance, a unique id) 
+    are always seen in the correct order, attaching a key to messages 
+    will ensure messages with the same key always go to the same partition in a topic. 
+    Kafka guarantees order within a partition, but not across partitions in a topic, 
+    so alternatively not providing a key - which will result 
+    in round-robin distribution across partitions - will not maintain such order.
+  */
   thread th([&](){
     while (true) {
       std::this_thread::sleep_for(std::chrono::seconds(2));
