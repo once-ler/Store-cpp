@@ -60,18 +60,51 @@ shared_ptr<Notifier> getSqlNotifier(shared_ptr<MsSqlDbLibBaseClient> client) {
 
 shared_ptr<KafkaBaseClient> getKafkaBaseClient() {
   vector<ConfigurationOption> options = {
-    { "metadata.broker.list", "127.0.0.1:9092" }, { "group.id", "test" }, { "enable.auto.commit", false }
+    { "metadata.broker.list", "127.0.0.1:9092" }, { "client.id", "sql-notifier" },
+    { "group.id", "test" }, { "enable.auto.commit", false }
   };
   auto configPtr = make_shared<Configuration>(options);
   return make_shared<KafkaBaseClient>(configPtr);
 }
+
+/*
+struct xml_string_writer: pugi::xml_writer {
+  std::string result;
+
+  virtual void write(const void* data, size_t size) {
+    result.append(static_cast<const char*>(data), size);
+  }
+};
+
+auto pugixmlToString = [](pugi::xml_document& doc) -> std::string {
+    xml_string_writer writer;
+      
+    doc.print(writer);
+    return writer.result;
+  };
+
+pugi::xml_node appendMetadata(pugi::xml_document& doc, const string& environment, const string& store, const string& type, const string& id) {
+  auto metaNode = doc.child("meta");
+  std::map<string, string> metaValues = { 
+    {"environment", environment}, 
+    {"store", store}, 
+    {"type", type},
+    {"id", id} 
+  };
+  
+  for (const auto& e : metaValues)
+    metaNode.attribute(e.first.c_str()).set_value(e.second.c_str());  
+}
+*/
 
 auto main(int agrc, char* argv[]) -> int {
   auto sqlClient = getDbLibClient();
   auto sqlNotifier = getSqlNotifier(sqlClient);
   auto kafkaClient = getKafkaBaseClient();
 
-  string topic = "resource_modified";
+  string environment = "development", store = "LOB_A";
+
+  string topic = fmt::format("{}.{}.resource-modified", environment, store);
 
   // Create the sql table.
   createSqlTable(sqlNotifier);
@@ -129,13 +162,23 @@ auto main(int agrc, char* argv[]) -> int {
     if (!res)
       return;
 
-    auto k = doc.select_node("/root/inserted/row/oid").node().child_value();
-    cout << k << endl;
+    /*
+    auto row = doc.select_node("/root/inserted/row").node();
+    auto oid = row.child("oid").child_value();
+    auto type = row.child("type").child_value();
+    auto id = row.child("id").child_value();
+    */
 
-    auto hx = base64_to_hex(k);
+    auto oid = doc.select_node("/root/inserted/row/oid").node().child_value();
+    cout << oid << endl;
+
+    auto hx = base64_to_hex(oid);
     cout << hx << endl;
 
-    kafkaClient->produce(topic, k, msg);    
+    // appendMetadata(doc, environment, store, type, id);
+    // auto nextMsg = pugixmlToString(doc);
+
+    kafkaClient->produce(topic, hx, msg);    
   });
 
   // 

@@ -41,10 +41,10 @@ namespace store::storage::kafka {
     void createTopic(const string& topic) {
       // When consumer subscribes to topic, topic <SHOULD> be created if it doesn't exist.
       auto handle = producer->get_handle();
-      char* errstr;
-      size_t errstr_size; 
+      char errstr[512];
+
       rd_kafka_topic_conf_t* kafka_topic_conf = rd_kafka_topic_conf_new();
-      // rd_kafka_topic_conf_set(kafka_topic_conf, "", "", errstr, errstr_size);
+      // rd_kafka_topic_conf_set(kafka_topic_conf, "", "", errstr, sizeof(errstr));
       rd_kafka_topic_t* rkt = rd_kafka_topic_new(handle, topic.c_str(), kafka_topic_conf);      
     }
 

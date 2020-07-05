@@ -15,3 +15,12 @@ Or
 LD_LIBRARY_PATH=/usr/local/lib
 export LD_LIBRARY_PATH
 ```
+
+__Create a topic__
+```
+kafka/bin/kafka-topics.sh --create \
+--zookeeper localhost:2181 \
+--replication-factor 2 \
+--partitions 3 \
+--topic unique-topic-name
+```
