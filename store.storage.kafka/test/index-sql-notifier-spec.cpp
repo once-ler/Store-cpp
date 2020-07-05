@@ -22,6 +22,7 @@ g++ -g3 -std=c++14 -Wall \
 #include <chrono>
 #include "pugixml.hpp"
 #include "store.common/src/time.hpp"
+#include "store.models/src/extensions.hpp"
 #include "store.storage.kafka/src/kafka_base_client.hpp"
 #include "store.models/src/ioc/service_provider.hpp"
 #include "store.storage.sqlserver/src/mssql_dblib_base_client.hpp"
@@ -29,6 +30,7 @@ g++ -g3 -std=c++14 -Wall \
 
 using namespace std;
 using namespace cppkafka;
+using namespace store::extensions;
 using namespace store::storage::kafka;
 
 using MsSqlDbLibBaseClient = store::storage::mssql::MsSqlDbLibBaseClient;
@@ -41,7 +43,7 @@ void createSqlTable(shared_ptr<Notifier> notifier) {
     if not exists (select 1 from sys.indexes where object_id = object_id(N'dbo._Resource') and name = N'idx_clustered_resource')
     create unique clustered index idx_clustered_resource on dbo._Resource (id);
     if not exists(select 1 from dbo._Resource where id = '1')
-    insert dbo._Resource(oid, id, dateModified, type) values (0x0,'1',1000.0*datediff(ss,convert(datetime,'1970-01-01',121),current_timestamp),'FooType');
+    insert dbo._Resource(oid, id, dateModified, type) values (0xB430C86DA710E4449D4C05F5FE84C683,'1',1000.0*datediff(ss,convert(datetime,'1970-01-01',121),current_timestamp),'FooType');
   )__";
   notifier->executeNonQuery(sql);
 }
@@ -118,14 +120,22 @@ auto main(int agrc, char* argv[]) -> int {
   sqlNotifier->start([&](string msg) {
     cout << "Sql Notifier received [+]\n\n" << msg << endl;
     
+    if (msg.size() == 0)
+      return;
+
     pugi::xml_document doc;
     auto res = doc.load_string(msg.c_str());
-    if (res) {
-      cout << res.description() << endl;
-      auto k = doc.select_node("/root/inserted/row/oid").node().child_value();
-      cout << k << endl;
-      kafkaClient->produce(topic, k, msg);
-    }    
+    
+    if (!res)
+      return;
+
+    auto k = doc.select_node("/root/inserted/row/oid").node().child_value();
+    cout << k << endl;
+
+    auto hx = base64_to_hex(k);
+    cout << hx << endl;
+
+    kafkaClient->produce(topic, k, msg);    
   });
 
   // 

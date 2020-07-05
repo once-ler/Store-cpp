@@ -16,9 +16,11 @@ Clone https://github.com/htaox/ossp_uuid.git and build with VS2015.
 */
 // #include <uuid.h>
 #include "store.common/src/uuid.hxx"
+#include "store.common/src/base64.hpp"
 
 using namespace std;
 using namespace boost::core;
+using namespace store::common;
 
 using json = nlohmann::json;
 
@@ -193,5 +195,21 @@ namespace store {
       
       return move(m);
     }
+
+    // Author: https://stackoverflow.com/users/433369/user433369
+    // https://stackoverflow.com/questions/4689101/how-do-i-convert-a-base64-string-to-hexadecimal-string-in-c
+    string str_to_hex(const string& ssir) {
+      std::stringstream ss;
+      for (int i=0; i<ssir.size(); ++i)
+        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<unsigned int>(ssir[i] & 0xff);
+      
+      return ss.str();
+    }
+
+    string base64_to_hex(const string& k) {
+      auto decoded = base64_decode(k);
+      return upper_case(str_to_hex(decoded));
+    }
+
   }
 }
