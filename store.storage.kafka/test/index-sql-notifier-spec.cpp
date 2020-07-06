@@ -13,9 +13,12 @@ g++ -g3 -std=c++14 -Wall \
 -lcppkafka \
 -luuid \
 -ltdsclient -lsybdb \
+-lcassandra \
 -lpugixml \
 -lpthread -lboost_system -lboost_filesystem
 */
+
+#define DEBUG
 
 #include <cppkafka/cppkafka.h>
 #include <thread>
@@ -27,11 +30,13 @@ g++ -g3 -std=c++14 -Wall \
 #include "store.models/src/ioc/service_provider.hpp"
 #include "store.storage.sqlserver/src/mssql_dblib_base_client.hpp"
 #include "store.storage.sqlserver/src/mssql_notifier.hpp"
+#include "store.storage.cassandra/src/cassandra_base_client.hpp"
 
 using namespace std;
 using namespace cppkafka;
 using namespace store::extensions;
 using namespace store::storage::kafka;
+using namespace store::storage::cassandra;
 
 using MsSqlDbLibBaseClient = store::storage::mssql::MsSqlDbLibBaseClient;
 using Notifier = store::storage::mssql::Notifier;
@@ -43,9 +48,39 @@ void createSqlTable(shared_ptr<Notifier> notifier) {
     if not exists (select 1 from sys.indexes where object_id = object_id(N'dbo._Resource') and name = N'idx_clustered_resource')
     create unique clustered index idx_clustered_resource on dbo._Resource (id);
     if not exists(select 1 from dbo._Resource where id = '1')
-    insert dbo._Resource(oid, id, dateModified, type) values (0xB430C86DA710E4449D4C05F5FE84C683,'1',1000.0*datediff(ss,convert(datetime,'1970-01-01',121),current_timestamp),'FooType');
+    insert dbo._Resource(oid, id, dateModified, type) values (0xB430C86DA710E4449D4C05F5FE84C683,'1',1000.0*(datediff(ss,convert(datetime,'1970-01-01',121),current_timestamp)),'FooType');
   )__";
   notifier->executeNonQuery(sql);
+}
+
+void createCassandraTables(shared_ptr<CassandraBaseClient> conn) {
+  const char* cql = R"__(
+    create table if not exists dwh.ca_resource_modified(
+      environment text,
+      store text,
+      type text,
+      start_time timestamp,
+      id text,
+      oid text,
+      primary key ((environment, store, type), start_time, id)
+    ) with clustering order by (start_time asc, id asc);
+  )__";
+
+  const char* cql2 = R"__(
+    create table if not exists dwh.ca_resource_processed(
+      environment text,
+      store text,
+      type text,
+      start_time timestamp,
+      id text,
+      oid text,
+      primary key ((environment, store, type), start_time, id)
+    ) with clustering order by (start_time desc, id asc);
+  )__";
+
+  conn->executeQuery(cql);
+  conn->executeQuery(cql2);
+  conn->executeQuery("use dwh");
 }
 
 shared_ptr<MsSqlDbLibBaseClient> getDbLibClient() {
@@ -67,40 +102,17 @@ shared_ptr<KafkaBaseClient> getKafkaBaseClient() {
   return make_shared<KafkaBaseClient>(configPtr);
 }
 
-/*
-struct xml_string_writer: pugi::xml_writer {
-  std::string result;
-
-  virtual void write(const void* data, size_t size) {
-    result.append(static_cast<const char*>(data), size);
-  }
-};
-
-auto pugixmlToString = [](pugi::xml_document& doc) -> std::string {
-    xml_string_writer writer;
-      
-    doc.print(writer);
-    return writer.result;
-  };
-
-pugi::xml_node appendMetadata(pugi::xml_document& doc, const string& environment, const string& store, const string& type, const string& id) {
-  auto metaNode = doc.child("meta");
-  std::map<string, string> metaValues = { 
-    {"environment", environment}, 
-    {"store", store}, 
-    {"type", type},
-    {"id", id} 
-  };
-  
-  for (const auto& e : metaValues)
-    metaNode.attribute(e.first.c_str()).set_value(e.second.c_str());  
+shared_ptr<CassandraBaseClient> getCassandraBaseClient() {
+  auto client = make_shared<CassandraBaseClient>("127.0.0.1", "cassandra", "cassandra");
+  client->tryConnect();
+  return client;
 }
-*/
 
 auto main(int agrc, char* argv[]) -> int {
   auto sqlClient = getDbLibClient();
   auto sqlNotifier = getSqlNotifier(sqlClient);
   auto kafkaClient = getKafkaBaseClient();
+  auto cassandraClient = getCassandraBaseClient();
 
   string environment = "development", store = "LOB_A";
 
@@ -109,6 +121,9 @@ auto main(int agrc, char* argv[]) -> int {
   // Create the sql table.
   createSqlTable(sqlNotifier);
 
+  // Create cql tables.
+  createCassandraTables(cassandraClient);
+  
   // Check topics.
   cout << "\nTopics:\n";
   auto topicMetadata = kafkaClient->getTopics();
@@ -119,7 +134,7 @@ auto main(int agrc, char* argv[]) -> int {
 
   // Start the kafka consumer.
   thread th([&](){
-    kafkaClient->subscribe(topic, [](const Message& msg) {
+    kafkaClient->subscribe(topic, [&](const Message& msg) {
       cout << "Message Received by Consumer 1\n";
       if (msg.is_eof())
         return;
@@ -138,13 +153,34 @@ auto main(int agrc, char* argv[]) -> int {
       pugi::xml_document doc;
       auto res = doc.load_string(data.c_str());
       if (res) {
-        cout << res.description() << endl;
+        // cout << res.description() << endl;
         // pugi::xml_node root = doc.document_element();
         auto row = doc.select_node("/root/inserted/row").node();
-        cout << row.name() << endl;
-        cout << row.child("oid").child_value() << endl
-          << row.child("id").child_value() << endl
-          << row.child("type").child_value() << endl;
+        string type = row.child("type").child_value(),
+          id = row.child("id").child_value(),
+          oid = row.child("oid").child_value(), 
+          dateModified = row.child("dateModified").child_value();
+
+        float fv;
+        std::istringstream iss(dateModified);
+        iss >> fv;
+        int64_t i64 = (int64_t)fv;
+
+        auto ts = store::common::getTimeString(i64);
+
+        cout << oid << endl
+          << id << endl
+          << type << endl
+          << dateModified << endl
+          << ts << endl;
+
+        auto hx = base64_to_hex(oid);
+    
+        auto stmt = cassandraClient->getInsertStatement("ca_resource_modified", 
+          {"environment", "store", "type", "start_time", "id", "oid"}, 
+          environment, store, type, i64, id, hx);
+        
+        cassandraClient->insertAsync(stmt);  
       }
     });
   });
