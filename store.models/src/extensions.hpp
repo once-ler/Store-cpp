@@ -188,8 +188,8 @@ namespace store {
       return getPathValueFromJson<R>(jptr, std::forward<T>(args)...);
     }
 
-    map<string, string> getMapFromJson(const json& j) {
-      auto m = map<string, string>{};
+    std::map<string, string> getMapFromJson(const json& j) {
+      auto m = std::map<string, string>{};
       for (auto it = j.begin(); it != j.end(); ++it) {
         m[it.key()] = it.value().get<string>();
       }
