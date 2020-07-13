@@ -50,6 +50,10 @@ namespace store::storage::cassandra {
     cass_statement_bind_int64(statement, position, (cass_int64_t)value);
   }
 
+  void BindCassParameter(CassStatement* statement, size_t position, CassUuid value) {
+    cass_statement_bind_uuid(statement, position, (CassUuid)value);
+  }
+
   struct TupleFormatCassParamFunc {
     TupleFormatCassParamFunc(CassStatement* statement_, size_t pos_) : statement(statement_), pos(pos_) {};
     
@@ -79,6 +83,9 @@ namespace store::storage::cassandra {
       
       if (session != NULL)
         cass_session_free(session);
+
+      if (uuid_gen != NULL)
+        cass_uuid_gen_free(uuid_gen);  
     }
 
     explicit CassandraBaseClient(
@@ -212,6 +219,11 @@ namespace store::storage::cassandra {
       return statement;
     }
 
+    // Pass by value, trivial size.
+    void getUUID(CassUuid& uuid) {
+      cass_uuid_gen_time(uuid_gen, &uuid);
+    }
+
   protected:
     static void on_auth_initial(CassAuthenticator* auth, void* data) {  
       const Credentials* credentials = (const Credentials *)data;
@@ -253,6 +265,9 @@ namespace store::storage::cassandra {
     CassCluster* cluster = NULL;
     // CassCluster* cluster = cass_cluster_new();
     CassSession* session = cass_session_new();
+    
+    // Per application, a uuid generator, threadsafe.
+    CassUuidGen* uuid_gen = cass_uuid_gen_new();
     
     /* Setup authentication callbacks and credentials */
     CassAuthenticatorCallbacks auth_callbacks = {
