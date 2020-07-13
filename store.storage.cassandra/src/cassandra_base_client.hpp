@@ -15,8 +15,8 @@ using namespace store::common::tuples;
 namespace store::storage::cassandra {
 
   typedef struct Credentials_ {
-    const char* password;
     const char* username;
+    const char* password;
   } Credentials;
 
   template<typename A>
