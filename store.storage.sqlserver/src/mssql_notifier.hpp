@@ -24,14 +24,14 @@ namespace store::storage::mssql {
       identity = ss.str();
     }
 
-    void start(OnTableChangedFunc callback = [](string msg) { std::cout << msg << endl; }) {
+    void start(OnTableChangedFunc& callback) {
       if (subscriber != nullptr)
         return;
       // Check if service is already installed.
       if (!checkServiceExists())
         installNotification();
       
-      subscriber = make_shared<std::thread>([&callback, this](){ notificationLoop(callback); });
+      subscriber = make_shared<std::thread>([&callback, this]() mutable { notificationLoop(callback); });
       condition.notify_all();
       subscriber->detach();
     }
