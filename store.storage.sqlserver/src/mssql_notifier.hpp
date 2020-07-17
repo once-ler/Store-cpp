@@ -24,7 +24,7 @@ namespace store::storage::mssql {
       identity = ss.str();
     }
 
-    void start(OnTableChangedFunc& callback) {
+    void start(OnTableChangedFunc callback = [](string msg) { std::cout << msg << endl; }) {
       if (subscriber != nullptr)
         return;
       // Check if service is already installed.
