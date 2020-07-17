@@ -134,7 +134,7 @@ namespace store::storage::mssql {
       return executeNonQuery(installListenerScript);
     }
 
-    void notificationLoop(OnTableChangedFunc callback) {
+    void notificationLoop(OnTableChangedFunc& callback) {
       try {
         while (true) {
           {
