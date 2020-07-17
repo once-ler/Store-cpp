@@ -47,7 +47,7 @@ namespace store::storage::mssql {
     }
 
     vector<vector<string>> getDependencyDbIdentities() {
-      string sqlstmt = fmt::format(SQL_FORMAT_GET_DEPENDENCY_IDENTITIES());
+      string sqlstmt = SQL_FORMAT_GET_DEPENDENCY_IDENTITIES();
       vector<string> fieldNames;
       vector<vector<string>> fieldValues;
       sqlDbLibClient->quick(istringstream(sqlstmt), fieldNames, fieldValues);
