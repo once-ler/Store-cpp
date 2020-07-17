@@ -26,8 +26,11 @@ namespace store::storage::mssql {
 
     void start(OnTableChangedFunc callback = [](string msg) { std::cout << msg << endl; }) {
       // Check if service is already installed.
-      if (!checkServiceExists())
-        installNotification();
+      {
+        std::unique_lock<std::mutex> lock(q_mutex);
+        if (!checkServiceExists())
+          installNotification();
+      }
       
       notificationLoop(callback);
     }
