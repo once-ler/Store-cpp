@@ -25,15 +25,11 @@ namespace store::storage::mssql {
     }
 
     void start(OnTableChangedFunc callback = [](string msg) { std::cout << msg << endl; }) {
-      if (subscriber != nullptr)
-        return;
       // Check if service is already installed.
       if (!checkServiceExists())
         installNotification();
       
-      subscriber = make_shared<std::thread>([&callback, this]() mutable { notificationLoop(callback); });
-      condition.notify_all();
-      subscriber->detach();
+      notificationLoop(callback);
     }
 
     void stop() {
@@ -95,7 +91,6 @@ namespace store::storage::mssql {
 
   private:
     shared_ptr<MsSqlDbLibBaseClient> sqlDbLibClient = nullptr;
-    shared_ptr<std::thread> subscriber = nullptr;
     std::mutex q_mutex;
     std::condition_variable condition;
     bool cancel = false;
@@ -134,7 +129,7 @@ namespace store::storage::mssql {
       return executeNonQuery(installListenerScript);
     }
 
-    void notificationLoop(OnTableChangedFunc& callback) {
+    void notificationLoop(OnTableChangedFunc callback) {
       try {
         while (true) {
           {

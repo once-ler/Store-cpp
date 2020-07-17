@@ -186,37 +186,41 @@ auto main(int agrc, char* argv[]) -> int {
   });
 
   // Start the sql listener.
-  sqlNotifier->start([&](string msg) {
-    cout << "Sql Notifier received [+]\n\n" << msg << endl;
-    
-    if (msg.size() == 0)
-      return;
+  auto th1 = thread([&kafkaClient, &sqlNotifier, topic](){
+    sqlNotifier->start([&](string msg) {
+      cout << "Sql Notifier received [+]\n\n" << msg << endl;
+      
+      if (msg.size() == 0)
+        return;
 
-    pugi::xml_document doc;
-    auto res = doc.load_string(msg.c_str());
-    
-    if (!res)
-      return;
+      pugi::xml_document doc;
+      auto res = doc.load_string(msg.c_str());
+      
+      if (!res)
+        return;
 
-    /*
-    auto row = doc.select_node("/root/inserted/row").node();
-    auto oid = row.child("oid").child_value();
-    auto type = row.child("type").child_value();
-    auto id = row.child("id").child_value();
-    */
+      /*
+      auto row = doc.select_node("/root/inserted/row").node();
+      auto oid = row.child("oid").child_value();
+      auto type = row.child("type").child_value();
+      auto id = row.child("id").child_value();
+      */
 
-    auto oid = doc.select_node("/root/inserted/row/oid").node().child_value();
-    cout << oid << endl;
+      auto oid = doc.select_node("/root/inserted/row/oid").node().child_value();
+      cout << oid << endl;
 
-    auto hx = base64_to_hex(oid);
-    cout << hx << endl;
+      auto hx = base64_to_hex(oid);
+      cout << hx << endl;
 
-    // appendMetadata(doc, environment, store, type, id);
-    // auto nextMsg = pugixmlToString(doc);
+      // appendMetadata(doc, environment, store, type, id);
+      // auto nextMsg = pugixmlToString(doc);
 
-    kafkaClient->produce(topic, hx, msg);    
+      kafkaClient->produce(topic, hx, msg);    
+    });
   });
 
+  th1.detach();
+  
   // 
   size_t cnt = 5;
   do {

@@ -38,10 +38,14 @@ auto main(int argc, char* argv[]) -> int {
   auto notifier = getSqlNotifier(client);
   
   // Start the listener.
-  notifier->start([](string msg) {
-    cout << "Received:\n\n" << msg << endl;
+  auto th = thread([&](){
+    notifier->start([](string msg) {
+      cout << "Received:\n\n" << msg << endl;
+    });
   });
 
+  th.detach();
+  
   // Allow background thread to start.
   this_thread::sleep_for(chrono::seconds(1));
 
