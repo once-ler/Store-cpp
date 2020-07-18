@@ -1,5 +1,5 @@
 /*
-g++ -std=c++14 -I /usr/local/include \
+g++ -g -std=c++14 -I /usr/local/include \
 -I ../../../../spdlog/include \
 -I ../../../../tdspp \
 -I ../../../../Store-cpp \
@@ -38,13 +38,9 @@ auto main(int argc, char* argv[]) -> int {
   auto notifier = getSqlNotifier(client);
   
   // Start the listener.
-  auto th = thread([&](){
-    notifier->start([](string msg) {
-      cout << "Received:\n\n" << msg << endl;
-    });
+  notifier->start([](string msg) {
+    cout << "Received:\n\n" << msg << endl;
   });
-
-  th.detach();
   
   // Allow background thread to start.
   this_thread::sleep_for(chrono::seconds(1));
@@ -58,13 +54,17 @@ auto main(int argc, char* argv[]) -> int {
   this_thread::sleep_for(chrono::milliseconds(200));
 
   // Monitor.
+  #ifdef DEBUG
   auto fieldValues = notifier->monitor();
 
   for (const auto& e : fieldValues) {
     for (int i = 0; i < e.size(); i++)
       cout << e.at(i) << endl;
   }
+  #endif
   
+  // Allow notifier to ingest events.
+  // this_thread::sleep_for(chrono::seconds(2));
   notifier->stop();
 
   // notifier->uninstall();

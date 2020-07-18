@@ -6,7 +6,6 @@
 #include <thread>
 #include <mutex>
 #include <chrono>
-#include <condition_variable>
 #include "store.storage.sqlserver/src/mssql_dblib_base_client.hpp"
 #include "store.common/src/spdlogger.hpp"
 
@@ -17,20 +16,39 @@ namespace store::storage::mssql {
 
   class Notifier {
   public:
+    const string version = "0.1.1";
+
     Notifier(shared_ptr<MsSqlDbLibBaseClient> sqlDbLibClient_, const string& databaseName_, const string& schemaName_, const string& tableName_): sqlDbLibClient(sqlDbLibClient_), databaseName(databaseName_), schemaName(schemaName_), tableName(tableName_) {
       // Set Identity;
       stringstream ss;
       ss << std::hex << std::hash<std::string>{}(fmt::format("{}${}${}", databaseName, schemaName, tableName)); 
       identity = ss.str();
+
+      compiledScripts[CompiledScript::INSTALL_LISTENER_SCRIPT] = installListenerScript();
+      compiledScripts[CompiledScript::UNINSTALL_LISTENER_SCRIPT] = unstallListenerScript();      
+      compiledScripts[CompiledScript::SQL_FORMAT_GET_DEPENDENCY_IDENTITIES] = sqlFormatGetDependencyIdentities();
+      compiledScripts[CompiledScript::SQL_FORMAT_FORCED_DATABASE_CLEANING] = sqlFormatForcedDatabaseCleaning();
+      compiledScripts[CompiledScript::MONITOR_CONVERSATIONS] = monitorConversations();
+      compiledScripts[CompiledScript::SQL_FORMAT_CREATE_INSTALLATION_PROCEDURE] = sqlFormatCreateInstallationProcedure();
+      compiledScripts[CompiledScript::SQL_FORMAT_CREATE_UNINSTALLATION_PROCEDURE] = sqlFormatCreateUninstallationProcedure();
+      compiledScripts[CompiledScript::SQL_FORMAT_RECEIVE_EVENT] = sqlFormatReceiveEvent();
     }
+
+    enum CompiledScript {
+      INSTALL_LISTENER_SCRIPT,
+      UNINSTALL_LISTENER_SCRIPT,
+      SQL_FORMAT_GET_DEPENDENCY_IDENTITIES,
+      SQL_FORMAT_FORCED_DATABASE_CLEANING,
+      MONITOR_CONVERSATIONS,      
+      SQL_FORMAT_CREATE_INSTALLATION_PROCEDURE,
+      SQL_FORMAT_CREATE_UNINSTALLATION_PROCEDURE,      
+      SQL_FORMAT_RECEIVE_EVENT    
+    };
 
     void start(OnTableChangedFunc callback = [](string msg) { std::cout << msg << endl; }) {
       // Check if service is already installed.
-      {
-        std::unique_lock<std::mutex> lock(q_mutex);
-        if (!checkServiceExists())
-          installNotification();
-      }
+      if (!checkServiceExists())
+        installNotification();
       
       notificationLoop(callback);
     }
@@ -40,17 +58,17 @@ namespace store::storage::mssql {
         std::unique_lock<std::mutex> lock(q_mutex);
         cancel = true;
       }
+      this_thread::sleep_for(std::chrono::milliseconds(500));
+      cout << "Thread " << notificationLoopThread.get_id() << " joined.\n";
+      notificationLoopThread.join();
     }
 
     int uninstall() {
-      string unstallListenerScript = fmt::format(
-        SQL_FORMAT_EXECUTE_PROCEDURE, databaseName, uninstallListenerProcedureName(), schemaName
-      );
-      return executeNonQuery(unstallListenerScript);
+      return executeNonQuery(compiledScripts[CompiledScript::UNINSTALL_LISTENER_SCRIPT]);
     }
 
     vector<vector<string>> getDependencyDbIdentities() {
-      string sqlstmt = SQL_FORMAT_GET_DEPENDENCY_IDENTITIES();
+      string sqlstmt = compiledScripts[CompiledScript::SQL_FORMAT_GET_DEPENDENCY_IDENTITIES];
       vector<string> fieldNames;
       vector<vector<string>> fieldValues;
       sqlDbLibClient->quick(istringstream(sqlstmt), fieldNames, fieldValues);
@@ -60,13 +78,13 @@ namespace store::storage::mssql {
     // Warning: remove ALL listeners in the database.
     int cleanDatabase() {
       cout << "Cleaning started." << endl;
-      return executeNonQuery(SQL_FORMAT_FORCED_DATABASE_CLEANING());
+      return executeNonQuery(compiledScripts[CompiledScript::SQL_FORMAT_FORCED_DATABASE_CLEANING]);
     }
 
     vector<vector<string>> monitor() {
       vector<string> fieldNames;
       vector<vector<string>> fieldValues;
-      sqlDbLibClient->quick(istringstream(MONITOR_CONVERSATIONS()), fieldNames, fieldValues);
+      sqlDbLibClient->quick(istringstream(compiledScripts[CompiledScript::MONITOR_CONVERSATIONS]), fieldNames, fieldValues);
       return fieldValues;
     }
 
@@ -95,21 +113,47 @@ namespace store::storage::mssql {
   private:
     shared_ptr<MsSqlDbLibBaseClient> sqlDbLibClient = nullptr;
     std::mutex q_mutex;
-    std::condition_variable condition;
     bool cancel = false;
-
     string databaseName;
     string schemaName;
     string tableName;
     string identity;
-    int COMMAND_TIMEOUT = 60000;
-    
-    string conversationQueueName() { return fmt::format("ListenerQueue_{0}", identity); };
-    string conversationServiceName() { return fmt::format("ListenerService_{0}", identity); };
-    string conversationTriggerName() { return fmt::format("tr_Listener_{0}", identity); };
-    string installListenerProcedureName() { return fmt::format("sp_InstallListenerNotification_{0}", identity); };
-    string uninstallListenerProcedureName() { return fmt::format("sp_UninstallListenerNotification_{0}", identity); };
-    
+    int COMMAND_TIMEOUT = 60000;    
+    std::map<CompiledScript, string> compiledScripts;
+    std::thread notificationLoopThread;
+
+    string conversationQueueName() { 
+      return fmt::format("ListenerQueue_{0}", identity); 
+    }
+
+    string conversationServiceName() { 
+      return fmt::format("ListenerService_{0}", identity); 
+    }
+
+    string conversationTriggerName() { 
+      return fmt::format("tr_Listener_{0}", identity); 
+    }
+
+    string installListenerProcedureName() { 
+      return fmt::format("sp_InstallListenerNotification_{0}", identity); 
+    }
+
+    string uninstallListenerProcedureName() { 
+      return fmt::format("sp_UninstallListenerNotification_{0}", identity); 
+    }
+
+    string installListenerScript() {
+      return fmt::format(
+        SQL_FORMAT_EXECUTE_PROCEDURE, databaseName, installListenerProcedureName(), schemaName
+      );
+    }
+
+    string unstallListenerScript() {
+      return fmt::format(
+        SQL_FORMAT_EXECUTE_PROCEDURE, databaseName, uninstallListenerProcedureName(), schemaName
+      );
+    }
+
     std::map<string, string> notificationTypes = { 
       { "ALL", "INSERT, UPDATE, DELETE" }, 
       { "UPDATE", "UPDATE" },
@@ -123,40 +167,44 @@ namespace store::storage::mssql {
     };
     
     int installNotification() {
-      executeNonQuery(SQL_FORMAT_CREATE_INSTALLATION_PROCEDURE());
-      executeNonQuery(SQL_FORMAT_CREATE_UNINSTALLATION_PROCEDURE());
-
-      string installListenerScript = fmt::format(
-        SQL_FORMAT_EXECUTE_PROCEDURE, databaseName, installListenerProcedureName(), schemaName
-      );
-      return executeNonQuery(installListenerScript);
+      executeNonQuery(compiledScripts[CompiledScript::SQL_FORMAT_CREATE_INSTALLATION_PROCEDURE]);
+      executeNonQuery(compiledScripts[CompiledScript::SQL_FORMAT_CREATE_UNINSTALLATION_PROCEDURE]);
+      return executeNonQuery(compiledScripts[CompiledScript::INSTALL_LISTENER_SCRIPT]);
     }
 
     void notificationLoop(OnTableChangedFunc callback) {
-      try {
-        while (true) {
-          {
-            std::unique_lock<std::mutex> lock(q_mutex);
-            if(cancel) {
-              cout << "Cancel requested." << endl;
-              return;
+      // Callback function must be copied to thread.
+      auto th = thread([callback, this](){
+        try {
+          while (true) {
+            {
+              std::unique_lock<std::mutex> lock(q_mutex);
+              if (cancel) {
+                cout << "Cancel requested." << endl;
+                return;
+              }
             }
-          }
-          vector<string> fieldNames;
-          vector<vector<string>> fieldValues;
 
-          sqlDbLibClient->quick(istringstream(SQL_FORMAT_RECEIVE_EVENT()), fieldNames, fieldValues);
-          
-          string message{};
-          if (fieldValues.size() > 0)
-            message = fieldValues.at(0).at(0);
-          
-          callback(message);
-          this_thread::sleep_for(std::chrono::milliseconds(500));
+            vector<string> fieldNames;
+            vector<vector<string>> fieldValues;
+            sqlDbLibClient->quick(istringstream(compiledScripts[CompiledScript::SQL_FORMAT_RECEIVE_EVENT]), fieldNames, fieldValues);
+
+            string message{};
+            if (fieldValues.size() > 0)
+              message = fieldValues.at(0).at(0);
+
+            callback(message);
+
+            this_thread::sleep_for(std::chrono::milliseconds(500));
+          }
+        } catch (...) {
+          // NOOP
         }
-      } catch (...) {
-        // NOOP
-      }
+      });
+      
+      // th.detach();
+      notificationLoopThread = std::move(th);
+      // notificationLoopThread.detach();
     }
 
     bool checkServiceExists() {
@@ -168,7 +216,7 @@ namespace store::storage::mssql {
     // Error messages in the queue: SELECT * FROM sys.transmission_queue;
     // Message Types: sys.service_message_types;
     // Contracts sys.service_contracts;
-    string MONITOR_CONVERSATIONS() {
+    string monitorConversations() {
       return fmt::format(R"__(
         SELECT conversation_handle, is_initiator, s.name as 'local service', 
         far_service, sc.name 'contract', state_desc, convert(varchar(30), security_timestamp, 126) ts
@@ -253,7 +301,7 @@ namespace store::storage::mssql {
       )__", tableName, conversationTriggerName(), notificationTypes["ALL"], conversationServiceName(), detailsIncluded["YES"], schemaName);
     }
 
-    string SQL_FORMAT_CREATE_INSTALLATION_PROCEDURE() {
+    string sqlFormatCreateInstallationProcedure() {
       return fmt::format(R"__(
         USE [{0}]
 
@@ -347,7 +395,7 @@ namespace store::storage::mssql {
       )__", conversationTriggerName(), schemaName);
     }
 
-    string SQL_FORMAT_CREATE_UNINSTALLATION_PROCEDURE() {
+    string sqlFormatCreateUninstallationProcedure() {
       return fmt::format(R"__(
         USE [{0}]
 
@@ -378,7 +426,7 @@ namespace store::storage::mssql {
       );
     }
 
-    string SQL_FORMAT_FORCED_DATABASE_CLEANING() {
+    string sqlFormatForcedDatabaseCleaning() {
       return fmt::format(R"__(
         USE [{0}]
         DECLARE @db_name VARCHAR(MAX)
@@ -420,7 +468,7 @@ namespace store::storage::mssql {
       )__", databaseName);
     }
 
-    string SQL_FORMAT_RECEIVE_EVENT() {
+    string sqlFormatReceiveEvent() {
       return fmt::format(R"__(
         DECLARE @ConvHandle UNIQUEIDENTIFIER
         DECLARE @message VARBINARY(MAX)
@@ -433,7 +481,7 @@ namespace store::storage::mssql {
       )__", databaseName, conversationQueueName(), COMMAND_TIMEOUT, schemaName);
     }
 
-    string SQL_FORMAT_GET_DEPENDENCY_IDENTITIES() { 
+    string sqlFormatGetDependencyIdentities() { 
       return fmt::format(R"__(
         USE [{}]
                   
