@@ -96,7 +96,7 @@ shared_ptr<Notifier> getSqlNotifier(shared_ptr<MsSqlDbLibBaseClient> client) {
 shared_ptr<KafkaBaseClient> getKafkaBaseClient() {
   vector<ConfigurationOption> options = {
     { "metadata.broker.list", "127.0.0.1:9092" }, { "client.id", "sql-notifier" },
-    { "group.id", "test" }, { "enable.auto.commit", false }
+    { "group.id", "test_abc" }, { "enable.auto.commit", false }
   };
   auto configPtr = make_shared<Configuration>(options);
   return make_shared<KafkaBaseClient>(configPtr);
