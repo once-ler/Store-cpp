@@ -6,6 +6,7 @@
 #include <thread>
 #include <mutex>
 #include <chrono>
+#include <regex>
 #include "store.storage.sqlserver/src/mssql_dblib_base_client.hpp"
 #include "store.common/src/spdlogger.hpp"
 
@@ -19,6 +20,9 @@ namespace store::storage::mssql {
     const string version = "0.1.1";
 
     Notifier(shared_ptr<MsSqlDbLibBaseClient> sqlDbLibClient_, const string& databaseName_, const string& schemaName_, const string& tableName_): sqlDbLibClient(sqlDbLibClient_), databaseName(databaseName_), schemaName(schemaName_), tableName(tableName_) {
+      // Remove brackets.
+      databaseName = std::regex_replace(databaseName, std::regex("[\\[\\]]"), "");
+      
       // Set Identity;
       stringstream ss;
       ss << std::hex << std::hash<std::string>{}(fmt::format("{}${}${}", databaseName, schemaName, tableName)); 
