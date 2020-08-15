@@ -3,6 +3,8 @@
 #include <string.h>
 #include <list>
 #include <vector>
+#include <functional>
+#include <memory>
 
 #include "cassandra.h"
 #include "store.common/src/logger.hpp"
@@ -13,6 +15,8 @@ using namespace store::common;
 using namespace store::common::tuples;
 
 namespace store::storage::cassandra {
+
+  using CassandraFutureTapFunc = std::function<void(CassFuture*)>;
 
   typedef struct Credentials_ {
     const char* username;
@@ -128,12 +132,13 @@ namespace store::storage::cassandra {
       cass_future_free(connect_future);
     }
 
-    CassError executeQuery(const char* query) {
+    CassError executeQuery(const char* query, shared_ptr<CassandraFutureTapFunc> tapFunc = nullptr) {
       CassError rc = CASS_OK;
       CassFuture* future = NULL;
       CassStatement* statement = cass_statement_new(query, 0);
 
       future = cass_session_execute(session, statement);
+      
       cass_future_wait(future);
 
       rc = cass_future_error_code(future);
@@ -141,10 +146,22 @@ namespace store::storage::cassandra {
         print_error(future);
       }
 
+      if (rc == CASS_OK && tapFunc) {
+        (*tapFunc)(future);
+      }
+
       cass_future_free(future);
       cass_statement_free(statement);
 
       return rc;
+    }
+
+    void executeQueryAsync(const char* query, CassFutureCallback callback) {
+      CassStatement* statement = cass_statement_new(query, 0);
+      CassFuture* future = cass_session_execute(session, statement);
+      cass_future_set_callback(future, callback, session);
+      cass_future_free(future);
+      cass_statement_free(statement);
     }
 
     void insertAsync(CassStatement* statement) {
