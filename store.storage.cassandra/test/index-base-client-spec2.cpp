@@ -19,6 +19,64 @@ using namespace store::storage::cassandra;
 
 namespace ioc = store::ioc;
 
+std::map<string, string> getCellAsString = [](const vector<string>& fields) {
+  std::map<string, string> kv;
+
+  for (const auto& k : fields) {
+    char* string_value;
+    size_t string_value_length;
+    cass_value_get_string(cass_row_get_column_by_name(row, k), &string_value, &string_value_length);
+    string v(string_value, string_value_length);
+    kv.insert(k, v);
+  }
+
+  return kv;
+}
+
+std::map<string, string> getCellAsInt64 = [](const vector<string>& fields) {
+  std::map<string, cass_int64_t> kv;
+
+  for (const auto& k : fields) {
+    cass_int64_t int64_value;
+    cass_value_get_int64(cass_row_get_column_by_name(row, k), &int64_value);
+    kv.insert(k, int64_value);
+  }
+
+  return kv;
+}
+
+struct ca_resource_modified {
+  string environment;
+  const char* store;
+  const char* type;
+  cass_int64_t start_time;
+  const char* id;
+  const char* oid;
+  CassUuid* uid;
+  const char* current;
+};
+
+template<typename T>
+shared_ptr<T> rowToType(const CassRow* row){}
+
+template<>
+shared_ptr<ca_resource_modified> rowToType(const CassRow* row){
+  char* string_value;
+  size_t string_value_length;
+  cass_value_get_string(cass_row_get_column_by_name(row, "key"), &string_value, &string_value_length);
+  string environment(string_value, string_value_length);
+  
+  vector<string> fieldNames{"environment", "type", "id", "oid", "current"};
+
+
+
+  /*
+  ca_resource_modified {
+
+  }
+  */
+}
+
 struct Basic_ {
   const char* key;
   cass_bool_t bln;
@@ -29,6 +87,8 @@ struct Basic_ {
 };
 
 typedef struct Basic_ Basic;
+
+using RowToType = std::function<>;
 
 const char* select_query = "SELECT * FROM examples.async limit 10";
 
