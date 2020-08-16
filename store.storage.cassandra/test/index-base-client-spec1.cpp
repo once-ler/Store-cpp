@@ -13,7 +13,7 @@ g++ -std=c++14 -Wall -I ../../../../Store-cpp \
 // #define DEBUG
 
 #include <stdio.h>
-#include <time.h> 
+#include <time.h>
 #include <unistd.h> //usleep
 #include <thread>
 
