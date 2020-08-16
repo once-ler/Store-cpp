@@ -241,6 +241,10 @@ namespace store::storage::cassandra {
       cass_uuid_gen_time(uuid_gen, &uuid);
     }
 
+    void getUUIDFromTimestamp(cass_uint64_t timestamp, CassUuid& uuid) {
+      cass_uuid_gen_from_time(uuid_gen, timestamp, &uuid);
+    }
+
   protected:
     static void on_auth_initial(CassAuthenticator* auth, void* data) {  
       const Credentials* credentials = (const Credentials *)data;
