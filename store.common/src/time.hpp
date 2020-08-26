@@ -6,6 +6,7 @@
 #include <chrono>
 
 using namespace std;
+using namespace std::chrono;
 
 namespace store::common {
   string getTimeString(int64_t timestamp, bool ISO_8601_fmt = false) {
@@ -89,6 +90,13 @@ namespace store::common {
     strftime(buf, sizeof(buf), format, &tstruct);
 
     return buf;
+  }
+
+  int64_t getMillisecondsFromTimePoint(const system_clock::time_point& nextDate) {
+    system_clock::duration dtn = nextDate.time_since_epoch();
+    std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(dtn);
+    auto nextDateMilli = ms.count();
+    return nextDateMilli;
   }
 
 }
