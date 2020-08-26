@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <sstream>
 #include <chrono>
+#include "date/date.h"
 
 using namespace std;
 using namespace std::chrono;
@@ -97,6 +98,21 @@ namespace store::common {
     std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(dtn);
     auto nextDateMilli = ms.count();
     return nextDateMilli;
+  }
+
+  enum Direction {
+    Forward,
+    Backward
+  };
+
+  system_clock::time_point addDaysToDate(const system_clock::time_point& dt, int numOfDays, Direction direction = Forward) {
+    auto dyz = days{numOfDays};
+    return direction == Forward ? dt + dyz : dt - dyz;
+  }
+
+  system_clock::time_point daysAgo(int numOfDays) {
+    auto today = date::floor<days>(std::chrono::system_clock::now());
+    return addDaysToDate(today, numOfDays, Direction::Backward);
   }
 
 }

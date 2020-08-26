@@ -1,19 +1,18 @@
 #pragma once
 
 #include <thread>
-#include <chrono>
-#include "date/date.h"
 #include "spdlog/spdlog.h"
 #include "store.common/src/time.hpp"
+#include "store.models/src/ioc/service_provider.hpp"
 #include "store.storage.cassandra/src/ca_resource_common.hpp"
 #include "store.storage.cassandra/src/ca_resource_modified.hpp"
 #include "store.storage.cassandra/src/cassandra_base_client.hpp"
 #include "store.storage.cassandra/src/ca_resource_purpose_handler.hpp"
-#include "store.models/src/ioc/service_provider.hpp"
 
 using namespace std;
 using namespace date;
 using namespace chrono;
+using namespace store::common;
 
 namespace ioc = store::ioc;
 
@@ -84,21 +83,6 @@ namespace store::storage::cassandra {
     }
 
   private:
-    enum Direction {
-      Forward,
-      Backward
-    };
-
-    system_clock::time_point addDaysToDate(const system_clock::time_point& dt, int numOfDays, Direction direction = Forward) {
-      auto dyz = days{numOfDays};
-      return direction == Forward ? dt + dyz : dt - dyz;
-    };
-
-    system_clock::time_point daysAgo(int numOfDays) {
-      auto today = date::floor<days>(std::chrono::system_clock::now());
-      return addDaysToDate(today, numOfDays, Direction::Backward);
-    }
-
     shared_ptr<CassandraBaseClient> conn = nullptr;
     string environment; 
     string caResourceProcessedTable = "ca_resource_processed";
@@ -182,9 +166,7 @@ namespace store::storage::cassandra {
         } else {
           auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
           CassUuid uuid;
-          
-          auto twoDaysAgo = daysAgo(2);
-          auto twoDaysAgoMilli = store::common::getMillisecondsFromTimePoint(twoDaysAgo);
+          auto twoDaysAgoMilli = store::common::getMillisecondsFromTimePoint(daysAgo(2));
 
           conn->getUUIDFromTimestamp(twoDaysAgoMilli, uuid);
           char key_str[CASS_UUID_STRING_LENGTH];
