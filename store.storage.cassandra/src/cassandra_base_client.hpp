@@ -168,10 +168,15 @@ namespace store::storage::cassandra {
       #ifdef DEBUG
       auto f = cass_session_execute(session, statement);
       cass_future_wait(f);
-
       size_t rc = cass_future_error_code(f);
+      
       if (rc != CASS_OK) {
         print_error(f);
+      } else {
+        const CassResult* result = cass_future_get_result(f);
+        size_t sz = cass_result_row_count(result);
+        cout << "Insert count: " << sz << endl;
+        cass_result_free(result);
       }
       cass_future_free(f);
       cass_statement_free(statement);
