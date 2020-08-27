@@ -11,6 +11,8 @@ g++ -std=c++14 -Wall -I ../../../../Store-cpp \
 -luuid
 */
 
+#define DEBUG
+
 #include "store.common/src/time.hpp"
 #include "store.storage.cassandra/src/ca_resource_manager.hpp"
 
@@ -29,19 +31,18 @@ auto main(int argc, char* argv[]) -> int {
   // Register in main().  
   ioc::ServiceProvider->RegisterInstance<CassandraBaseClient>(client);
 
-  auto caResourceManager = CaResourceManager(environment);
-
-  auto fetchNextTasksHandler = caResourceManager.fetchNextTasks(keyspace, store, dataType, purpose);
+  auto caResourceManager = CaResourceManager(keyspace, environment, store, dataType, purpose);
 
   auto handler = [](shared_ptr<ca_resource_modified> caResourceModified) {
     string current = caResourceModified->current;
+    // cout << "current\n" << current << endl;
     string nextCurrent = fmt::format("Time: {}\n{}", store::common::getCurrentDate(), current);
     caResourceModified->current = nextCurrent;
 
     return caResourceModified;
   };
 
-  fetchNextTasksHandler(handler);
+  caResourceManager.fetchNextTasks(handler);
 
   fprintf(stdout, "Staying put");
 

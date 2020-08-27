@@ -31,60 +31,76 @@ namespace store::storage::cassandra {
   public:
     const string version = "0.1.1";
 
-    CaResourceManager(const string& environment_): environment(environment_) {
-      conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
+    CaResourceManager(const string& keyspace_, const string& environment_, const string& store_, const string& dataType_, const string& purpose_) : 
+      keyspace(keyspace_), environment(environment_), store(store_), dataType(dataType_), purpose(purpose_) {
+        conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
     }
     ~CaResourceManager() = default;
 
-    std::function<void(HandleCaResourceModifiedFunc)> fetchNextTasks(const string& keyspace, const string& store, const string& dataType, const string& purpose) {
-      return [&, this](HandleCaResourceModifiedFunc caResourceModifiedHandler) {
-
-        // Workflow is processed-functions -> modified-functions, but we define callbacks in reverse order.
-        
-        // Capture the user defined function that will be invoked in the callback.
-        rowToCaResourceModifiedCallbackHandler = [this](HandleCaResourceModifiedFunc& caResourceModifiedHandler) {
-          return [&caResourceModifiedHandler, this](CassFuture* future, void* data) {
-            rowToCaResourceModifiedTapFunc(future, caResourceModifiedHandler);
-          };
+    void fetchNextTasks(HandleCaResourceModifiedFunc caResourceModifiedHandler) {
+      // Workflow is processed-functions -> modified-functions, but we define callbacks in reverse order.
+      
+      // Capture the user defined function that will be invoked in the callback.
+      rowToCaResourceModifiedCallbackHandler = [this](HandleCaResourceModifiedFunc& caResourceModifiedHandler) {
+        return [&caResourceModifiedHandler, this](CassFuture* future, void* data) {
+          rowToCaResourceModifiedTapFunc(future, caResourceModifiedHandler);
         };
+      };
 
-        // Static rowToCaResourceModifiedHandler() will call rowToCaResourceModifiedCallback().
-        rowToCaResourceModifiedCallback = rowToCaResourceModifiedCallbackHandler(caResourceModifiedHandler);
+      // Static rowToCaResourceModifiedHandler() will call rowToCaResourceModifiedCallback().
+      rowToCaResourceModifiedCallback = rowToCaResourceModifiedCallbackHandler(caResourceModifiedHandler);
 
-        auto processUidOnCompleteHandler = [&, this](const string& uid) {          
-          auto compileResourceModifiedStmt = fmt::format(
-            ca_resource_modified_select,
-            environment,
-            store,
-            dataType,
-            purpose,
-            uid
-          );
-
-          conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
-        };
-
-        // Static rowToCaResourceProcessedHandler() will call rowToCaResourceProcessedCallback().
-        // Capture the processUidOnCompleteHandler that will be invoked in the callback.
-        rowToCaResourceProcessedCallback = [&processUidOnCompleteHandler, this](CassFuture* future, void* data) {
-          rowToCaResourceProcessedTapFunc(future, processUidOnCompleteHandler);
-        };
-
-        auto compileResourceProcessedStmt = fmt::format(
-          ca_resource_processed_select,
+      auto processUidOnCompleteHandler = [&, this](const string& uid) {          
+        auto compileResourceModifiedStmt = fmt::format(
+          ca_resource_modified_select,
+          keyspace,
           environment,
           store,
           dataType,
-          purpose
+          uid
         );
 
-        conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
+        #ifdef DEBUG
+        cout << compileResourceModifiedStmt << endl;
+        #endif
+        
+        // cout << ca_resource_modified_select << endl;
+        // cout << keyspace << endl << environment << endl << store << endl << dataType << endl << uid << endl;
+        conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
       };
+
+      // Static rowToCaResourceProcessedHandler() will call rowToCaResourceProcessedCallback().
+      // Capture the processUidOnCompleteHandler that will be invoked in the callback.
+      rowToCaResourceProcessedCallback = [&processUidOnCompleteHandler, this](CassFuture* future, void* data) {
+      // rowToCaResourceProcessedCallback = [this](CassFuture* future, void* data) {
+        rowToCaResourceProcessedTapFunc(future, processUidOnCompleteHandler);
+      };
+
+      auto compileResourceProcessedStmt = fmt::format(
+        ca_resource_processed_select,
+        keyspace,
+        environment,
+        store,
+        dataType,
+        purpose
+      );
+
+      #ifdef DEBUG
+      cout << compileResourceProcessedStmt << endl;
+      #endif
+
+      conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
+    
     }
 
   private:
     shared_ptr<CassandraBaseClient> conn = nullptr;
-    string environment; 
+    string keyspace;
+    string environment;
+    string store;
+    string dataType;
+    string purpose;
+
     string caResourceProcessedTable = "ca_resource_processed";
     
     static void rowToCaResourceProcessedHandler(CassFuture* future, void* data) {
