@@ -29,7 +29,7 @@ namespace store::storage::cassandra {
 
   class CaResourceManager {
   public:
-    const string version = "0.1.1";
+    const string version = "0.1.2";
 
     CaResourceManager(const string& keyspace_, const string& environment_, const string& store_, const string& dataType_, const string& purpose_) : 
       keyspace(keyspace_), environment(environment_), store(store_), dataType(dataType_), purpose(purpose_) {
@@ -39,7 +39,6 @@ namespace store::storage::cassandra {
 
     void fetchNextTasks(HandleCaResourceModifiedFunc caResourceModifiedHandler) {
       // Workflow is processed-functions -> modified-functions, but we define callbacks in reverse order.
-      
       // Capture the user defined function that will be invoked in the callback.
       rowToCaResourceModifiedCallbackHandler = [this](HandleCaResourceModifiedFunc& caResourceModifiedHandler) {
         return [&caResourceModifiedHandler, this](CassFuture* future, void* data) {
@@ -50,32 +49,8 @@ namespace store::storage::cassandra {
       // Static rowToCaResourceModifiedHandler() will call rowToCaResourceModifiedCallback().
       rowToCaResourceModifiedCallback = rowToCaResourceModifiedCallbackHandler(caResourceModifiedHandler);
 
-      /*
-      auto processUidOnCompleteHandler = [&, this](const string& uid) {          
-        auto compileResourceModifiedStmt = fmt::format(
-          ca_resource_modified_select,
-          keyspace,
-          environment,
-          store,
-          dataType,
-          uid
-        );
-
-        #ifdef DEBUG
-        cout << compileResourceModifiedStmt << endl;
-        #endif
-        
-        // cout << ca_resource_modified_select << endl;
-        // cout << keyspace << endl << environment << endl << store << endl << dataType << endl << uid << endl;
-        conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
-      };
-      */
-
       // Static rowToCaResourceProcessedHandler() will call rowToCaResourceProcessedCallback().
-      // Capture the processUidOnCompleteHandler that will be invoked in the callback.
-      // rowToCaResourceProcessedCallback = [&processUidOnCompleteHandler, this](CassFuture* future, void* data) {
       rowToCaResourceProcessedCallback = [this](CassFuture* future, void* data) {
-        // rowToCaResourceProcessedTapFunc(future, processUidOnCompleteHandler);
         rowToCaResourceProcessedTapFunc(future);
       };
 
@@ -93,7 +68,6 @@ namespace store::storage::cassandra {
       #endif
 
       conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
-    
     }
 
   private:
@@ -145,50 +119,55 @@ namespace store::storage::cassandra {
         while (cass_iterator_next(iterator)) {
           const CassRow* row = cass_iterator_get_row(iterator);
           ca_resource_modified crm;
-          auto c = crm.rowToType(row);
+          crm.rowToType(row);
 
           #ifdef DEBUG
-          printCaResourceModified(c);
+          printCaResourceModified(&crm);
           #endif 
 
-          shared_ptr<ca_resource_modified> c1(c);
-          
+          auto c1 = make_shared<ca_resource_modified>(crm);
+
+          // User defined handler can manipulate "current" field.
+          // This will be written back to ca_resource_processed table.
           auto c2 = caResourceModifiedHandler(c1);
 
-          // Log.
+          // Log as processed in cassandra.
           processed.push_back(c2);
-
+          
         }
         cass_iterator_free(iterator);
         cass_result_free(result);
-
-        // Create statements.
+        
+        // Create batch statements.
         vector<CassStatement*> statements;
         for (auto& c1 : processed) {
           // Log.
           CassUuid key;
           cass_uuid_from_string(c1->uid.c_str(), &key);
 
-          auto stmt = conn->getInsertStatement(caResourceProcessedTable, 
+          string current = c1->current,
+            id = c1->id,
+            oid = c1->oid;
+
+          int64_t start_time = c1->start_time; 
+
+          auto stmt = conn->getInsertStatement(fmt::format("{}.{}", keyspace, caResourceProcessedTable), 
             {"environment", "store", "type", "purpose", "uid", "current", "id", "oid", "start_time"}, 
-            c1->environment, c1->store, c1->type, purpose, key, c1->current, c1->id, c1->oid, c1->start_time);
+            environment, store, dataType, purpose, key, current, id, oid, start_time);
 
           #ifdef DEBUG
           char key_str[CASS_UUID_STRING_LENGTH];
           cass_uuid_string(key, key_str);
-          cout << "Logging\n" << key_str << endl << stmt << endl;
+          cout << "Logging\n" << key_str << endl;
           #endif
 
           statements.push_back(stmt);
         }
-        cout << "Starting..." << endl;
-        conn->insertAsync(statements);
 
+        conn->insertAsync(statements);
       }
     }
 
-    // ProcessUidOnCompleteFunc must be const-qualified.
-    // void rowToCaResourceProcessedTapFunc(CassFuture* future, const ProcessUidOnCompleteFunc& processUidOnCompleteHandler) {
     void rowToCaResourceProcessedTapFunc(CassFuture* future) {
       CassError code = cass_future_error_code(future);
       if (code != CASS_OK) {
@@ -226,6 +205,7 @@ namespace store::storage::cassandra {
     }
 
     void processUidOnCompleteHandler(const string& uid) {
+      // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
       auto compileResourceModifiedStmt = fmt::format(
         ca_resource_modified_select,
         keyspace,
@@ -239,7 +219,6 @@ namespace store::storage::cassandra {
       cout << compileResourceModifiedStmt << endl;
       #endif
       
-      // cout << keyspace << endl << environment << endl << store << endl << dataType << endl << uid << endl;
       conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
     }
 

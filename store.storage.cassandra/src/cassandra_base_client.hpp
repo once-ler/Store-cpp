@@ -72,7 +72,7 @@ namespace store::storage::cassandra {
 
   class CassandraBaseClient {
   public:
-    const string version = "0.1.0";
+    const string version = "0.1.1";
     CassandraBaseClient() {}
 
     ~CassandraBaseClient() {
@@ -164,9 +164,10 @@ namespace store::storage::cassandra {
       cass_statement_free(statement);
     }
 
-    void insertAsync(CassStatement* statement) {
-      #ifdef DEBUG
+    void insertSync(CassStatement* statement) {
       auto f = cass_session_execute(session, statement);
+      // Waiting on future in callback will cause a deadlock.
+      // Do not invoke insertSync on a callback, use insertAsync instead.
       cass_future_wait(f);
       size_t rc = cass_future_error_code(f);
       
@@ -180,24 +181,29 @@ namespace store::storage::cassandra {
       }
       cass_future_free(f);
       cass_statement_free(statement);
-      return;
-      #endif
+    }
 
-      futures.push_back(cass_session_execute(session, statement));
-      if (futures.size() > insertThreshold) {
-        for (auto future : futures) {
-          cass_future_wait(future);
-          cass_future_free(future);
-        }
-        futures.clear();
-      }
+    void insertAsync(CassStatement* statement) {
+      auto insert_future = cass_session_execute(session, statement);
+      cass_future_set_callback(insert_future, on_insert, &session);
       cass_statement_free(statement);
+      cass_future_free(insert_future);
     }
 
     void insertAsync(vector<CassStatement*> statements) {
+      #ifdef DEBUG
+      cout << "Executing batch for " << statements.size() << " statements.\n";
+      #endif
+      CassBatch* batch = cass_batch_new(CASS_BATCH_TYPE_UNLOGGED);
+
       for(auto statement : statements) {
-        insertAsync(statement);
+        cass_batch_add_statement(batch, statement);
+        cass_statement_free(statement);
       }
+
+      auto batch_future = cass_session_execute_batch(session, batch);
+      cass_future_set_callback(batch_future, on_insert, &session);
+      cass_future_free(batch_future);
     }
 
     /*
@@ -274,17 +280,24 @@ namespace store::storage::cassandra {
 
     static void on_auth_cleanup(CassAuthenticator* auth, void* data) {}
 
-    CassCluster* create_cluster(const char* hosts) {
-      CassCluster* cluster = cass_cluster_new();
-      cass_cluster_set_contact_points(cluster, hosts);
-      return cluster;
-    }
-
-    void print_error(CassFuture* future) {
+    static void print_error(CassFuture* future) {
       const char* message;
       size_t message_length;
       cass_future_error_message(future, &message, &message_length);
       fprintf(stderr, "Error: %.*s\n", (int)message_length, message);
+    }
+
+    static void on_insert(CassFuture* future, void* data) {
+      CassError code = cass_future_error_code(future);
+      if (code != CASS_OK) {
+        print_error(future);
+      }
+    }
+
+    CassCluster* create_cluster(const char* hosts) {
+      CassCluster* cluster = cass_cluster_new();
+      cass_cluster_set_contact_points(cluster, hosts);
+      return cluster;
     }
 
     CassFuture* connect_future = NULL;
@@ -303,8 +316,7 @@ namespace store::storage::cassandra {
       on_auth_cleanup
     };
 
-    std::list<CassFuture*> futures;
-    size_t insertThreshold = 5000;
+    std::list<CassFuture*> futures; // This will be deprecated.
   
   private:
     string hosts;
