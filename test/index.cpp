@@ -8,9 +8,9 @@
 #include "store.models/src/ioc/service_provider.hpp"
 #include "store.storage/src/base_client.hpp"
 #include "store.storage.pgsql/src/pg_client.hpp"
-#include "test_events.hpp"
-#include "test_logger.hpp"
-#include "test_fixtures.hpp"
+#include "include/test_events.hpp"
+#include "include/test_logger.hpp"
+#include "include/test_fixtures.hpp"
 
 using namespace std;
 using namespace store::models;
