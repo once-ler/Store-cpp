@@ -15,6 +15,7 @@
 #include "store.common/src/logger.hpp"
 #include "store.common/src/runtime_get_tuple.hpp"
 #include "store.storage.connection-pools/src/pgsql.hpp"
+#include "store.storage.pgsql/src/pg_largeobject.hpp"
 
 using namespace std;
 using namespace store::interfaces;
@@ -48,6 +49,8 @@ namespace store {
       template<typename T>
       class Client : public BaseClient<T> {      
       public:
+        friend class LargeObjectHandler;
+        
         class PgEventStore : public EventStore {
         public:
           explicit PgEventStore(Client<T>* session_) : session(session_) {}
@@ -275,6 +278,8 @@ namespace store {
           pool = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<PostgreSQLConnection>>(poolKey);
         }
         
+        LargeObjectHandler loHandler{ pool, logger };
+
         // Pass pgsql::Client<A> to friend PgEventStore; event store will share same connection.
         PgEventStore events{ this };
 
