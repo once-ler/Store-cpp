@@ -2,18 +2,16 @@
 
 #include <libpq-fe.h>
 #include <libpq/libpq-fs.h>
-#include "postgres-exceptions.h"
 #include "store.storage.connection-pools/src/pgsql.hpp"
 #include "store.common/src/logger.hpp"
 
 using namespace std;
 namespace Postgres = db::postgres;
 
+// Reference: https://www.postgresql.org/docs/9.5/lo-examplesect.html
 namespace store::storage::pgsql {
   template<typename> class Client;
   
-  // Reference: https://www.postgresql.org/docs/9.5/lo-examplesect.html
-
   template<typename A>
   class LargeObjectHandler {
   public:
