@@ -49,7 +49,7 @@ namespace store {
       template<typename T>
       class Client : public BaseClient<T> {      
       public:
-        friend class LargeObjectHandler;
+        friend class LargeObjectHandler<T>;
         
         class PgEventStore : public EventStore {
         public:
@@ -278,7 +278,7 @@ namespace store {
           pool = ioc::ServiceProvider->GetInstanceWithKey<ConnectionPool<PostgreSQLConnection>>(poolKey);
         }
         
-        LargeObjectHandler loHandler{ pool, logger };
+        LargeObjectHandler<T> loHandler{ this };
 
         // Pass pgsql::Client<A> to friend PgEventStore; event store will share same connection.
         PgEventStore events{ this };

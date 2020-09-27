@@ -12,6 +12,8 @@ g++ -g3 -std=c++14 -I ../../ -I /usr/local/include \
 
 */
 
+#define DEBUG
+
 #include "store.storage.pgsql/src/pg_client.hpp"
 #include "spdlog/spdlog.h"
 #include <cassert>
@@ -27,7 +29,7 @@ namespace test::lo {
 
   template<typename A>
   shared_ptr<pgsql::Client<A>> getClient() {
-    int poolSize = 1;
+    int poolSize = 2;
     json dbConfig = {{"applicationName", "store_pq"}};
     DBContext dbContext{ 
       dbConfig.value("applicationName", "store_pq"), 
@@ -60,42 +62,46 @@ namespace test::lo {
     
     return pgClient->save(stmt);
   }
+ 
 
   template<typename A>
-  std::function<string(shared_ptr<pgsql::Client<A>>)> insertTable(const string& type, const string& id, const string& hash, Oid current) {
+  string insertTable(shared_ptr<pgsql::Client<A>> pgClient, const string& type, const string& id, const string& hash, Oid current) {
     auto stmt = fmt::format(R"(
-      insert into "{0}"."objectx_lo (type, id, hash, current)
-      values ('{1}', '{2}', '{3}', {})
+      insert into "{0}"."objectx_lo" (type, id, hash, current)
+      values ('{1}', '{2}', '{3}', {4})
       on conflict (type, id, hash) do update set current = excluded.current;
     )", store, type, id, hash, current);
-
-    return [stmt](shared_ptr<pgsql::Client<A>> pgClient) -> string {
-      return pgClient->save(stmt);
-    };
+    cout << stmt << endl;
+    return pgClient->save(stmt);
   }
+  
 
   template<typename A>
   Oid readTable(shared_ptr<pgsql::Client<A>> pgClient) {
     auto stmt = fmt::format(R"(
-      select type, id, hash, current from "{0}"."objectx_lo where type = '{1}' and id = '{2}';
+      select type, id, hash, current::text from "{0}"."objectx_lo" where type = '{1}' and id = '{2}';
     )", store, type, id);
 
     Oid oid;
+    string oidstr;
       
-    auto cb = [&oid](auto& s) {
+    auto cb = [&](auto& s) {
       for(const auto& e : s) {
         auto type = e.template as<string>(0);
         auto id = e.template as<string>(1);
         auto hash = e.template as<string>(2);
-        oid = e.template as<int>(3);
+        oidstr = e.template as<string>(3);
         cout << type << endl
           << id << endl
           << hash << endl
-          << oid << endl;
+          << oidstr << endl;
       }
+
+      oid = std::stoul(oidstr);
       return oid;
     };
 
+    cout << stmt << endl;
     pgClient->select(stmt)(cb);
 
     return oid;
@@ -111,17 +117,27 @@ auto main(int argc, char* argv [] ) -> int {
   auto resp = createTable<IEvent>(client);
   cout << resp << endl;
   
-  // Create a large object.
-  auto oid = client->loHandler.upload(fake_large_object);
-  cout << "upload: " << oid << endl;
+  // Upload large object.
+  // auto oid = client->loHandler.upload(fake_large_object);
+  // cout << "upload: " << oid << endl;
 
   // Assign large object to table.
-  auto a = insertTable<IEvent>(type, id, fake_large_object_sha256, oid)(client);
-  cout << "insertTable: " << a << endl;
+  // auto a = insertTable<IEvent>(client, type, id, fake_large_object_sha256, oid);
+  // cout << "insertTable: " << a << endl;
 
   // Read back from
   auto b = readTable<IEvent>(client);
   cout << "readTable: " << b << endl;
+
+  // Download large object.
+  auto data = client->loHandler.download(b);
+  cout << "download:\n" << data << endl;
+
+  // Delete large object.
+  client->loHandler.deleteOid(33289);
+
+  // Upload file.
+  client->loHandler.uploadFile("wrappers.xml");
 
   return 0;
 }
