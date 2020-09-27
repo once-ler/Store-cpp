@@ -1,5 +1,5 @@
 /*
-g++ -std=c++14 -I ../../ -I /usr/local/include \
+g++ -g3 -std=c++14 -I ../../ -I /usr/local/include \
   -I /usr/include/postgresql \
   -I ../../../libpqmxx/include \
   -I ../../../Store-cpp \
@@ -25,7 +25,9 @@ namespace test::lo {
     type = "Billing", 
     id = "ABC123";
 
-  shared_ptr<pgsql::Client<IEvent>> getClient() {
+  template<typename A>
+  shared_ptr<pgsql::Client<A>> getClient() {
+    int poolSize = 1;
     json dbConfig = {{"applicationName", "store_pq"}};
     DBContext dbContext{ 
       dbConfig.value("applicationName", "store_pq"), 
@@ -37,9 +39,10 @@ namespace test::lo {
       10 
     };
 
-    pgsql::Client<IEvent> pgClient{ dbContext };
+    auto pgClient = make_shared<pgsql::Client<A>>(dbContext, poolSize);
+    pgClient->events.setDbSchema(store);
 
-    return make_shared<pgsql::Client<IEvent>>(pgClient);
+    return pgClient;
   }
 
   template<typename A>
@@ -104,19 +107,21 @@ auto main(int argc, char* argv [] ) -> int {
 
   using namespace test::lo;
 
-  auto client = getClient();
+  auto client = getClient<IEvent>();
   auto resp = createTable<IEvent>(client);
   cout << resp << endl;
-
   
   // Create a large object.
   auto oid = client->loHandler.upload(fake_large_object);
+  cout << "upload: " << oid << endl;
 
   // Assign large object to table.
   auto a = insertTable<IEvent>(type, id, fake_large_object_sha256, oid)(client);
-  
+  cout << "insertTable: " << a << endl;
+
   // Read back from
   auto b = readTable<IEvent>(client);
+  cout << "readTable: " << b << endl;
 
   return 0;
 }
