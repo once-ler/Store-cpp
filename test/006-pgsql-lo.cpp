@@ -29,7 +29,7 @@ namespace test::lo {
 
   template<typename A>
   shared_ptr<pgsql::Client<A>> getClient() {
-    int poolSize = 2;
+    int poolSize = 1;
     json dbConfig = {{"applicationName", "store_pq"}};
     DBContext dbContext{ 
       dbConfig.value("applicationName", "store_pq"), 
@@ -57,7 +57,7 @@ namespace test::lo {
         ts timestamp with time zone default current_timestamp,
         current oid,
         primary key(type, id, version)
-      ) tablespace {1};
+      ) tablespace {1}
     )", store, tblspc);
     
     return pgClient->save(stmt);
@@ -69,7 +69,7 @@ namespace test::lo {
     auto stmt = fmt::format(R"(
       insert into "{0}"."objectx_lo" (type, id, version, current)
       values ('{1}', '{2}', '{3}', {4})
-      on conflict (type, id, version) do update set current = excluded.current;
+      on conflict (type, id, version) do update set current = excluded.current
     )", store, type, id, version, current);
     cout << stmt << endl;
     return pgClient->save(stmt);
@@ -79,8 +79,7 @@ namespace test::lo {
   template<typename A>
   Oid readTable(shared_ptr<pgsql::Client<A>> pgClient) {
     auto stmt = fmt::format(R"(
-      select type, id, version, current::text from "{0}"."objectx_lo" where type = '{1}' and id = '{2}';
-    )", store, type, id);
+      select type, id, version, current::text from "{0}"."objectx_lo" where type = '{1}' and id = '{2}' order by ts desc limit 1)", store, type, id);
 
     Oid oid;
     string oidstr;
@@ -118,12 +117,12 @@ auto main(int argc, char* argv [] ) -> int {
   cout << resp << endl;
   
   // Upload large object.
-  // auto oid = client->loHandler.upload(fake_large_object);
-  // cout << "upload: " << oid << endl;
+  auto oid = client->loHandler.upload(fake_large_object);
+  cout << "upload: " << oid << endl;
 
   // Assign large object to table.
-  // auto a = insertTable<IEvent>(client, type, id, fake_large_object_sha256, oid);
-  // cout << "insertTable: " << a << endl;
+  auto a = insertTable<IEvent>(client, type, id, fake_large_object_sha256, oid);
+  cout << "insertTable: " << a << endl;
 
   // Read back from
   auto b = readTable<IEvent>(client);
