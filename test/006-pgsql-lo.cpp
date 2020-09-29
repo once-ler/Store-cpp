@@ -53,10 +53,10 @@ namespace test::lo {
       create table if not exists "{0}"."objectx_lo" (
         type varchar(80) not null,
         id varchar(120) not null,
-        hash varchar(80) not null,
+        version varchar(80) not null,
         ts timestamp with time zone default current_timestamp,
         current oid,
-        primary key(type, id, hash)
+        primary key(type, id, version)
       ) tablespace {1};
     )", store, tblspc);
     
@@ -65,12 +65,12 @@ namespace test::lo {
  
 
   template<typename A>
-  string insertTable(shared_ptr<pgsql::Client<A>> pgClient, const string& type, const string& id, const string& hash, Oid current) {
+  string insertTable(shared_ptr<pgsql::Client<A>> pgClient, const string& type, const string& id, const string& version, Oid current) {
     auto stmt = fmt::format(R"(
-      insert into "{0}"."objectx_lo" (type, id, hash, current)
+      insert into "{0}"."objectx_lo" (type, id, version, current)
       values ('{1}', '{2}', '{3}', {4})
-      on conflict (type, id, hash) do update set current = excluded.current;
-    )", store, type, id, hash, current);
+      on conflict (type, id, version) do update set current = excluded.current;
+    )", store, type, id, version, current);
     cout << stmt << endl;
     return pgClient->save(stmt);
   }
@@ -79,7 +79,7 @@ namespace test::lo {
   template<typename A>
   Oid readTable(shared_ptr<pgsql::Client<A>> pgClient) {
     auto stmt = fmt::format(R"(
-      select type, id, hash, current::text from "{0}"."objectx_lo" where type = '{1}' and id = '{2}';
+      select type, id, version, current::text from "{0}"."objectx_lo" where type = '{1}' and id = '{2}';
     )", store, type, id);
 
     Oid oid;
@@ -89,11 +89,11 @@ namespace test::lo {
       for(const auto& e : s) {
         auto type = e.template as<string>(0);
         auto id = e.template as<string>(1);
-        auto hash = e.template as<string>(2);
+        auto version = e.template as<string>(2);
         oidstr = e.template as<string>(3);
         cout << type << endl
           << id << endl
-          << hash << endl
+          << version << endl
           << oidstr << endl;
       }
 
