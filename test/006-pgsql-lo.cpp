@@ -106,6 +106,26 @@ namespace test::lo {
     return oid;
   }
 
+  template<typename A>
+  void unlink_all(shared_ptr<pgsql::Client<WsiX>> pgClient) {
+    vector<string> l;
+    auto cb = [&](auto& s) {
+      for(const auto& e : s) {
+        l.push_back(e.template as<string>(0));
+      }
+    };
+
+    // Will be denied permission to read.
+    // grant select on pg_catalog.pg_largeobject to streamer
+    pgClient->select("select distinct loid::text from pg_catalog.pg_largeobject")(cb);
+
+    for (const auto& e : l) {
+      cout << "Removing " << e << endl;
+      auto oid = std::stoul(e);
+      pgClient->loHandler.deleteOid(oid);
+    }
+  }
+
 }
 
 auto main(int argc, char* argv [] ) -> int {
