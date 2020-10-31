@@ -116,12 +116,17 @@ namespace store::common {
     return addDaysToDate(today, numOfDays, Direction::Backward);
   }
 
+  system_clock::time_point parseDate(const string& dtstr, const char* dtfmt = "%Y%m%d") {
+    istringstream iss{dtstr};
+    system_clock::time_point tp;
+    iss >> date::parse(dtfmt, tp);
+    return tp;
+  }
+
   std::function<std::string(int)> parseAndAddDaysToDate(const string& dtstr, const char* dtfmt = "%Y%m%d") {
     return [=](int numOfDays) -> std::string {
-      istringstream iss{dtstr};
-      system_clock::time_point tp;
-      iss >> date::parse(dtfmt, tp);
-      auto tp1 = addDaysToDate(tp, +1);
+      auto tp = parseDate(dtstr, dtfmt);
+      auto tp1 = addDaysToDate(tp, numOfDays);
       return date::format(dtfmt, tp1);
     };
   }
