@@ -131,4 +131,17 @@ namespace store::common {
     };
   }
 
+  int64_t dateDiff(system_clock::time_point lhsTp, system_clock::time_point rhsTp) {
+    using MS = std::chrono::milliseconds;
+    auto lhsInt64 = std::chrono::duration_cast<MS>(lhsTp.time_since_epoch()).count();
+    auto rhsInt64 = std::chrono::duration_cast<MS>(rhsTp.time_since_epoch()).count();
+    return lhsInt64 - rhsInt64; 
+  }
+
+  int64_t dateDiff(const string& lhsStr, const string& rhsStr, const char* dtfmt = "%Y%m%d") {
+    system_clock::time_point lhsTp = parseDate(lhsStr, dtfmt);
+    system_clock::time_point rhsTp = parseDate(rhsStr, dtfmt);
+    return dateDiff(lhsTp, rhsTp); 
+  }
+
 }
