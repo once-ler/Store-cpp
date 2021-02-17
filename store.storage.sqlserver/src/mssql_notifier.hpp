@@ -481,7 +481,7 @@ namespace store::storage::mssql {
             , @message=message_body FROM {3}.[{1}]), TIMEOUT {2};
                     
             BEGIN TRY END CONVERSATION @ConvHandle; END TRY BEGIN CATCH END CATCH
-        SELECT CAST(@message AS NVARCHAR(MAX))
+        SELECT CAST(@message AS NVARCHAR(4000))
       )__", databaseName, conversationQueueName(), COMMAND_TIMEOUT, schemaName);
     }
 
