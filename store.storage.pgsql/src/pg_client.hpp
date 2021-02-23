@@ -36,6 +36,10 @@ namespace store {
   namespace storage {
     namespace pgsql {
       
+      std::regex unexpected_disconnection_rgx("^server closed the connection unexpectedly");
+
+      enum class ErrorType { none, connection, execution, unknown };
+
       template<typename U>
       string serializeToJsonb(const U& o) noexcept {
         json j;
@@ -83,7 +87,7 @@ namespace store {
         // Default logger.
         shared_ptr<ILogger> logger = make_shared<ILogger>();
 
-        string save(const string& sql) {
+        string save(const string& sql, shared_ptr<ErrorType> errType = nullptr) {
           string retval = "Succeeded";
 
           std::shared_ptr<PostgreSQLConnection> conn = nullptr;
@@ -93,13 +97,26 @@ namespace store {
             conn->sql_connection->execute(sql.c_str());
           } catch (Postgres::ConnectionException e) {
             retval = e.what();
-            logger->error(e.what());
+            logger->error(retval.c_str());
+            
+            if (errType)
+              *errType = ErrorType::connection;
           } catch (Postgres::ExecutionException e) {
             retval = e.what();
-            logger->error(e.what());
+            logger->error(retval.c_str());
+
+            if (errType) {
+              if (regex_search(retval, unexpected_disconnection_rgx))
+                *errType = ErrorType::connection;
+              else
+                *errType = ErrorType::execution;
+            }
           } catch (exception e) {
             retval = e.what();
-            logger->error(e.what());
+            logger->error(retval.c_str());
+
+            if (errType)
+              *errType = ErrorType::unknown;
           }
 
           if (conn)
@@ -160,8 +177,9 @@ namespace store {
         }
 
         template<typename U>
-        string save(string version, U doc) {
-          auto func = this->Save([this, &doc](string version) {
+        string save(string version, U doc, shared_ptr<ErrorType> errType = nullptr) {
+          std::weak_ptr<ErrorType> weak_err_obj(errType);
+          auto func = this->Save([this, &doc, weak_err_obj](string version) {
             const auto tableName = resolve_type_to_string<U>();
 
             json j = doc;              
@@ -178,7 +196,7 @@ namespace store {
               wrapString(j.dump(), "$Q$").c_str()
             );
 
-            auto res = this->save(sql);
+            auto res = this->save(sql, weak_err_obj);
 
             return res;
           });
