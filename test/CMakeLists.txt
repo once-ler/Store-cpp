@@ -39,6 +39,8 @@ set(SIMPLE_WEBSOCKET_SERVER ${PROJECT_SOURCE_DIR}/../../Simple-WebSocket-Server)
 set(JSON ${PROJECT_SOURCE_DIR}/../../json/single_include/nlohmann)
 set(SPDLOG ${PROJECT_SOURCE_DIR}/../../spdlog/include)
 # set(POSTGRESPP ${PROJECT_SOURCE_DIR}/../../postgrespp/postgrespp)
+set(CONNECTIONPOOL ${PROJECT_SOURCE_DIR}/../../connection-pool)
+set(DATE ${PROJECT_SOURCE_DIR}/../../date/include)
 
 # Must use forked version for jsonb support
 # https://github.com/once-ler/libpqmxx.git
@@ -76,6 +78,8 @@ include_directories(
     "${SPDLOG}"
     "${CPPJWT}"
     "${AMY}"
+    "${CONNECTIONPOOL}"
+    "${DATE}"
     )
 
 # link_directories("${PROJECT_SOURCE_DIR}/../../postgrespp/lib")

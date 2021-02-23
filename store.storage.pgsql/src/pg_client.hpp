@@ -177,9 +177,8 @@ namespace store {
         }
 
         template<typename U>
-        string save(string version, U doc, shared_ptr<ErrorType> errType = nullptr) {
-          std::weak_ptr<ErrorType> weak_err_obj(errType);
-          auto func = this->Save([this, &doc, weak_err_obj](string version) {
+        string save(string version, U doc) {
+          auto func = this->Save([this, &doc](string version) {
             const auto tableName = resolve_type_to_string<U>();
 
             json j = doc;              
@@ -196,7 +195,7 @@ namespace store {
               wrapString(j.dump(), "$Q$").c_str()
             );
 
-            auto res = this->save(sql, weak_err_obj);
+            auto res = this->save(sql);
 
             return res;
           });
