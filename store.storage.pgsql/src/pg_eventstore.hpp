@@ -13,6 +13,11 @@ namespace Postgres = db::postgres;
 namespace Extensions = store::extensions;
 
 namespace store::storage::pgsql {
+
+  std::regex unexpected_disconnection_rgx("^server closed the connection unexpectedly");
+
+  enum class ErrorType { none = 200, connection = 503, execution = 400, unknown = 500 };
+
   template<typename> class Client;
 
   template<typename T>
@@ -22,6 +27,7 @@ namespace store::storage::pgsql {
 
     pair<int, string> Save() override {
       const auto& streams = groupBy(pending.begin(), pending.end(), [](IEvent& e) { return e.streamId; });
+      string retval = "Succeeded";
 
       for (const auto& o : streams) {
         auto streamId = o.first;
@@ -40,7 +46,7 @@ namespace store::storage::pgsql {
         );
 
         std::shared_ptr<PostgreSQLConnection> conn = nullptr;
-
+        
         try {
           conn = session->pool->borrow();
           
@@ -49,14 +55,23 @@ namespace store::storage::pgsql {
           const auto& resp = conn->sql_connection->execute(stmt.c_str()).template asArray<int64_t>(0);
           
         } catch (Postgres::ConnectionException e) {
-          session->logger->error(e.what());
-          return make_pair(0, e.what());
+          retval = e.what();
+          session->logger->error(retval.c_str());
+          return make_pair(static_cast<int>(ErrorType::connection), retval);
         } catch (Postgres::ExecutionException e) {
-          session->logger->error(e.what());
-          return make_pair(0, e.what());
+          retval = e.what();
+          session->logger->error(retval.c_str());
+          int errType = static_cast<int>(ErrorType::execution);
+
+          if (regex_search(retval, unexpected_disconnection_rgx))
+            errType = static_cast<int>(ErrorType::connection);
+          
+          return make_pair(errType, retval);
         } catch (exception e) {
-          session->logger->error(e.what());
-          return make_pair(0, e.what());
+          retval = e.what();
+          session->logger->error(retval.c_str());
+          
+          return make_pair(static_cast<int>(ErrorType::unknown), retval);
         }
 
         if (conn) 
@@ -66,7 +81,7 @@ namespace store::storage::pgsql {
       // Clear pending collection.
       this->Reset();
       
-      return make_pair(1, "Succeeded");
+      return make_pair(static_cast<int>(ErrorType::none), retval);
     }
 
     int64_t LastExecution(const string& type, const string& subscriber, int64_t newSeqId = -1) override {

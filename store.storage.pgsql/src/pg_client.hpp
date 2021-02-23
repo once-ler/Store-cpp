@@ -36,10 +36,6 @@ namespace store {
   namespace storage {
     namespace pgsql {
       
-      std::regex unexpected_disconnection_rgx("^server closed the connection unexpectedly");
-
-      enum class ErrorType { none, connection, execution, unknown };
-
       template<typename U>
       string serializeToJsonb(const U& o) noexcept {
         json j;
