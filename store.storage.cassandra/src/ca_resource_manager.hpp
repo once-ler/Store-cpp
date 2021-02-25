@@ -1,8 +1,10 @@
 #pragma once
 
 #include <thread>
+#include <algorithm>
 #include "spdlog/spdlog.h"
 #include "store.common/src/time.hpp"
+#include "store.common/src/group_by.hpp"
 #include "store.models/src/ioc/service_provider.hpp"
 #include "store.storage.cassandra/src/ca_resource_common.hpp"
 #include "store.storage.cassandra/src/ca_resource_modified.hpp"
@@ -102,7 +104,7 @@ namespace store::storage::cassandra {
       and store = '{}'
       and type = '{}'
       and uid > {}
-      limit 20
+      limit 100
     )__";
 
     void rowToCaResourceModifiedTapFunc(CassFuture* future, HandleCaResourceModifiedFunc& caResourceModifiedHandler) {
@@ -115,11 +117,29 @@ namespace store::storage::cassandra {
         CassIterator* iterator = cass_iterator_from_result(result);
         
         vector<shared_ptr<ca_resource_modified>> processed;
+        vector<ca_resource_modified> unprocessed;
 
         while (cass_iterator_next(iterator)) {
           const CassRow* row = cass_iterator_get_row(iterator);
           ca_resource_modified crm;
           crm.rowToType(row);
+
+          unprocessed.push_back(crm);
+        }
+        cass_iterator_free(iterator);
+        cass_result_free(result);
+
+        // Make sure each id is the latest.
+        std::map<string, vector<ca_resource_modified>> grouped = groupBy(unprocessed.begin(), unprocessed.end(), [](const ca_resource_modified& crm){ return crm.id; }); 
+        for (auto& c : grouped) {
+          auto l = c.second;
+          std::sort(l.begin(), l.end(), 
+            [](const ca_resource_modified& lhs, const ca_resource_modified& rhs) { 
+              return lhs.start_time > rhs.start_time;  
+            });
+
+          auto h = l.begin();
+          ca_resource_modified crm = *h;
 
           #ifdef DEBUG
           printCaResourceModified(&crm);
@@ -133,10 +153,7 @@ namespace store::storage::cassandra {
 
           // Log as processed in cassandra.
           processed.push_back(c2);
-          
         }
-        cass_iterator_free(iterator);
-        cass_result_free(result);
         
         // Create batch statements.
         vector<CassStatement*> statements;
