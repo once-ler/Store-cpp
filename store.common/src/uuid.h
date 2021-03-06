@@ -89,6 +89,7 @@ typedef enum {
     UUID_FMT_TXT = 3         /* textual description   (export only)   */
 } uuid_fmt_t;
 
+// Fix from: https://stackoverflow.com/questions/1486444/compiling-c-code-with-conflicting-types
 /* UUID abstract data type */
 struct uuid_st;
 #ifndef UUID_T_DEFINED
