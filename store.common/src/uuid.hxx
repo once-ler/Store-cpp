@@ -35,7 +35,9 @@
 #ifdef _MSC_VER
 #include <uuid_msvc.h>
 #else
-#include "uuid.h"
+#include <unistd.h>
+#define UUID_T_DEFINED
+#include "./uuid.h"
 #endif
 
 /* UUID object class */
