@@ -39,6 +39,8 @@
 #define UUID_T_DEFINED
 #ifdef __APPLE__
 #include "./uuid.h"
+#else
+#include <uuid.h>
 #endif
 #endif
 
