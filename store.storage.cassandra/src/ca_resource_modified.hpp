@@ -10,6 +10,16 @@ namespace store::storage::cassandra {
   class ca_resource_modified {
   public:
     ca_resource_modified() = default;
+    ca_resource_modified(
+      const string& _environment,
+      const string& _store,
+      const string& _type,
+      cass_int64_t _start_time,
+      const string& _id,
+      const string& _oid,
+      const string& _uid,
+      const string& _current
+    ) : environment(_environment), store(_store), type(_type), start_time(_start_time), id(_id), oid(_oid), uid(_uid), current(_current) {}
     ~ca_resource_modified() = default;
     string environment;
     string store;

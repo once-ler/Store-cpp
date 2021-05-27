@@ -184,7 +184,16 @@ namespace store::storage::cassandra {
           printCaResourceModified(&crm);
           #endif 
 
-          auto c1 = make_shared<ca_resource_modified>(crm);
+          auto c1 = make_shared<ca_resource_modified>(
+            crm.environment,
+            crm.store,
+            crm.type,
+            crm.start_time,
+            crm.id,
+            crm.oid,
+            crm.uid,
+            crm.current
+          );
 
           // User defined handler can manipulate "current" field.
           // This will be written back to ca_resource_processed table.
