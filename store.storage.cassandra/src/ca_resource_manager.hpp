@@ -53,7 +53,7 @@ namespace store::storage::cassandra {
 
       // Static rowToCaResourceProcessedHandler() will call rowToCaResourceProcessedCallback().
       rowToCaResourceProcessedCallback = [this](CassFuture* future, void* data) {
-        rowToCaResourceProcessedTapFunc(future);
+        rowToCaResourceProcessedTapFunc(future, data);
       };
 
       #ifdef DEBUG
@@ -78,10 +78,10 @@ namespace store::storage::cassandra {
       cout << compileResourceProcessedStmt << endl;
       #endif
 
-      // conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
-      conn->executeQuery(compileResourceProcessedStmt.c_str(), make_shared<CassandraFutureTapFunc>(rowToCaResourceProcessedTapFunc));
+      conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler, this);
     }
 
+    
   private:
     string caResourceProcessedTable = "ca_resource_processed";
     shared_ptr<CassandraBaseClient> conn = nullptr;
@@ -194,7 +194,7 @@ namespace store::storage::cassandra {
       }
     }
 
-    void rowToCaResourceProcessedTapFunc(CassFuture* future) {
+    void rowToCaResourceProcessedTapFunc(CassFuture* future, void* data) {
       CassError code = cass_future_error_code(future);
       if (code != CASS_OK) {
         // TODO: Write to log.
@@ -226,27 +226,28 @@ namespace store::storage::cassandra {
         cass_result_free(result);
 
         // Apply user defined tap function given uuid.
-        processUidOnCompleteHandler(uid);
+        processUidOnCompleteHandler(uid, data);
       }
     }
 
-    void processUidOnCompleteHandler(const string& uid) {
+    void processUidOnCompleteHandler(const string& uid, void* data) {
+      auto a = (CaResourceManager*) data;
       #ifdef DEBUG
-      cout << "ca_resource_modified_select: " << ca_resource_modified_select << endl
-        << "keyspace: " << keyspace << endl
-        << "environment: " << environment << endl
-        << "store: " << store << endl
-        << "dataType: " << dataType << endl
+      cout << "ca_resource_modified_select: " << a->ca_resource_modified_select << endl
+        << "keyspace: " << a->keyspace << endl
+        << "environment: " << a->environment << endl
+        << "store: " << a->store << endl
+        << "dataType: " << a->dataType << endl
         << "uid: " << uid << endl;
       #endif
 
       // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
       auto compileResourceModifiedStmt = fmt::format(
-        ca_resource_modified_select,
-        keyspace,
-        environment,
-        store,
-        dataType,
+        a->ca_resource_modified_select,
+        a->keyspace,
+        a->environment,
+        a->store,
+        a->dataType,
         uid
       );
 

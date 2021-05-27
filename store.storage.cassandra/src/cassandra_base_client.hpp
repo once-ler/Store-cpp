@@ -156,10 +156,10 @@ namespace store::storage::cassandra {
       return rc;
     }
 
-    void executeQueryAsync(const char* query, CassFutureCallback callback) {
+    void executeQueryAsync(const char* query, CassFutureCallback callback, void* data = NULL) {
       CassStatement* statement = cass_statement_new(query, 0);
       CassFuture* future = cass_session_execute(session, statement);
-      cass_future_set_callback(future, callback, session);
+      cass_future_set_callback(future, callback, data);
       cass_future_free(future);
       cass_statement_free(statement);
     }
