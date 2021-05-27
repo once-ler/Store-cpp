@@ -78,9 +78,12 @@ namespace store::storage::cassandra {
       cout << compileResourceProcessedStmt << endl;
       #endif
 
-      conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
+      // conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
+      conn->executeQuery(compileResourceProcessedStmt.c_str(), make_shared<CassandraFutureTapFunc>(rowToCaResourceProcessedTapFunc));
     }
 
+  private:
+    string caResourceProcessedTable = "ca_resource_processed";
     shared_ptr<CassandraBaseClient> conn = nullptr;
     string keyspace;
     string environment;
@@ -102,13 +105,9 @@ namespace store::storage::cassandra {
       and store = '{}'
       and type = '{}'
       and uid > {}
-      limit 100
+      limit 20
     )__";
 
-  private:
-    
-    string caResourceProcessedTable = "ca_resource_processed";
-    
     static void rowToCaResourceProcessedHandler(CassFuture* future, void* data) {
       rowToCaResourceProcessedCallback(future, data);
     }
@@ -232,6 +231,15 @@ namespace store::storage::cassandra {
     }
 
     void processUidOnCompleteHandler(const string& uid) {
+      #ifdef DEBUG
+      cout << "ca_resource_modified_select: " << ca_resource_modified_select << endl
+        << "keyspace: " << keyspace << endl
+        << "environment: " << environment << endl
+        << "store: " << store << endl
+        << "dataType: " << dataType << endl
+        << "uid: " << uid << endl;
+      #endif
+
       // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
       auto compileResourceModifiedStmt = fmt::format(
         ca_resource_modified_select,
