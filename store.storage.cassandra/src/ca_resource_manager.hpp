@@ -53,7 +53,7 @@ namespace store::storage::cassandra {
     void fetchNextTasks(HandleCaResourceModifiedFunc caResourceModifiedHandler) {
       // Workflow is processed-functions -> modified-functions, but we define callbacks in reverse order.
       // Capture the user defined function that will be invoked in the callback.
-      rowToCaResourceModifiedCallbackHandler = [this](HandleCaResourceModifiedFunc const & caResourceModifiedHandler) {
+      rowToCaResourceModifiedCallbackHandler = [this](HandleCaResourceModifiedFunc caResourceModifiedHandler) {
         return [&caResourceModifiedHandler, this](CassFuture* future, void* data) {
           rowToCaResourceModifiedTapFunc(future, caResourceModifiedHandler);
         };
