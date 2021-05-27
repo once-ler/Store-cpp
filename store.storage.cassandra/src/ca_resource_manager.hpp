@@ -56,6 +56,15 @@ namespace store::storage::cassandra {
         rowToCaResourceProcessedTapFunc(future);
       };
 
+      #ifdef DEBUG
+      cout << "ca_resource_processed_select: " << ca_resource_processed_select << endl
+        << "keyspace: " << keyspace << endl
+        << "environment: " << environment << endl
+        << "store: " << store << endl
+        << "dataType: " << dataType << endl
+        << "purpose: " << purpose << endl;
+      #endif
+
       auto compileResourceProcessedStmt = fmt::format(
         ca_resource_processed_select,
         keyspace,
