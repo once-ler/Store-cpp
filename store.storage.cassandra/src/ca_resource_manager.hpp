@@ -36,6 +36,17 @@ namespace store::storage::cassandra {
     CaResourceManager(const string& keyspace_, const string& environment_, const string& store_, const string& dataType_, const string& purpose_) : 
       keyspace(keyspace_), environment(environment_), store(store_), dataType(dataType_), purpose(purpose_) {
         conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
+
+        // Inject compiled cql for threads to share.
+        auto compileResourceModifiedPreStmt = fmt::format(
+          ca_resource_modified_select_pre,
+          keyspace,
+          environment,
+          store,
+          dataType
+        );
+        ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_modified_select_pre", make_shared<string>(compileResourceModifiedPreStmt));
+        
     }
     ~CaResourceManager() = default;
 
@@ -53,7 +64,7 @@ namespace store::storage::cassandra {
 
       // Static rowToCaResourceProcessedHandler() will call rowToCaResourceProcessedCallback().
       rowToCaResourceProcessedCallback = [this](CassFuture* future, void* data) {
-        rowToCaResourceProcessedTapFunc(future, data);
+        rowToCaResourceProcessedTapFunc(future);
       };
 
       #ifdef DEBUG
@@ -78,8 +89,7 @@ namespace store::storage::cassandra {
       cout << compileResourceProcessedStmt << endl;
       #endif
 
-      // vector<string> params = { ca_resource_modified_select, keyspace, environment, store, dataType};
-      // conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler, static_cast<void*>(&params));
+      /*
       auto compileResourceModifiedPreStmt = fmt::format(
         ca_resource_modified_select_pre,
         keyspace,
@@ -89,8 +99,9 @@ namespace store::storage::cassandra {
       );
 
       conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler, const_cast<char*>(compileResourceModifiedPreStmt.c_str()));
+      */
+      conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
     }
-
     
   private:
     string caResourceProcessedTable = "ca_resource_processed";
@@ -213,7 +224,7 @@ namespace store::storage::cassandra {
       }
     }
 
-    void rowToCaResourceProcessedTapFunc(CassFuture* future, void* data) {
+    void rowToCaResourceProcessedTapFunc(CassFuture* future) {
       CassError code = cass_future_error_code(future);
       if (code != CASS_OK) {
         // TODO: Write to log.
@@ -245,20 +256,21 @@ namespace store::storage::cassandra {
         cass_result_free(result);
 
         // Apply user defined tap function given uuid.
-        processUidOnCompleteHandler(uid, data);
+        processUidOnCompleteHandler(uid);
       }
     }
 
-    void processUidOnCompleteHandler(const string& uid, void* data) {
-      auto pre_stmt = (char*)data;
+    void processUidOnCompleteHandler(const string& uid) {
+      // auto pre_stmt = (char*)data;
+      auto pre_stmt = ioc::ServiceProvider->GetInstanceWithKey<string>("ca_resource_modified_select_pre");
       #ifdef DEBUG
-      cout << "pre_stmt: " << pre_stmt << endl << "uid: " << uid << endl;
+      cout << "pre_stmt: " << *pre_stmt << endl << "uid: " << uid << endl;
       #endif
 
       // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
       auto compileResourceModifiedStmt = fmt::format(
         "{} and uid > {} limit 20",
-        pre_stmt, 
+        *pre_stmt, 
         uid
       );
 
