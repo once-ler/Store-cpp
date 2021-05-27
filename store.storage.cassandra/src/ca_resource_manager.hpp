@@ -278,6 +278,7 @@ namespace store::storage::cassandra {
       cout << compileResourceModifiedStmt << endl;
       #endif
       
+      auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
       conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
     }
    
