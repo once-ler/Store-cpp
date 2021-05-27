@@ -79,7 +79,7 @@ namespace store::storage::cassandra {
       #endif
 
       vector<string> params = { ca_resource_modified_select, keyspace, environment, store, dataType};
-      conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler, static_cast<void*>(params.data()));
+      conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler, static_cast<void*>(&params));
     }
 
     
