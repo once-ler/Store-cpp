@@ -195,7 +195,7 @@ namespace store::storage::cassandra {
       }
     }
 
-    void rowToCaResourceProcessedTapFunc(CassFuture* future, CaResourceManager* manager) {
+    void rowToCaResourceProcessedTapFunc(CassFuture* future) {
       CassError code = cass_future_error_code(future);
       if (code != CASS_OK) {
         // TODO: Write to log.
