@@ -195,6 +195,24 @@ namespace store::storage::cassandra {
     }
 
     void rowToCaResourceProcessedTapFunc(CassFuture* future) {
+      auto processUidOnCompleteHandler = [this](const string& uid) {
+        // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
+        auto compileResourceModifiedStmt = fmt::format(
+          ca_resource_modified_select,
+          keyspace,
+          environment,
+          store,
+          dataType,
+          uid
+        );
+
+        #ifdef DEBUG
+        cout << compileResourceModifiedStmt << endl;
+        #endif
+        
+        conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
+      };
+
       CassError code = cass_future_error_code(future);
       if (code != CASS_OK) {
         // TODO: Write to log.
@@ -230,17 +248,9 @@ namespace store::storage::cassandra {
       }
     }
 
+    /*
     void processUidOnCompleteHandler(const string& uid) {
       // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
-      #ifdef DEBUG
-      cout << "ca_resource_modified_select: " << ca_resource_modified_select << endl
-        << "keyspace: " << keyspace << endl
-        << "environment: " << environment << endl
-        << "store: " << store << endl
-        << "dataType: " << dataType << endl
-        << "purpose: " << purpose << endl;
-      #endif
-
       auto compileResourceModifiedStmt = fmt::format(
         ca_resource_modified_select,
         keyspace,
@@ -256,7 +266,8 @@ namespace store::storage::cassandra {
       
       conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
     }
-
+    */
+   
     string get_error(CassFuture* future) {
       const char* message;
       size_t message_length;
