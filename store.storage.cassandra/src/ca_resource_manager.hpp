@@ -146,7 +146,7 @@ namespace store::storage::cassandra {
       rowToCaResourceModifiedCallback(future, data);
     }
 
-    void rowToCaResourceModifiedTapFunc(CassFuture* future, HandleCaResourceModifiedFunc& caResourceModifiedHandler) {
+    void rowToCaResourceModifiedTapFunc(CassFuture* future, HandleCaResourceModifiedFunc const & caResourceModifiedHandler) {
       CassError code = cass_future_error_code(future);
       if (code != CASS_OK) {
         // TODO: Write to log.
