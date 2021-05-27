@@ -53,7 +53,7 @@ namespace store::storage::cassandra {
 
       // Static rowToCaResourceProcessedHandler() will call rowToCaResourceProcessedCallback().
       rowToCaResourceProcessedCallback = [this](CassFuture* future, void* data) {
-        rowToCaResourceProcessedTapFunc(future);
+        rowToCaResourceProcessedTapFunc(future, this);
       };
 
       #ifdef DEBUG
@@ -194,25 +194,7 @@ namespace store::storage::cassandra {
       }
     }
 
-    void rowToCaResourceProcessedTapFunc(CassFuture* future) {
-      auto processUidOnCompleteHandler = [this](const string& uid) {
-        // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
-        auto compileResourceModifiedStmt = fmt::format(
-          ca_resource_modified_select,
-          keyspace,
-          environment,
-          store,
-          dataType,
-          uid
-        );
-
-        #ifdef DEBUG
-        cout << compileResourceModifiedStmt << endl;
-        #endif
-        
-        conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
-      };
-
+    void rowToCaResourceProcessedTapFunc(CassFuture* future, CaResourceManager* manager) {
       CassError code = cass_future_error_code(future);
       if (code != CASS_OK) {
         // TODO: Write to log.
@@ -244,7 +226,23 @@ namespace store::storage::cassandra {
         cass_result_free(result);
 
         // Apply user defined tap function given uuid.
-        processUidOnCompleteHandler(uid);
+        // processUidOnCompleteHandler(uid);
+
+        // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
+        auto compileResourceModifiedStmt = fmt::format(
+          manager->ca_resource_modified_select,
+          manager->keyspace,
+          manager->environment,
+          manager->store,
+          manager->dataType,
+          uid
+        );
+
+        #ifdef DEBUG
+        cout << compileResourceModifiedStmt << endl;
+        #endif
+        
+        conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
       }
     }
 
