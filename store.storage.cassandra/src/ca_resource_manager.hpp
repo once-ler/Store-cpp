@@ -78,8 +78,17 @@ namespace store::storage::cassandra {
       cout << compileResourceProcessedStmt << endl;
       #endif
 
-      vector<string> params = { ca_resource_modified_select, keyspace, environment, store, dataType};
-      conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler, static_cast<void*>(&params));
+      // vector<string> params = { ca_resource_modified_select, keyspace, environment, store, dataType};
+      // conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler, static_cast<void*>(&params));
+      auto compileResourceModifiedPreStmt = fmt::format(
+        ca_resource_modified_select_pre,
+        keyspace,
+        environment,
+        store,
+        dataType
+      );
+
+      conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler, const_cast<char*>(compileResourceModifiedPreStmt.c_str()));
     }
 
     
@@ -100,6 +109,7 @@ namespace store::storage::cassandra {
       and purpose = '{}' limit 1
     )__";
 
+    /*
     string ca_resource_modified_select = R"__(
       select * from {}.ca_resource_modified
       where environment = '{}'
@@ -107,6 +117,14 @@ namespace store::storage::cassandra {
       and type = '{}'
       and uid > {}
       limit 20
+    )__";
+    */
+
+    string ca_resource_modified_select_pre = R"__(
+      select * from {}.ca_resource_modified
+      where environment = '{}'
+      and store = '{}'
+      and type = '{}'
     )__";
 
     static void rowToCaResourceProcessedHandler(CassFuture* future, void* data) {
@@ -232,23 +250,15 @@ namespace store::storage::cassandra {
     }
 
     void processUidOnCompleteHandler(const string& uid, void* data) {
-      vector<string> a = ((vector<string>*)data)[0];
+      auto pre_stmt = (char*)data;
       #ifdef DEBUG
-      cout << "ca_resource_modified_select: " << a[0] << endl
-        << "keyspace: " << a[1] << endl
-        << "environment: " << a[2] << endl
-        << "store: " << a[3] << endl
-        << "dataType: " << a[4] << endl
-        << "uid: " << uid << endl;
+      cout << "pre_stmt: " << pre_stmt << endl << "uid: " << uid << endl;
       #endif
 
       // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
       auto compileResourceModifiedStmt = fmt::format(
-        a[0],
-        a[1],
-        a[2],
-        a[3],
-        a[4],
+        "{} and uid > {} limit 20",
+        pre_stmt, 
         uid
       );
 
