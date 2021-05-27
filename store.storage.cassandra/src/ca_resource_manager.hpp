@@ -53,7 +53,7 @@ namespace store::storage::cassandra {
 
       // Static rowToCaResourceProcessedHandler() will call rowToCaResourceProcessedCallback().
       rowToCaResourceProcessedCallback = [this](CassFuture* future, void* data) {
-        rowToCaResourceProcessedTapFunc(future, this);
+        rowToCaResourceProcessedTapFunc(future);
       };
 
       #ifdef DEBUG
@@ -81,23 +81,12 @@ namespace store::storage::cassandra {
       conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
     }
 
-  private:
     shared_ptr<CassandraBaseClient> conn = nullptr;
     string keyspace;
     string environment;
     string store;
     string dataType;
     string purpose;
-
-    string caResourceProcessedTable = "ca_resource_processed";
-    
-    static void rowToCaResourceProcessedHandler(CassFuture* future, void* data) {
-      rowToCaResourceProcessedCallback(future, data);
-    }
-
-    static void rowToCaResourceModifiedHandler(CassFuture* future, void* data) {
-      rowToCaResourceModifiedCallback(future, data);
-    }
 
     string ca_resource_processed_select = R"__(
       select uid from {}.ca_resource_processed
@@ -115,6 +104,18 @@ namespace store::storage::cassandra {
       and uid > {}
       limit 100
     )__";
+
+  private:
+    
+    string caResourceProcessedTable = "ca_resource_processed";
+    
+    static void rowToCaResourceProcessedHandler(CassFuture* future, void* data) {
+      rowToCaResourceProcessedCallback(future, data);
+    }
+
+    static void rowToCaResourceModifiedHandler(CassFuture* future, void* data) {
+      rowToCaResourceModifiedCallback(future, data);
+    }
 
     void rowToCaResourceModifiedTapFunc(CassFuture* future, HandleCaResourceModifiedFunc& caResourceModifiedHandler) {
       CassError code = cass_future_error_code(future);
@@ -226,27 +227,10 @@ namespace store::storage::cassandra {
         cass_result_free(result);
 
         // Apply user defined tap function given uuid.
-        // processUidOnCompleteHandler(uid);
-
-        // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
-        auto compileResourceModifiedStmt = fmt::format(
-          manager->ca_resource_modified_select,
-          manager->keyspace,
-          manager->environment,
-          manager->store,
-          manager->dataType,
-          uid
-        );
-
-        #ifdef DEBUG
-        cout << compileResourceModifiedStmt << endl;
-        #endif
-        
-        conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
+        processUidOnCompleteHandler(uid);
       }
     }
 
-    /*
     void processUidOnCompleteHandler(const string& uid) {
       // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
       auto compileResourceModifiedStmt = fmt::format(
@@ -264,7 +248,6 @@ namespace store::storage::cassandra {
       
       conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
     }
-    */
    
     string get_error(CassFuture* future) {
       const char* message;
