@@ -78,7 +78,8 @@ namespace store::storage::cassandra {
       cout << compileResourceProcessedStmt << endl;
       #endif
 
-      conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler, this);
+      vector<string> params = { ca_resource_modified_select, keyspace, environment, store, dataType};
+      conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler, static_cast<void*>(params.data()));
     }
 
     
@@ -231,23 +232,23 @@ namespace store::storage::cassandra {
     }
 
     void processUidOnCompleteHandler(const string& uid, void* data) {
-      auto a = (CaResourceManager*) data;
+      auto a = (vector<string>*) data;
       #ifdef DEBUG
-      cout << "ca_resource_modified_select: " << a->ca_resource_modified_select << endl
-        << "keyspace: " << a->keyspace << endl
-        << "environment: " << a->environment << endl
-        << "store: " << a->store << endl
-        << "dataType: " << a->dataType << endl
+      cout << "ca_resource_modified_select: " << a->at(0) << endl
+        << "keyspace: " << a->at(1) << endl
+        << "environment: " << a->at(2) << endl
+        << "store: " << a->at(3) << endl
+        << "dataType: " << a->at(4) << endl
         << "uid: " << uid << endl;
       #endif
 
       // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
       auto compileResourceModifiedStmt = fmt::format(
-        a->ca_resource_modified_select,
-        a->keyspace,
-        a->environment,
-        a->store,
-        a->dataType,
+        a->at(0),
+        a->at(1),
+        a->at(2),
+        a->at(3),
+        a->at(4),
         uid
       );
 
