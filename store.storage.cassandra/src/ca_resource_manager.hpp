@@ -232,23 +232,23 @@ namespace store::storage::cassandra {
     }
 
     void processUidOnCompleteHandler(const string& uid, void* data) {
-      auto a = (vector<string>*) data;
+      vector<string> a = ((vector<string>*)data)[0];
       #ifdef DEBUG
-      cout << "ca_resource_modified_select: " << a->at(0) << endl
-        << "keyspace: " << a->at(1) << endl
-        << "environment: " << a->at(2) << endl
-        << "store: " << a->at(3) << endl
-        << "dataType: " << a->at(4) << endl
+      cout << "ca_resource_modified_select: " << a[0] << endl
+        << "keyspace: " << a[1] << endl
+        << "environment: " << a[2] << endl
+        << "store: " << a[3] << endl
+        << "dataType: " << a[4] << endl
         << "uid: " << uid << endl;
       #endif
 
       // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
       auto compileResourceModifiedStmt = fmt::format(
-        a->at(0),
-        a->at(1),
-        a->at(2),
-        a->at(3),
-        a->at(4),
+        a[0],
+        a[1],
+        a[2],
+        a[3],
+        a[4],
         uid
       );
 
