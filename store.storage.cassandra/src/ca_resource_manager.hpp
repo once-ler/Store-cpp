@@ -232,6 +232,15 @@ namespace store::storage::cassandra {
 
     void processUidOnCompleteHandler(const string& uid) {
       // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
+      #ifdef DEBUG
+      cout << "ca_resource_modified_select: " << ca_resource_modified_select << endl
+        << "keyspace: " << keyspace << endl
+        << "environment: " << environment << endl
+        << "store: " << store << endl
+        << "dataType: " << dataType << endl
+        << "purpose: " << purpose << endl;
+      #endif
+
       auto compileResourceModifiedStmt = fmt::format(
         ca_resource_modified_select,
         keyspace,
