@@ -31,7 +31,7 @@ namespace store::storage::cassandra {
 
   class CaResourceManager {
   public:
-    const string version = "0.1.2";
+    const string version = "0.1.3";
 
     CaResourceManager(const string& keyspace_, const string& environment_, const string& store_, const string& dataType_, const string& purpose_) : 
       keyspace(keyspace_), environment(environment_), store(store_), dataType(dataType_), purpose(purpose_) {
@@ -89,17 +89,6 @@ namespace store::storage::cassandra {
       cout << compileResourceProcessedStmt << endl;
       #endif
 
-      /*
-      auto compileResourceModifiedPreStmt = fmt::format(
-        ca_resource_modified_select_pre,
-        keyspace,
-        environment,
-        store,
-        dataType
-      );
-
-      conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler, const_cast<char*>(compileResourceModifiedPreStmt.c_str()));
-      */
       conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
     }
     
@@ -119,17 +108,6 @@ namespace store::storage::cassandra {
       and type = '{}'
       and purpose = '{}' limit 1
     )__";
-
-    /*
-    string ca_resource_modified_select = R"__(
-      select * from {}.ca_resource_modified
-      where environment = '{}'
-      and store = '{}'
-      and type = '{}'
-      and uid > {}
-      limit 20
-    )__";
-    */
 
     string ca_resource_modified_select_pre = R"__(
       select * from {}.ca_resource_modified
