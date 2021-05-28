@@ -27,30 +27,58 @@ namespace store::storage::cassandra {
   void BindCassParameter(CassStatement* statement, size_t position, A value){}
 
   void BindCassParameter(CassStatement* statement, size_t position, const char* value) {
+    #ifdef DEBUG
+    cout << "position: " << to_string(position) << endl;
+    cout << "value: " << value << endl;
+    #endif
     cass_statement_bind_string(statement, position, value);
   }
 
   void BindCassParameter(CassStatement* statement, size_t position, string value) {
+    #ifdef DEBUG
+    cout << "position: " << to_string(position) << endl;
+    cout << "value: " << value << endl;
+    #endif
     cass_statement_bind_string(statement, position, value.c_str());
   }
 
   void BindCassParameter(CassStatement* statement, size_t position, bool value) {
+    #ifdef DEBUG
+    cout << "position: " << to_string(position) << endl;
+    cout << "value: " << value << endl;
+    #endif
     cass_statement_bind_bool(statement, position, value ? cass_true : cass_false);
   }
 
   void BindCassParameter(CassStatement* statement, size_t position, float value) {
+    #ifdef DEBUG
+    cout << "position: " << to_string(position) << endl;
+    cout << "value: " << to_string(value) << endl;
+    #endif
     cass_statement_bind_float(statement, position, value);
   }
 
   void BindCassParameter(CassStatement* statement, size_t position, double value) {
+    #ifdef DEBUG
+    cout << "position: " << to_string(position) << endl;
+    cout << "value: " << to_string(value) << endl;
+    #endif
     cass_statement_bind_double(statement, position, value);
   }
 
   void BindCassParameter(CassStatement* statement, size_t position, int32_t value) {
+    #ifdef DEBUG
+    cout << "position: " << to_string(position) << endl;
+    cout << "value: " << to_string(value) << endl;
+    #endif
     cass_statement_bind_int32(statement, position, (cass_int32_t)value);
   }
 
   void BindCassParameter(CassStatement* statement, size_t position, int64_t value) {
+    #ifdef DEBUG
+    cout << "position: " << to_string(position) << endl;
+    cout << "value: " << to_string(value) << endl;
+    #endif
     cass_statement_bind_int64(statement, position, (cass_int64_t)value);
   }
 
