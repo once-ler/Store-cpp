@@ -192,7 +192,19 @@ namespace store::storage::cassandra {
             id = c1->id,
             oid = c1->oid;
 
-          int64_t start_time = c1->start_time; 
+          int64_t start_time = c1->start_time;
+
+          #ifdef DEBUG
+          cout << "environment: " << environment << endl;
+          cout << "store: " << store << endl;
+          cout << "dataType: " << dataType << endl;
+          cout << "purpose: " << purpose << endl;
+          cout << "key: " << c1->uid << endl;
+          cout << "current: " << current << endl;
+          cout << "id: " << id << endl;
+          cout << "oid: " << oid << endl;
+          cout << "start_time: " << start_time << endl;
+          #endif
 
           auto stmt = conn->getInsertStatement(fmt::format("{}.{}", keyspace, caResourceProcessedTable), 
             {"environment", "store", "type", "purpose", "uid", "current", "id", "oid", "start_time"}, 
