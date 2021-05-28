@@ -54,7 +54,7 @@ namespace store::storage::cassandra {
       // Workflow is processed-functions -> modified-functions, but we define callbacks in reverse order.
       // Capture the user defined function that will be invoked in the callback.
       rowToCaResourceModifiedCallbackHandler = [this](HandleCaResourceModifiedFunc& caResourceModifiedHandler) {
-        return [&caResourceModifiedHandler, this](CassFuture* future, void* data) {
+        return [caResourceModifiedHandler, this](CassFuture* future, void* data) {
           rowToCaResourceModifiedTapFunc(future, caResourceModifiedHandler);
         };
       };
@@ -124,7 +124,7 @@ namespace store::storage::cassandra {
       rowToCaResourceModifiedCallback(future, data);
     }
 
-    void rowToCaResourceModifiedTapFunc(CassFuture* future, HandleCaResourceModifiedFunc& caResourceModifiedHandler) {
+    void rowToCaResourceModifiedTapFunc(CassFuture* future, HandleCaResourceModifiedFunc caResourceModifiedHandler) {
       CassError code = cass_future_error_code(future);
       if (code != CASS_OK) {
         // TODO: Write to log.
