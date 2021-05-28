@@ -46,7 +46,7 @@ namespace store::storage::cassandra {
           dataType
         );
         ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_modified_select_pre", make_shared<string>(compileResourceModifiedPreStmt));
-        
+        ioc::ServiceProvider->RegisterInstanceWithKey<string>("purpose", make_shared<string>(purpose));
     }
     ~CaResourceManager() = default;
 
@@ -188,7 +188,11 @@ namespace store::storage::cassandra {
           CassUuid key;
           cass_uuid_from_string(c1->uid.c_str(), &key);
 
-          string current = c1->current,
+          string environment = c1->environment,
+            store = c1->store,
+            dataType = c1->type,
+            purpose = *(ioc::ServiceProvider->GetInstanceWithKey<string>("purpose")), 
+            current = c1->current,
             id = c1->id,
             oid = c1->oid;
 
