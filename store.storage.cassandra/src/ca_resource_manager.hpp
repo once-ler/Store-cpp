@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sstream>
 #include <thread>
 #include <algorithm>
 #include "spdlog/spdlog.h"
@@ -45,8 +46,12 @@ namespace store::storage::cassandra {
           store,
           dataType
         );
+        stringstream ss;
+        ss << this;
         ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_modified_select_pre", make_shared<string>(compileResourceModifiedPreStmt));
-        ioc::ServiceProvider->RegisterInstanceWithKey<string>("purpose", make_shared<string>(purpose));
+        // ioc::ServiceProvider->RegisterInstanceWithKey<string>("purpose", make_shared<string>(purpose));
+        // ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_processed", make_shared<string>(caResourceProcessedTable));
+        // ioc::ServiceProvider->RegisterInstanceWithKey<string>("keyspace", make_shared<string>(keyspace));
     }
     ~CaResourceManager() = default;
 
@@ -55,7 +60,7 @@ namespace store::storage::cassandra {
       // Capture the user defined function that will be invoked in the callback.
       rowToCaResourceModifiedCallbackHandler = [this](HandleCaResourceModifiedFunc& caResourceModifiedHandler) {
         return [caResourceModifiedHandler, this](CassFuture* future, void* data) {
-          rowToCaResourceModifiedTapFunc(future, caResourceModifiedHandler);
+          rowToCaResourceModifiedTapFunc(future, caResourceModifiedHandler, this);
         };
       };
 
@@ -124,7 +129,7 @@ namespace store::storage::cassandra {
       rowToCaResourceModifiedCallback(future, data);
     }
 
-    void rowToCaResourceModifiedTapFunc(CassFuture* future, HandleCaResourceModifiedFunc caResourceModifiedHandler) {
+    void rowToCaResourceModifiedTapFunc(CassFuture* future, HandleCaResourceModifiedFunc caResourceModifiedHandler, CaResourceManager* caResourceManager) {
       CassError code = cass_future_error_code(future);
       if (code != CASS_OK) {
         // TODO: Write to log.
@@ -191,10 +196,12 @@ namespace store::storage::cassandra {
           string environment = c1->environment,
             store = c1->store,
             dataType = c1->type,
-            purpose = *(ioc::ServiceProvider->GetInstanceWithKey<string>("purpose")), 
+            purpose = caResourceManager->purpose, // *(ioc::ServiceProvider->GetInstanceWithKey<string>("purpose")), 
             current = c1->current,
             id = c1->id,
-            oid = c1->oid;
+            oid = c1->oid,
+            keyspace = caResourceManager->keyspace,
+            caResourceProcessedTable = caResourceManager->caResourceProcessedTable;
 
           int64_t start_time = c1->start_time;
 
@@ -208,6 +215,8 @@ namespace store::storage::cassandra {
           cout << "id: " << id << endl;
           cout << "oid: " << oid << endl;
           cout << "start_time: " << start_time << endl;
+          cout << "keyspace: " << keyspace << endl;
+          cout << "caResourceProcessedTable: " << caResourceProcessedTable << endl;
           #endif
 
           auto stmt = conn->getInsertStatement(fmt::format("{}.{}", keyspace, caResourceProcessedTable), 
