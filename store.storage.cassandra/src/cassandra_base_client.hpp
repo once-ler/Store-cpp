@@ -228,9 +228,6 @@ namespace store::storage::cassandra {
       cass_batch_set_request_timeout(batch, 30000);
 
       for(auto statement : statements) {
-        #ifdef DEBUG
-        cout << statement->
-        #endif
         cass_batch_add_statement(batch, statement);
         cass_statement_free(statement);
       }
