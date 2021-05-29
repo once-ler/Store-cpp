@@ -48,10 +48,11 @@ namespace store::storage::cassandra {
         );
         stringstream ss;
         ss << this;
+        string addr = ss.str();
         ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_modified_select_pre", make_shared<string>(compileResourceModifiedPreStmt));
-        // ioc::ServiceProvider->RegisterInstanceWithKey<string>("purpose", make_shared<string>(purpose));
-        // ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_processed", make_shared<string>(caResourceProcessedTable));
-        // ioc::ServiceProvider->RegisterInstanceWithKey<string>("keyspace", make_shared<string>(keyspace));
+        ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_processed", make_shared<string>(caResourceProcessedTable));
+        ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":keyspace", make_shared<string>(keyspace));
+        ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":purpose", make_shared<string>(purpose));
     }
     ~CaResourceManager() = default;
 
@@ -131,6 +132,10 @@ namespace store::storage::cassandra {
 
     void rowToCaResourceModifiedTapFunc(CassFuture* future, HandleCaResourceModifiedFunc caResourceModifiedHandler, CaResourceManager* caResourceManager) {
       CassError code = cass_future_error_code(future);
+      stringstream ss;
+      ss << caResourceManager;
+      string managerAddr = ss.str();
+      
       if (code != CASS_OK) {
         // TODO: Write to log.
         string error = get_error(future);
@@ -196,12 +201,12 @@ namespace store::storage::cassandra {
           string environment = c1->environment,
             store = c1->store,
             dataType = c1->type,
-            purpose = caResourceManager->purpose, // *(ioc::ServiceProvider->GetInstanceWithKey<string>("purpose")), 
+            purpose = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":purpose")), 
             current = c1->current,
             id = c1->id,
             oid = c1->oid,
-            keyspace = caResourceManager->keyspace,
-            caResourceProcessedTable = caResourceManager->caResourceProcessedTable;
+            keyspace = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":keyspace")),
+            caResourceProcessedTable = *(ioc::ServiceProvider->GetInstanceWithKey<string>("ca_resource_processed"));
 
           int64_t start_time = c1->start_time;
 
