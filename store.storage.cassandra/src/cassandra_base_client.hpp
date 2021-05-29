@@ -230,7 +230,7 @@ namespace store::storage::cassandra {
       }
 
       auto batch_future = cass_session_execute_batch(session, batch);
-      cass_future_set_callback(batch_future, on_insert, &session);
+      cass_future_set_callback(batch_future, on_insert, session);
       cass_future_free(batch_future);
     }
 
