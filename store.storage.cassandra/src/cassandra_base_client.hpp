@@ -213,9 +213,9 @@ namespace store::storage::cassandra {
 
     void insertAsync(CassStatement* statement) {
       auto insert_future = cass_session_execute(session, statement);
-      cass_future_set_callback(insert_future, on_insert, &session);
-      cass_statement_free(statement);
+      cass_future_set_callback(insert_future, on_insert, session);
       cass_future_free(insert_future);
+      cass_statement_free(statement);
     }
 
     void insertAsync(vector<CassStatement*> statements) {
