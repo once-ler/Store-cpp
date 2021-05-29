@@ -237,6 +237,7 @@ namespace store::storage::cassandra {
           statements.push_back(stmt);
         }
 
+        auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
         conn->insertAsync(statements);
       }
     }
