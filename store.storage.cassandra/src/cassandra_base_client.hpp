@@ -224,7 +224,13 @@ namespace store::storage::cassandra {
       #endif
       CassBatch* batch = cass_batch_new(CASS_BATCH_TYPE_UNLOGGED);
 
+      // Set timeout for insert to 30 sec.
+      cass_batch_set_request_timeout(batch, 30000);
+
       for(auto statement : statements) {
+        #ifdef DEBUG
+        cout << statement->
+        #endif
         cass_batch_add_statement(batch, statement);
         cass_statement_free(statement);
       }
