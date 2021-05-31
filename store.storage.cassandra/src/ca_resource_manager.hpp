@@ -124,6 +124,7 @@ namespace store::storage::cassandra {
       cout << compileResourceProcessedStmt << endl;
       #endif
 
+      auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
       conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
     }
     
