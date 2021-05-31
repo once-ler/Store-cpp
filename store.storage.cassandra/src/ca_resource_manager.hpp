@@ -3,8 +3,6 @@
 #include <sstream>
 #include <thread>
 #include <algorithm>
-#include <mutex>
-#include <condition_variable>
 #include "spdlog/spdlog.h"
 #include "store.common/src/time.hpp"
 #include "store.common/src/group_by.hpp"
@@ -65,15 +63,6 @@ namespace store::storage::cassandra {
     ~CaResourceManager() = default;
 
     void fetchNextTasks(HandleCaResourceModifiedFunc caResourceModifiedHandler, CaResourceManager* caResourceManager = NULL) {
-      /*
-      std::unique_lock<std::mutex> lock(this->queue_mutex); 
-      condition.wait(lock, [this]{ return this->refetch; });
-
-      #ifdef DEBUG
-      cout << ">>>>>>>>>> Signal Received <<<<<<<<<<" << endl;
-      #endif
-      */
-
       // Workflow is processed-functions -> modified-functions, but we define callbacks in reverse order.
       // Capture the user defined function that will be invoked in the callback.
       rowToCaResourceModifiedCallbackHandler = [this](HandleCaResourceModifiedFunc& caResourceModifiedHandler) {
@@ -136,11 +125,6 @@ namespace store::storage::cassandra {
     string store;
     string dataType;
     string purpose;
-
-    // synchronization
-    // std::mutex queue_mutex;
-    // std::condition_variable condition;
-    // bool refetch = false;
     std::chrono::milliseconds wait_time = std::chrono::milliseconds(4000);
 
     string ca_resource_processed_select = R"__(
@@ -277,9 +261,7 @@ namespace store::storage::cassandra {
         conn->insertAsync(statements);
 
         auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
-        // auto condition = ioc::ServiceProvider->GetInstanceWithKey<condition_variable>(managerAddr + ":condition");
         std::this_thread::sleep_for(*wait_time);
-        // condition->notify_one();
 
         #ifdef DEBUG
         cout << "Waited ms: " << to_string(wait_time->count()) << endl;
