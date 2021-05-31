@@ -54,7 +54,7 @@ namespace store::storage::cassandra {
         ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_processed_select", make_shared<string>(ca_resource_processed_select));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_modified_select_pre", make_shared<string>(compileResourceModifiedPreStmt));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_processed", make_shared<string>(caResourceProcessedTable));
-        ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":environment_", make_shared<string>(environment));
+        ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":environment", make_shared<string>(environment));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":keyspace", make_shared<string>(keyspace));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":purpose", make_shared<string>(purpose));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":data_type", make_shared<string>(dataType));
