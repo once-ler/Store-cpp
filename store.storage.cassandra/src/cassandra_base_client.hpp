@@ -149,6 +149,8 @@ namespace store::storage::cassandra {
       if (cass_future_error_code(connect_future) == CASS_OK) {
         printf("Successfully connected to %s\n", hosts.c_str());
         cass_cluster_set_request_timeout(cluster, 0);
+        cass_cluster_set_core_connections_per_host(cluster, 2);
+        cass_cluster_set_max_connections_per_host(cluster, 4);
       } else {
         /* Handle error */
         const char* message;
