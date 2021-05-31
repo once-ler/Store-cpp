@@ -147,7 +147,8 @@ namespace store::storage::cassandra {
       connect_future = cass_session_connect(session, cluster);
 
       if (cass_future_error_code(connect_future) == CASS_OK) {
-        printf("Successfully connected!\n");
+        printf("Successfully connected to %s\n", hosts.c_str());
+        cass_cluster_set_request_timeout(cluster, 0);
       } else {
         /* Handle error */
         const char* message;
@@ -224,8 +225,8 @@ namespace store::storage::cassandra {
       #endif
       CassBatch* batch = cass_batch_new(CASS_BATCH_TYPE_UNLOGGED);
 
-      // Set timeout for insert to 30 sec.
-      cass_batch_set_request_timeout(batch, 30000);
+      // Set CASS_UINT64_MAX to disable (to use the cluster-level request timeout).
+      cass_batch_set_request_timeout(batch, CASS_UINT64_MAX);
 
       for(auto statement : statements) {
         cass_batch_add_statement(batch, statement);
