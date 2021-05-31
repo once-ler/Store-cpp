@@ -95,7 +95,7 @@ namespace store::storage::cassandra {
       ss << (caResourceManager == NULL ? this : caResourceManager);
       string managerAddr = ss.str();
 
-      string ca_resource_processed_select = *(ioc::ServiceProvider->GetInstanceWithKey<string>(ca_resource_processed_select)),
+      string ca_resource_processed_select = *(ioc::ServiceProvider->GetInstanceWithKey<string>("ca_resource_processed_select")),
         keyspace = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":keyspace")), 
         environment = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":environment")), 
         store = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":store")), 
@@ -280,6 +280,9 @@ namespace store::storage::cassandra {
         std::this_thread::sleep_for(*wait_time);
         // condition->notify_one();
 
+        #ifdef DEBUG
+        cout << "Waited ms: " << to_string(wait_time->count()) << endl;
+        #endif
         caResourceManager->fetchNextTasks(caResourceModifiedHandler, caResourceManager);
       }
     }
