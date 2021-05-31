@@ -3,6 +3,8 @@
 #include <sstream>
 #include <thread>
 #include <algorithm>
+#include <mutex>
+#include <condition_variable>
 #include "spdlog/spdlog.h"
 #include "store.common/src/time.hpp"
 #include "store.common/src/group_by.hpp"
@@ -49,14 +51,29 @@ namespace store::storage::cassandra {
         stringstream ss;
         ss << this;
         string addr = ss.str();
+        ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_processed_select", make_shared<string>(ca_resource_processed_select));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_modified_select_pre", make_shared<string>(compileResourceModifiedPreStmt));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_processed", make_shared<string>(caResourceProcessedTable));
+        ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":environment_", make_shared<string>(environment_));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":keyspace", make_shared<string>(keyspace));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":purpose", make_shared<string>(purpose));
+        ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":data_type", make_shared<string>(dataType));
+        ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":store", make_shared<string>(store));
+        // ioc::ServiceProvider->RegisterInstanceWithKey<condition_variable>(addr + ":condition", make_shared<condition_variable>(condition));
+        ioc::ServiceProvider->RegisterInstanceWithKey<std::chrono::milliseconds>(addr + ":wait_time", make_shared<std::chrono::milliseconds>(wait_time));
     }
     ~CaResourceManager() = default;
 
-    void fetchNextTasks(HandleCaResourceModifiedFunc caResourceModifiedHandler) {
+    void fetchNextTasks(HandleCaResourceModifiedFunc caResourceModifiedHandler, CaResourceManager* caResourceManager = NULL) {
+      /*
+      std::unique_lock<std::mutex> lock(this->queue_mutex); 
+      condition.wait(lock, [this]{ return this->refetch; });
+
+      #ifdef DEBUG
+      cout << ">>>>>>>>>> Signal Received <<<<<<<<<<" << endl;
+      #endif
+      */
+
       // Workflow is processed-functions -> modified-functions, but we define callbacks in reverse order.
       // Capture the user defined function that will be invoked in the callback.
       rowToCaResourceModifiedCallbackHandler = [this](HandleCaResourceModifiedFunc& caResourceModifiedHandler) {
@@ -72,6 +89,18 @@ namespace store::storage::cassandra {
       rowToCaResourceProcessedCallback = [this](CassFuture* future, void* data) {
         rowToCaResourceProcessedTapFunc(future);
       };
+
+      // caResourceManager would NOT be NULL if called by callback. 
+      stringstream ss;
+      ss << (caResourceManager == NULL ? this : caResourceManager);
+      string managerAddr = ss.str();
+
+      string ca_resource_processed_select = *(ioc::ServiceProvider->GetInstanceWithKey<string>(ca_resource_processed_select)),
+        keyspace = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":keyspace")), 
+        environment = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":environment")), 
+        store = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":store")), 
+        dataType = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":data_type")), 
+        purpose = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":purpose"));    
 
       #ifdef DEBUG
       cout << "ca_resource_processed_select: " << ca_resource_processed_select << endl
@@ -106,6 +135,12 @@ namespace store::storage::cassandra {
     string store;
     string dataType;
     string purpose;
+
+    // synchronization
+    // std::mutex queue_mutex;
+    // std::condition_variable condition;
+    // bool refetch = false;
+    std::chrono::milliseconds wait_time = std::chrono::milliseconds(4000);
 
     string ca_resource_processed_select = R"__(
       select uid from {}.ca_resource_processed
@@ -239,6 +274,13 @@ namespace store::storage::cassandra {
 
         auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
         conn->insertAsync(statements);
+
+        auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
+        // auto condition = ioc::ServiceProvider->GetInstanceWithKey<condition_variable>(managerAddr + ":condition");
+        std::this_thread::sleep_for(*wait_time);
+        // condition->notify_one();
+
+        caResourceManager->fetchNextTasks(caResourceModifiedHandler, caResourceManager);
       }
     }
 
