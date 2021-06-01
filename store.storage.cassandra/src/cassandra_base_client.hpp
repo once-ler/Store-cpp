@@ -226,7 +226,7 @@ namespace store::storage::cassandra {
       CassBatch* batch = cass_batch_new(CASS_BATCH_TYPE_UNLOGGED);
 
       // Set CASS_UINT64_MAX to disable (to use the cluster-level request timeout).
-      cass_batch_set_request_timeout(batch, CASS_UINT64_MAX);
+      cass_batch_set_request_timeout(batch, 0);
 
       for(auto statement : statements) {
         cass_batch_add_statement(batch, statement);
