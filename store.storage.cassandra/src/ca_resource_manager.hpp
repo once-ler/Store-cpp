@@ -321,7 +321,7 @@ namespace store::storage::cassandra {
         #endif
 
         auto compileResourceModifiedStmt = fmt::format(
-          ca_resource_processed_select,
+          ca_resource_modified_select,
           keyspace,
           environment,
           store,
