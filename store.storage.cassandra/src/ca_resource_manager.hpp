@@ -38,26 +38,17 @@ namespace store::storage::cassandra {
       keyspace(keyspace_), environment(environment_), store(store_), dataType(dataType_), purpose(purpose_) {
         conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
 
-        // Inject compiled cql for threads to share.
-        auto compileResourceModifiedPreStmt = fmt::format(
-          ca_resource_modified_select_pre,
-          keyspace,
-          environment,
-          store,
-          dataType
-        );
         stringstream ss;
         ss << this;
         string addr = ss.str();
         ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_processed_select", make_shared<string>(ca_resource_processed_select));
-        ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_modified_select_pre", make_shared<string>(compileResourceModifiedPreStmt));
+        ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_modified_select", make_shared<string>(ca_resource_modified_select));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>("ca_resource_processed", make_shared<string>(caResourceProcessedTable));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":environment", make_shared<string>(environment));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":keyspace", make_shared<string>(keyspace));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":purpose", make_shared<string>(purpose));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":data_type", make_shared<string>(dataType));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":store", make_shared<string>(store));
-        // ioc::ServiceProvider->RegisterInstanceWithKey<condition_variable>(addr + ":condition", make_shared<condition_variable>(condition));
         ioc::ServiceProvider->RegisterInstanceWithKey<std::chrono::milliseconds>(addr + ":wait_time", make_shared<std::chrono::milliseconds>(wait_time));
     }
     ~CaResourceManager() = default;
@@ -75,8 +66,8 @@ namespace store::storage::cassandra {
       rowToCaResourceModifiedCallback = rowToCaResourceModifiedCallbackHandler(caResourceModifiedHandler);
 
       // Static rowToCaResourceProcessedHandler() will call rowToCaResourceProcessedCallback().
-      rowToCaResourceProcessedCallback = [this](CassFuture* future, void* data) {
-        rowToCaResourceProcessedTapFunc(future);
+      rowToCaResourceProcessedCallback = [caResourceModifiedHandler, this](CassFuture* future, void* data) {
+        rowToCaResourceProcessedTapFunc(future, caResourceModifiedHandler, this);
       };
 
       // caResourceManager would NOT be NULL if called by callback. 
@@ -135,11 +126,12 @@ namespace store::storage::cassandra {
       and purpose = '{}' limit 1
     )__";
 
-    string ca_resource_modified_select_pre = R"__(
+    string ca_resource_modified_select = R"__(
       select * from {}.ca_resource_modified
       where environment = '{}'
       and store = '{}'
       and type = '{}'
+      and uid > {} limit 20
     )__";
 
     static void rowToCaResourceProcessedHandler(CassFuture* future, void* data) {
@@ -259,33 +251,44 @@ namespace store::storage::cassandra {
 
         auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
         conn->insertAsync(statements);
-
-        auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
-        std::this_thread::sleep_for(*wait_time);
-
-        #ifdef DEBUG
-        cout << "Waited ms: " << to_string(wait_time->count()) << endl;
-        #endif
-        caResourceManager->fetchNextTasks(caResourceModifiedHandler, caResourceManager);
       }
+
+      // Recurse.
+      auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
+      std::this_thread::sleep_for(*wait_time);
+
+      #ifdef DEBUG
+      cout << "Waited ms: " << to_string(wait_time->count()) << endl;
+      #endif
+      caResourceManager->fetchNextTasks(caResourceModifiedHandler, caResourceManager);
     }
 
-    void rowToCaResourceProcessedTapFunc(CassFuture* future) {
+    void rowToCaResourceProcessedTapFunc(CassFuture* future, HandleCaResourceModifiedFunc caResourceModifiedHandler, CaResourceManager* caResourceManager) {
       CassError code = cass_future_error_code(future);
+      stringstream ss;
+      ss << caResourceManager;
+      string managerAddr = ss.str();
+      
       if (code != CASS_OK) {
         // TODO: Write to log.
         string error = get_error(future);
+
+        auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
+        std::this_thread::sleep_for(*wait_time);
+        caResourceManager->fetchNextTasks(caResourceModifiedHandler, caResourceManager);
       } else {
         const CassResult* result = cass_future_get_result(future);
         
         const CassRow* row = cass_result_first_row(result);
 
+        auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
+          
         string uid;
         if (row) {
           std::map<string, string> m = getCellAsUuid(row, {"uid"});
           uid = m["uid"];
         } else {
-          auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
+          // auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
           CassUuid uuid;
           auto twoDaysAgoMilli = store::common::getMillisecondsFromTimePoint(daysAgo(2));
 
@@ -302,30 +305,36 @@ namespace store::storage::cassandra {
         cass_result_free(result);
 
         // Apply user defined tap function given uuid.
-        processUidOnCompleteHandler(uid);
+        string ca_resource_modified_select = *(ioc::ServiceProvider->GetInstanceWithKey<string>("ca_resource_modified_select")),
+        keyspace = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":keyspace")), 
+        environment = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":environment")), 
+        store = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":store")), 
+        dataType = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":data_type")); 
+
+        #ifdef DEBUG
+        cout << "ca_resource_modified_select: " << ca_resource_modified_select << endl
+          << "keyspace: " << keyspace << endl
+          << "environment: " << environment << endl
+          << "store: " << store << endl
+          << "dataType: " << dataType << endl
+          << "uid: " << uid << endl;
+        #endif
+
+        auto compileResourceModifiedStmt = fmt::format(
+          ca_resource_processed_select,
+          keyspace,
+          environment,
+          store,
+          dataType,
+          uid
+        );
+
+        #ifdef DEBUG
+        cout << compileResourceModifiedStmt << endl;
+        #endif
+
+        conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
       }
-    }
-
-    void processUidOnCompleteHandler(const string& uid) {
-      // auto pre_stmt = (char*)data;
-      auto pre_stmt = ioc::ServiceProvider->GetInstanceWithKey<string>("ca_resource_modified_select_pre");
-      #ifdef DEBUG
-      cout << "pre_stmt: " << *pre_stmt << endl << "uid: " << uid << endl;
-      #endif
-
-      // After obtaining the next uuid to process, compile next select statement for ca_resource_modified table.
-      auto compileResourceModifiedStmt = fmt::format(
-        "{} and uid > {} limit 20",
-        *pre_stmt, 
-        uid
-      );
-
-      #ifdef DEBUG
-      cout << compileResourceModifiedStmt << endl;
-      #endif
-      
-      auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
-      conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
     }
    
     string get_error(CassFuture* future) {
