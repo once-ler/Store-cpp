@@ -9,6 +9,7 @@
 #include "cassandra.h"
 #include "store.common/src/logger.hpp"
 #include "store.common/src/runtime_get_tuple.hpp"
+#include "store.common/src/logger.hpp"
 
 using namespace std;
 using namespace store::common;
@@ -123,8 +124,9 @@ namespace store::storage::cassandra {
     explicit CassandraBaseClient(
       const string& hosts_,
       const string& username_ = "",
-      const string& password_ = ""
-    ) : hosts(hosts_), username(username_), password(password_) {}
+      const string& password_ = "",
+      unsigned int request_timeout_ = 120000
+    ) : hosts(hosts_), username(username_), password(password_), request_timeout(request_timeout_) {}
 
     void tryConnect() {
 
@@ -148,7 +150,14 @@ namespace store::storage::cassandra {
 
       if (cass_future_error_code(connect_future) == CASS_OK) {
         printf("Successfully connected to %s\n", hosts.c_str());
-        cass_cluster_set_request_timeout(cluster, 0);
+
+        /* Tuning */
+        // https://docs.datastax.com/en/developer/cpp-driver/2.10/topics/configuration/
+        // https://docs.datastax.com/en/developer/cpp-driver/1.0/api/struct.CassCluster/#function-cass_cluster_set_max_connections_per_host
+        cass_cluster_set_request_timeout(cluster, request_timeout);
+        cass_cluster_set_core_connections_per_host(cluster, 1); // Default 1.  Sets the number of connections made to each server in each IO thread.
+        cass_cluster_set_coalesce_delay(cluster, 100); // Default 200 us.  microseconds to wait for new requests to coalesce to single call.  Large values for throughput bound.  Smaller for latency bound.
+        cass_cluster_set_new_request_ratio(cluster, 35); // 1 to 100.  50 is default.  Larger to allocate more for new requests, smaller to process outstanding requests.
       } else {
         /* Handle error */
         const char* message;
@@ -156,6 +165,9 @@ namespace store::storage::cassandra {
         cass_future_error_message(connect_future, &message, &message_length);
         fprintf(stderr, "Unable to connect: '%.*s'\n", (int)message_length,
                                                             message);
+        string err(message);
+        logger->error(err.c_str());
+        throw;                                                    
       }
 
       cass_future_free(connect_future);
@@ -288,6 +300,9 @@ namespace store::storage::cassandra {
       cass_uuid_gen_from_time(uuid_gen, timestamp, &uuid);
     }
 
+    // Default logger.
+    shared_ptr<ILogger> logger = make_shared<ILogger>();
+
   protected:
     static void on_auth_initial(CassAuthenticator* auth, void* data) {  
       const Credentials* credentials = (const Credentials *)data;
@@ -317,6 +332,10 @@ namespace store::storage::cassandra {
       size_t message_length;
       cass_future_error_message(future, &message, &message_length);
       fprintf(stderr, "Error: %.*s\n", (int)message_length, message);
+
+      string err(message);
+      logger->error(err.c_str());
+      throw;
     }
 
     static void on_insert(CassFuture* future, void* data) {
@@ -354,6 +373,7 @@ namespace store::storage::cassandra {
     string hosts;
     string username;
     string password;
+    unsigned int request_timeout;
 
   };
 
