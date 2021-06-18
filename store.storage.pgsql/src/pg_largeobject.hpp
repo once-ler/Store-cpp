@@ -54,7 +54,9 @@ namespace store::storage::pgsql {
           size_t remainder = len - len_read;
           size_t len_end = remainder < buf_size ? remainder : buf_size;
           auto next = data.substr(len_read, len_end);
-          
+          // Replace single quotes with 2 single quotes.
+          next = regex_replace(next, regex("'"), "''");
+
           if (lo_write(pg_conn, fd, next.c_str(), next.length()) == -1)
             break;
 
