@@ -7,9 +7,7 @@
 #include <memory>
 
 #include "cassandra.h"
-#include "store.common/src/logger.hpp"
 #include "store.common/src/runtime_get_tuple.hpp"
-#include "store.common/src/logger.hpp"
 
 using namespace std;
 using namespace store::common;
@@ -165,8 +163,6 @@ namespace store::storage::cassandra {
         cass_future_error_message(connect_future, &message, &message_length);
         fprintf(stderr, "Unable to connect: '%.*s'\n", (int)message_length,
                                                             message);
-        string err(message);
-        logger->error(err.c_str());
         throw;                                                    
       }
 
@@ -300,9 +296,6 @@ namespace store::storage::cassandra {
       cass_uuid_gen_from_time(uuid_gen, timestamp, &uuid);
     }
 
-    // Default logger.
-    shared_ptr<ILogger> logger = make_shared<ILogger>();
-
   protected:
     static void on_auth_initial(CassAuthenticator* auth, void* data) {  
       const Credentials* credentials = (const Credentials *)data;
@@ -333,8 +326,6 @@ namespace store::storage::cassandra {
       cass_future_error_message(future, &message, &message_length);
       fprintf(stderr, "Error: %.*s\n", (int)message_length, message);
 
-      string err(message);
-      logger->error(err.c_str());
       throw;
     }
 
