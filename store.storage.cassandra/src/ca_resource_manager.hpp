@@ -250,7 +250,7 @@ namespace store::storage::cassandra {
         }
 
         auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
-        conn->insertAsync(statements);
+        conn->insertSync(statements);
       }
 
       // Recurse.

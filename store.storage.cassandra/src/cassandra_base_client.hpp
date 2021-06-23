@@ -99,7 +99,7 @@ namespace store::storage::cassandra {
 
   class CassandraBaseClient {
   public:
-    const string version = "0.1.1";
+    const string version = "0.1.2";
     CassandraBaseClient() {}
 
     ~CassandraBaseClient() {
@@ -218,6 +218,25 @@ namespace store::storage::cassandra {
       }
       cass_future_free(f);
       cass_statement_free(statement);
+    }
+
+    void insertSync(vector<CassStatement*> statements) {
+      #ifdef DEBUG
+      cout << "Executing batch for " << statements.size() << " statements.\n";
+      #endif
+      CassBatch* batch = cass_batch_new(CASS_BATCH_TYPE_UNLOGGED);
+
+      // Set CASS_UINT64_MAX to disable (to use the cluster-level request timeout).
+      cass_batch_set_request_timeout(batch, 0);
+
+      for(auto statement : statements) {
+        cass_batch_add_statement(batch, statement);
+        cass_statement_free(statement);
+      }
+
+      auto batch_future = cass_session_execute_batch(session, batch);
+      cass_future_wait(batch_future);
+      cass_future_free(batch_future);
     }
 
     void insertAsync(CassStatement* statement) {
