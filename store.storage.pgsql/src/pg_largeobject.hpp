@@ -66,6 +66,7 @@ namespace store::storage::pgsql {
         lo_close(pg_conn, fd);
 
         res = PQexec(pg_conn, "COMMIT");
+        PQclear(res);
       } catch (exception e) {
         session->logger->error(e.what());
       }
@@ -85,7 +86,8 @@ namespace store::storage::pgsql {
         auto pg_conn = conn->sql_connection->getPGconn();
         res = PQexec(pg_conn, "BEGIN");
         oid = lo_import(pg_conn, filename);
-        res = PQexec(pg_conn, "COMMIT");  
+        res = PQexec(pg_conn, "COMMIT");
+        PQclear(res);
       } catch (exception e) {
         session->logger->error(e.what());
       }
@@ -122,7 +124,8 @@ namespace store::storage::pgsql {
           retval.append(buf, nb);
 
         lo_close(pg_conn, fd);
-        res = PQexec(pg_conn, "COMMIT");       
+        res = PQexec(pg_conn, "COMMIT");
+        PQclear(res);    
       } catch (exception e) {
         session->logger->error(e.what());
       }
