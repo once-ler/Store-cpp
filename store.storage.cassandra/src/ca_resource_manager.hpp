@@ -72,10 +72,10 @@ namespace store::storage::cassandra {
         rowToCaResourceProcessedTapFunc(future, caResourceModifiedHandler, this);
       };
 
-      batchOnInsertCallback = [caResourceManager, caResourceModifiedHandler, this](CassFuture* future, void* data) {
+      batchOnInsertCallback = [caResourceModifiedHandler, this](CassFuture* future, void* data) {
         // Recurse.
         stringstream ss;
-        ss << caResourceManager;
+        ss << this;
         string managerAddr = ss.str();
       
         auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
@@ -84,7 +84,7 @@ namespace store::storage::cassandra {
         #ifdef DEBUG
         cout << "Waited ms: " << to_string(wait_time->count()) << endl;
         #endif
-        caResourceManager->fetchNextTasks(caResourceModifiedHandler, caResourceManager);
+        this->fetchNextTasks(caResourceModifiedHandler, this);
       };
 
       // caResourceManager would NOT be NULL if called by callback. 
@@ -148,7 +148,7 @@ namespace store::storage::cassandra {
       where environment = '{}'
       and store = '{}'
       and type = '{}'
-      and uid > {} limit 20
+      and uid > {} limit 4
     )__";
 
     static void rowToCaResourceProcessedHandler(CassFuture* future, void* data) {
