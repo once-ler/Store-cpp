@@ -258,7 +258,7 @@ namespace store::storage::cassandra {
       #ifdef DEBUG
       cout << "Executing batch for " << statements.size() << " statements.\n";
       #endif
-      CassBatch* batch = cass_batch_new(CASS_BATCH_TYPE_UNLOGGED);
+      CassBatch* batch = cass_batch_new(CASS_BATCH_TYPE_LOGGED);
 
       // Set CASS_UINT64_MAX to disable (to use the cluster-level request timeout).
       cass_batch_set_request_timeout(batch, 0);

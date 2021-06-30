@@ -332,11 +332,7 @@ namespace store::storage::cassandra {
         }
 
         auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
-        // conn->insertAsync(statements, batchOnInsertHandler);
-        #ifdef DEBUG
-          cout << "Block until insert completes: condition.wait..." << endl;
-        #endif
-        conn->insertSync(statements);
+        conn->insertAsync(statements, batchOnInsertHandler);
       }
 
       // Block until insert completes.
