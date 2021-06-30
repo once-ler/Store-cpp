@@ -224,10 +224,10 @@ namespace store::storage::cassandra {
       #ifdef DEBUG
       cout << "Executing batch for " << statements.size() << " statements.\n";
       #endif
-      CassBatch* batch = cass_batch_new(CASS_BATCH_TYPE_UNLOGGED);
+      CassBatch* batch = cass_batch_new(CASS_BATCH_TYPE_LOGGED);
 
       // Set CASS_UINT64_MAX to disable (to use the cluster-level request timeout).
-      cass_batch_set_request_timeout(batch, 0);
+      // cass_batch_set_request_timeout(batch, 0);
 
       for(auto statement : statements) {
         cass_batch_add_statement(batch, statement);
@@ -235,15 +235,14 @@ namespace store::storage::cassandra {
       }
 
       auto batch_future = cass_session_execute_batch(session, batch);
-      cass_future_wait(batch_future);
-      
+      cass_batch_free(batch);
+
       size_t rc = cass_future_error_code(batch_future);
       if (rc != CASS_OK) {
         print_error(batch_future);
       }
 
       cass_future_free(batch_future);
-      cass_batch_free(batch);
     }
 
     void insertAsync(CassStatement* statement) {
