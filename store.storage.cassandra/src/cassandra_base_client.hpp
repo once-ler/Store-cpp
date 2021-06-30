@@ -237,9 +237,9 @@ namespace store::storage::cassandra {
       auto batch_future = cass_session_execute_batch(session, batch);
       cass_future_wait(batch_future);
       
-      size_t rc = cass_future_error_code(future);
+      size_t rc = cass_future_error_code(batch_future);
       if (rc != CASS_OK) {
-        print_error(future);
+        print_error(batch_future);
       }
 
       cass_future_free(batch_future);
