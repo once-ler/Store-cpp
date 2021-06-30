@@ -36,7 +36,9 @@ namespace store::storage::pgsql {
         auto eventTypes = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.type, "$Q$"); });
         auto bodies = mapEvents<string>(stream, [](const IEvent& e) { return wrapString(e.data.dump(), "$Q$"); });
         
-        auto stmt = Extensions::string_format("select %s.mt_append_event(%s, %s, array[%s]::uuid[], array[%s]::varchar[], array[%s]::jsonb[])",
+        auto stmt = Extensions::string_format(R"__(
+          select %s.mt_append_event(%s, %s, array[%s]::uuid[], array[%s]::varchar[], array[%s]::jsonb[])
+          )__",
           dbSchema.c_str(),
           wrapString(streamId, "$Q$").c_str(),
           eventTypes.at(0).c_str(),
