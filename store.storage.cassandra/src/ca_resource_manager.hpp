@@ -24,11 +24,13 @@ namespace store::storage::cassandra {
   using RowToCaResourceModifiedCallback = std::function<void(CassFuture* future, void* data)>;
   using RowToCaResourceModifiedCallbackHandler = std::function<RowToCaResourceModifiedCallback(HandleCaResourceModifiedFunc&)>;
   using RowToCaResourceProcessedCallback = std::function<void(CassFuture* future, void* data)>;
+  using BatchOnInsertCallback = std::function<void(CassFuture* future, void* data)>;
   using ProcessUidOnCompleteFunc = std::function<void(const string&)>;
 
   RowToCaResourceModifiedCallback rowToCaResourceModifiedCallback;
   RowToCaResourceModifiedCallbackHandler rowToCaResourceModifiedCallbackHandler;
   RowToCaResourceProcessedCallback rowToCaResourceProcessedCallback;
+  BatchOnInsertCallback batchOnInsertCallback;
 
   class CaResourceManager {
   public:
@@ -68,6 +70,21 @@ namespace store::storage::cassandra {
       // Static rowToCaResourceProcessedHandler() will call rowToCaResourceProcessedCallback().
       rowToCaResourceProcessedCallback = [caResourceModifiedHandler, this](CassFuture* future, void* data) {
         rowToCaResourceProcessedTapFunc(future, caResourceModifiedHandler, this);
+      };
+
+      batchOnInsertCallback = [caResourceManager, caResourceModifiedHandler, this](CassFuture* future, void* data) {
+        // Recurse.
+        stringstream ss;
+        ss << caResourceManager;
+        string managerAddr = ss.str();
+      
+        auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
+        std::this_thread::sleep_for(*wait_time);
+
+        #ifdef DEBUG
+        cout << "Waited ms: " << to_string(wait_time->count()) << endl;
+        #endif
+        caResourceManager->fetchNextTasks(caResourceModifiedHandler, caResourceManager);
       };
 
       // caResourceManager would NOT be NULL if called by callback. 
@@ -140,6 +157,10 @@ namespace store::storage::cassandra {
 
     static void rowToCaResourceModifiedHandler(CassFuture* future, void* data) {
       rowToCaResourceModifiedCallback(future, data);
+    }
+
+    static void batchOnInsertHandler(CassFuture* future, void* data) {
+      batchOnInsertCallback(future, data);
     }
 
     void rowToCaResourceModifiedTapFunc(CassFuture* future, HandleCaResourceModifiedFunc caResourceModifiedHandler, CaResourceManager* caResourceManager) {
@@ -250,9 +271,10 @@ namespace store::storage::cassandra {
         }
 
         auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
-        conn->insertSync(statements);
+        conn->insertAsync(statements, batchOnInsertHandler);
       }
 
+      /*
       // Recurse.
       auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
       std::this_thread::sleep_for(*wait_time);
@@ -261,6 +283,7 @@ namespace store::storage::cassandra {
       cout << "Waited ms: " << to_string(wait_time->count()) << endl;
       #endif
       caResourceManager->fetchNextTasks(caResourceModifiedHandler, caResourceManager);
+      */
     }
 
     void rowToCaResourceProcessedTapFunc(CassFuture* future, HandleCaResourceModifiedFunc caResourceModifiedHandler, CaResourceManager* caResourceManager) {
