@@ -170,11 +170,13 @@ namespace store::storage::cassandra {
       auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
       conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
 
+      /*
       {
         std::unique_lock<std::mutex> lock(queue_mutex);
         stop = false;
       }
       condition.notify_one();
+      */
     }
     
   // bool is_ready = false;    
@@ -330,7 +332,11 @@ namespace store::storage::cassandra {
         }
 
         auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
-        conn->insertAsync(statements, batchOnInsertHandler);
+        // conn->insertAsync(statements, batchOnInsertHandler);
+        #ifdef DEBUG
+          cout << "Block until insert completes: condition.wait..." << endl;
+        #endif
+        conn->insertSync(statements);
       }
 
       // Block until insert completes.
@@ -341,6 +347,7 @@ namespace store::storage::cassandra {
         caResourceManager->is_ready = false;
       }
       */
+      /*
       {
         #ifdef DEBUG
           cout << "Block until insert completes: condition.wait..." << endl;
@@ -349,6 +356,7 @@ namespace store::storage::cassandra {
         this->condition.wait(lock, [&caResourceManager]{ return caResourceManager->stop; });
         caResourceManager->stop = false;
       }
+      */
 
       // Recurse.
       auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");

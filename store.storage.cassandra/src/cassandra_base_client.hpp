@@ -235,9 +235,10 @@ namespace store::storage::cassandra {
       }
 
       auto batch_future = cass_session_execute_batch(session, batch);
-      cass_future_wait(batch_future);
+      /* Batch objects can be freed immediately after being executed */
       cass_batch_free(batch);
 
+      /* This will block until the query has finished */
       size_t rc = cass_future_error_code(batch_future);
       if (rc != CASS_OK) {
         print_error(batch_future);
@@ -268,6 +269,7 @@ namespace store::storage::cassandra {
       }
 
       auto batch_future = cass_session_execute_batch(session, batch);
+      cass_batch_free(batch);
       cass_future_set_callback(batch_future, callback, session);
       cass_future_free(batch_future);
     }
