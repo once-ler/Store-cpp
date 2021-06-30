@@ -23,8 +23,8 @@ namespace ioc = store::ioc;
 
 namespace store::storage::cassandra {
   
-  std::mutex mtx;
-  std::condition_variable cv;
+  // std::mutex mtx;
+  // std::condition_variable cv;
   
   using RowToCaResourceModifiedCallback = std::function<void(CassFuture* future, void* data)>;
   using RowToCaResourceModifiedCallbackHandler = std::function<RowToCaResourceModifiedCallback(HandleCaResourceModifiedFunc&)>;
@@ -40,6 +40,28 @@ namespace store::storage::cassandra {
   class CaResourceManager {
   public:
     const string version = "0.1.3";
+
+    // copy constructor
+    CaResourceManager(CaResourceManager const& other) {
+      // no need to lock this objec because no other thread
+      // will be using it until after construction
+      // but we DO need to lock the other object
+      std::unique_lock<std::mutex> lock_other(other.queue_mutex);
+      // ...
+    }
+
+    // copy assignment operator
+    CaResourceManager& operator=(CaResourceManager const& other) {
+      if(&other != this) {
+        // lock both objects
+        std::unique_lock<std::mutex> lock_this(queue_mutex, std::defer_lock);
+        std::unique_lock<std::mutex> lock_other(other.queue_mutex, std::defer_lock);
+
+        // ensure no deadlock
+        std::lock(lock_this, lock_other);
+        // ...
+      }
+    }
 
     CaResourceManager(const string& keyspace_, const string& environment_, const string& store_, const string& dataType_, const string& purpose_) : 
       keyspace(keyspace_), environment(environment_), store(store_), dataType(dataType_), purpose(purpose_) {
@@ -58,7 +80,8 @@ namespace store::storage::cassandra {
         ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":store", make_shared<string>(store));
         ioc::ServiceProvider->RegisterInstanceWithKey<std::chrono::milliseconds>(addr + ":wait_time", make_shared<std::chrono::milliseconds>(wait_time));
     }
-    ~CaResourceManager() = default;
+    // CaResourceManager() = default;
+    // ~CaResourceManager() = delete;
 
     void fetchNextTasks(HandleCaResourceModifiedFunc caResourceModifiedHandler, CaResourceManager* caResourceManager = NULL) {
       // Workflow is processed-functions -> modified-functions, but we define callbacks in reverse order.
@@ -78,11 +101,21 @@ namespace store::storage::cassandra {
       };
 
       batchOnInsertCallback = [this](CassFuture* future, void* data) {
+        /*
         {
           std::lock_guard<std::mutex> guard(mtx);
           this->is_ready = true;
         }
         cv.notify_one();
+        */
+        {
+          #ifdef DEBUG
+          cout << "batchOnInsertCallback(): condition.notify_one..." << endl;
+          #endif
+          std::unique_lock<std::mutex> lock(queue_mutex);
+          stop = true;
+        }
+        condition.notify_one();
       };
       
       // batchOnInsertCallback = [caResourceModifiedHandler, this](CassFuture* future, void* data) {
@@ -136,9 +169,15 @@ namespace store::storage::cassandra {
 
       auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
       conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
+
+      {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        stop = false;
+      }
+      condition.notify_one();
     }
     
-  bool is_ready = false;    
+  // bool is_ready = false;    
 
   private:
     string caResourceProcessedTable = "ca_resource_processed";
@@ -150,6 +189,11 @@ namespace store::storage::cassandra {
     string purpose;
     std::chrono::milliseconds wait_time = std::chrono::milliseconds(4000);
     
+    // synchronization
+    mutable std::mutex queue_mutex;
+    std::condition_variable condition;
+    bool stop;
+
     string ca_resource_processed_select = R"__(
       select uid from {}.ca_resource_processed
       where environment = '{}'
@@ -290,13 +334,22 @@ namespace store::storage::cassandra {
       }
 
       // Block until insert completes.
+      /*
       {
         std::unique_lock<std::mutex> uLock(mtx);
-      // while (!caResourceManager->on_ready()) { 
         cv.wait(uLock, [&caResourceManager] { return caResourceManager->is_ready; });
         caResourceManager->is_ready = false;
-      // }
       }
+      */
+      {
+        #ifdef DEBUG
+          cout << "Block until insert completes: condition.wait..." << endl;
+        #endif
+        std::unique_lock<std::mutex> lock(caResourceManager->queue_mutex);
+        this->condition.wait(lock, [&caResourceManager]{ return caResourceManager->stop; });
+        caResourceManager->stop = false;
+      }
+
       // Recurse.
       auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
       std::this_thread::sleep_for(*wait_time);
