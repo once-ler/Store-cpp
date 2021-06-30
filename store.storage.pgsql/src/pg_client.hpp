@@ -434,9 +434,11 @@ namespace store {
           };
         }
 
+      shared_ptr<ConnectionPool<PostgreSQLConnection>> pool;
+
       protected:
         string connectionInfo;
-        shared_ptr<ConnectionPool<PostgreSQLConnection>> pool;
+        
       private:
         
       };     
