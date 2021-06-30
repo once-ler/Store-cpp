@@ -236,7 +236,14 @@ namespace store::storage::cassandra {
 
       auto batch_future = cass_session_execute_batch(session, batch);
       cass_future_wait(batch_future);
+      
+      size_t rc = cass_future_error_code(future);
+      if (rc != CASS_OK) {
+        print_error(future);
+      }
+
       cass_future_free(batch_future);
+      cass_batch_free(batch);
     }
 
     void insertAsync(CassStatement* statement) {
