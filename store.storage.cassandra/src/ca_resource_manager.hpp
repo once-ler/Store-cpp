@@ -101,13 +101,6 @@ namespace store::storage::cassandra {
       };
 
       batchOnInsertCallback = [this](CassFuture* future, void* data) {
-        /*
-        {
-          std::lock_guard<std::mutex> guard(mtx);
-          this->is_ready = true;
-        }
-        cv.notify_one();
-        */
         {
           #ifdef DEBUG
           cout << "batchOnInsertCallback(): condition.notify_one..." << endl;
@@ -168,15 +161,9 @@ namespace store::storage::cassandra {
       #endif
 
       auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
-      conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
+      // conn->executeQueryAsync(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedHandler);
 
-      /*
-      {
-        std::unique_lock<std::mutex> lock(queue_mutex);
-        stop = false;
-      }
-      condition.notify_one();
-      */
+      conn->executeQuery(compileResourceProcessedStmt.c_str(), rowToCaResourceProcessedCallback);
     }
     
   // bool is_ready = false;    
@@ -332,7 +319,10 @@ namespace store::storage::cassandra {
         }
 
         auto conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
-        conn->insertAsync(statements, batchOnInsertHandler);
+        
+        // conn->insertAsync(statements, batchOnInsertHandler);
+
+        conn->insertSync(statements);
       }
 
       // Block until insert completes.
@@ -435,7 +425,8 @@ namespace store::storage::cassandra {
         cout << compileResourceModifiedStmt << endl;
         #endif
 
-        conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
+        // conn->executeQueryAsync(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedHandler);
+        conn->executeQuery(compileResourceModifiedStmt.c_str(), rowToCaResourceModifiedCallback);
       }
     }
    

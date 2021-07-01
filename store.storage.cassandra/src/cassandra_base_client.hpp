@@ -193,6 +193,30 @@ namespace store::storage::cassandra {
       return rc;
     }
 
+    CassError executeQuery(const char* query, std::function<void(CassFuture*, void*)>& tapFunc) {
+      CassError rc = CASS_OK;
+      CassFuture* future = NULL;
+      CassStatement* statement = cass_statement_new(query, 0);
+
+      future = cass_session_execute(session, statement);
+      
+      cass_future_wait(future);
+
+      rc = cass_future_error_code(future);
+      if (rc != CASS_OK) {
+        print_error(future);
+      }
+
+      if (rc == CASS_OK) {
+        tapFunc(future, NULL);
+      }
+
+      cass_future_free(future);
+      cass_statement_free(statement);
+
+      return rc;
+    }
+
     void executeQueryAsync(const char* query, CassFutureCallback callback) {
       CassStatement* statement = cass_statement_new(query, 0);
       CassFuture* future = cass_session_execute(session, statement);
