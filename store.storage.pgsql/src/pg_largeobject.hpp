@@ -15,9 +15,7 @@ namespace store::storage::pgsql {
   template<typename A>
   class LargeObjectHandler {
   public:
-    explicit LargeObjectHandler(Client<A>* session_): session(session_) {
-      connInfo = getConnInfo();
-    }
+    explicit LargeObjectHandler(Client<A>* session_): session(session_) {}
 
     void deleteOid(Oid oid) {
       // std::shared_ptr<PostgreSQLConnection> conn = nullptr;
@@ -25,7 +23,7 @@ namespace store::storage::pgsql {
       try {
         // conn = session->pool->borrow();
         // lo_unlink(conn->sql_connection->getPGconn(), oid);
-
+        connInfo = getConnInfo();
         pg_conn = PQconnectdb(connInfo.c_str());
         lo_unlink(pg_conn, oid);
       } catch (exception e) {
@@ -48,6 +46,7 @@ namespace store::storage::pgsql {
       try {
         // conn = session->pool->borrow();
         // auto pg_conn = conn->sql_connection->getPGconn();
+        connInfo = getConnInfo();
         pg_conn = PQconnectdb(connInfo.c_str());
         
         res = PQexec(pg_conn, "BEGIN");
@@ -98,6 +97,7 @@ namespace store::storage::pgsql {
       try {
         // conn = session->pool->borrow();
         // auto pg_conn = conn->sql_connection->getPGconn();
+        connInfo = getConnInfo();
         pg_conn = PQconnectdb(connInfo.c_str());
         res = PQexec(pg_conn, "BEGIN");
         oid = lo_import(pg_conn, filename);
@@ -124,6 +124,7 @@ namespace store::storage::pgsql {
       try {
         // conn = session->pool->borrow();
         // auto pg_conn = conn->sql_connection->getPGconn();
+        connInfo = getConnInfo();
         pg_conn = PQconnectdb(connInfo.c_str());
         res = PQexec(pg_conn, "BEGIN");
 
