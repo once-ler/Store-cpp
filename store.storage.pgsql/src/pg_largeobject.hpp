@@ -15,30 +15,40 @@ namespace store::storage::pgsql {
   template<typename A>
   class LargeObjectHandler {
   public:
-    explicit LargeObjectHandler(Client<A>* session_): session(session_) {}
+    explicit LargeObjectHandler(Client<A>* session_): session(session_) {
+      connInfo = getConnInfo();
+    }
 
     void deleteOid(Oid oid) {
-      std::shared_ptr<PostgreSQLConnection> conn = nullptr;
-      
+      // std::shared_ptr<PostgreSQLConnection> conn = nullptr;
+      PGconn* pg_conn = NULL;
       try {
-        conn = session->pool->borrow();
-        lo_unlink(conn->sql_connection->getPGconn(), oid);
+        // conn = session->pool->borrow();
+        // lo_unlink(conn->sql_connection->getPGconn(), oid);
+
+        pg_conn = PQconnectdb(connInfo.c_str());
+        lo_unlink(pg_conn, oid);
       } catch (exception e) {
         session->logger->error(e.what());
       }
 
-      if (conn)
-        session->pool->unborrow(conn);
+      // if (conn)
+      //   session->pool->unborrow(conn);
+
+      if (pg_conn)
+        PQfinish(pg_conn);
     }
 
     Oid upload(const string& data) {
       Oid oid;
       PGresult* res;
-      std::shared_ptr<PostgreSQLConnection> conn = nullptr;
+      PGconn* pg_conn = NULL;
+      // std::shared_ptr<PostgreSQLConnection> conn = nullptr;
       
       try {
-        conn = session->pool->borrow();
-        auto pg_conn = conn->sql_connection->getPGconn();
+        // conn = session->pool->borrow();
+        // auto pg_conn = conn->sql_connection->getPGconn();
+        pg_conn = PQconnectdb(connInfo.c_str());
         
         res = PQexec(pg_conn, "BEGIN");
         oid = lo_creat(pg_conn, INV_READ | INV_WRITE);
@@ -71,8 +81,11 @@ namespace store::storage::pgsql {
         session->logger->error(e.what());
       }
       
-      if (conn)
-        session->pool->unborrow(conn);
+      // if (conn)
+      //   session->pool->unborrow(conn);
+
+      if (pg_conn)
+        PQfinish(pg_conn);
 
       return oid;
     }
@@ -80,10 +93,12 @@ namespace store::storage::pgsql {
     Oid uploadFile(const char* filename) {
       std::shared_ptr<PostgreSQLConnection> conn = nullptr;
       PGresult* res;
+      PGconn* pg_conn = NULL;
       Oid oid;
       try {
-        conn = session->pool->borrow();
-        auto pg_conn = conn->sql_connection->getPGconn();
+        // conn = session->pool->borrow();
+        // auto pg_conn = conn->sql_connection->getPGconn();
+        pg_conn = PQconnectdb(connInfo.c_str());
         res = PQexec(pg_conn, "BEGIN");
         oid = lo_import(pg_conn, filename);
         res = PQexec(pg_conn, "COMMIT");
@@ -92,8 +107,10 @@ namespace store::storage::pgsql {
         session->logger->error(e.what());
       }
       
-      if (conn)
-        session->pool->unborrow(conn);
+      // if (conn)
+      //   session->pool->unborrow(conn);
+      if (pg_conn)
+        PQfinish(pg_conn);
 
       return oid;  
     }
@@ -102,10 +119,12 @@ namespace store::storage::pgsql {
       string retval;
       std::shared_ptr<PostgreSQLConnection> conn = nullptr;
       PGresult* res;
+      PGconn* pg_conn = NULL;
 
       try {
-        conn = session->pool->borrow();
-        auto pg_conn = conn->sql_connection->getPGconn();
+        // conn = session->pool->borrow();
+        // auto pg_conn = conn->sql_connection->getPGconn();
+        pg_conn = PQconnectdb(connInfo.c_str());
         res = PQexec(pg_conn, "BEGIN");
 
         auto fd = lo_open(pg_conn, oid, INV_READ);
@@ -130,8 +149,10 @@ namespace store::storage::pgsql {
         session->logger->error(e.what());
       }
       
-      if (conn)
-        session->pool->unborrow(conn);
+      // if (conn)
+      //   session->pool->unborrow(conn);
+      if (pg_conn)
+        PQfinish(pg_conn);
 
       return retval;
     }
@@ -140,5 +161,32 @@ namespace store::storage::pgsql {
     Client<A>* session;
     size_t buf_size = 32768;
     string fd_open_failed_error = "Failed operation: lo_open().";
+    
+    string connInfo;
+
+    string getConnInfo() {
+      stringstream ss;
+			std::shared_ptr<PostgreSQLConnection> conn = nullptr;
+          
+      try {
+        conn = session->pool->borrow();
+        PGconn* pg_conn = conn->sql_connection->getPGconn();
+        char* username = PQuser(pg_conn);
+        char* password = PQpass(pg_conn);
+        char* server = PQhost(pg_conn);
+        char* port = PQport(pg_conn);
+        char* database = PQdb(pg_conn);
+        // postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]
+			  ss << "postgresql://" << username << ":" << password << "@" << server << ":" << port << "/" << database;
+			} catch (exception e) {
+        session->logger->error(e.what());
+      }
+
+      if (conn)
+        session->pool->unborrow(conn);
+
+      return ss.str();	
+    }
+
   };
 }
