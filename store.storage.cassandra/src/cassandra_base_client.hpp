@@ -193,7 +193,7 @@ namespace store::storage::cassandra {
       return rc;
     }
 
-    CassError executeQuery(const char* query, std::function<void(CassFuture*, void*)>& tapFunc) {
+    CassError executeQuery(const char* query, std::function<void(CassFuture*, void*)> const & tapFunc) {
       CassError rc = CASS_OK;
       CassFuture* future = NULL;
       CassStatement* statement = cass_statement_new(query, 0);
