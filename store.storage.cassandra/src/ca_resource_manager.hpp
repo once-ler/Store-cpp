@@ -64,7 +64,6 @@ namespace store::storage::cassandra {
       keyspace(keyspace_), environment(environment_), store(store_), dataType(dataType_), purpose(purpose_) {
         conn = ioc::ServiceProvider->GetInstance<CassandraBaseClient>();
 
-        /*
         stringstream ss;
         ss << this;
         string addr = ss.str();
@@ -77,8 +76,6 @@ namespace store::storage::cassandra {
         ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":data_type", make_shared<string>(dataType));
         ioc::ServiceProvider->RegisterInstanceWithKey<string>(addr + ":store", make_shared<string>(store));
         ioc::ServiceProvider->RegisterInstanceWithKey<std::chrono::milliseconds>(addr + ":wait_time", make_shared<std::chrono::milliseconds>(wait_time));
-        */
-
     }
     // CaResourceManager() = default;
     // ~CaResourceManager() = delete;
@@ -119,7 +116,6 @@ namespace store::storage::cassandra {
       stringstream ss;
       // ss << (caResourceManager == NULL ? this : caResourceManager);
       
-      /*
       ss << this;
       string managerAddr = ss.str();
 
@@ -129,8 +125,7 @@ namespace store::storage::cassandra {
         store = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":store")), 
         dataType = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":data_type")), 
         purpose = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":purpose"));    
-      */
-
+      
       #ifdef DEBUG
       cout << "ca_resource_processed_select: " << ca_resource_processed_select << endl
         << "keyspace: " << keyspace << endl
@@ -338,14 +333,11 @@ namespace store::storage::cassandra {
       */
 
       // Recurse.
-      // auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
-      // std::this_thread::sleep_for(*wait_time);
+      auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
+      std::this_thread::sleep_for(*wait_time);
 
-      auto wait_time = caResourceManager->wait_time;
-      std::this_thread::sleep_for(wait_time);
-  
       #ifdef DEBUG
-      cout << "Waited ms: " << to_string(wait_time.count()) << endl;
+      cout << "Waited ms: " << to_string(wait_time->count()) << endl;
       #endif
 
       // caResourceManager->fetchNextTasks(caResourceModifiedHandler, caResourceManager);
@@ -362,11 +354,8 @@ namespace store::storage::cassandra {
         // TODO: Write to log.
         string error = get_error(future);
 
-        // auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
-        // std::this_thread::sleep_for(*wait_time);
-        
-        auto wait_time = caResourceManager->wait_time;
-        std::this_thread::sleep_for(wait_time);
+        auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
+        std::this_thread::sleep_for(*wait_time);
         
         // caResourceManager->fetchNextTasks(caResourceModifiedHandler, caResourceManager);
         caResourceManager->fetchNextTasks(std::forward<HandleCaResourceModifiedFunc>(caResourceModifiedHandler));
@@ -399,14 +388,12 @@ namespace store::storage::cassandra {
         cass_result_free(result);
 
         // Apply user defined tap function given uuid.
-        /*
         string ca_resource_modified_select = *(ioc::ServiceProvider->GetInstanceWithKey<string>("ca_resource_modified_select")),
         keyspace = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":keyspace")), 
         environment = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":environment")), 
         store = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":store")), 
         dataType = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":data_type")); 
-        */
-       
+
         #ifdef DEBUG
         cout << "ca_resource_modified_select: " << ca_resource_modified_select << endl
           << "keyspace: " << keyspace << endl
