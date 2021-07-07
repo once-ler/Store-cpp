@@ -399,12 +399,14 @@ namespace store::storage::cassandra {
         cass_result_free(result);
 
         // Apply user defined tap function given uuid.
+        /*
         string ca_resource_modified_select = *(ioc::ServiceProvider->GetInstanceWithKey<string>("ca_resource_modified_select")),
         keyspace = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":keyspace")), 
         environment = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":environment")), 
         store = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":store")), 
         dataType = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":data_type")); 
-
+        */
+       
         #ifdef DEBUG
         cout << "ca_resource_modified_select: " << ca_resource_modified_select << endl
           << "keyspace: " << keyspace << endl
