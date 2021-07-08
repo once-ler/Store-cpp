@@ -86,18 +86,17 @@ namespace store::storage::cassandra {
     // ~CaResourceManager() = delete;
 
     void run() {
-      do {
+      while (true) {
         // Recurse.
-        fetchNextTasks(std::forward<HandleCaResourceModifiedFunc>(caResourceModifiedFunc));
-
         // auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
         std::this_thread::sleep_for(wait_time);
 
         #ifdef DEBUG
         cout << "Waited ms: " << to_string(wait_time.count()) << endl;
         #endif
-        
-      } while (true);
+
+        fetchNextTasks(std::forward<HandleCaResourceModifiedFunc>(caResourceModifiedFunc));
+      }
     }
 
     // void fetchNextTasks(HandleCaResourceModifiedFunc& caResourceModifiedHandler, CaResourceManager* caResourceManager = NULL) {
@@ -376,7 +375,7 @@ namespace store::storage::cassandra {
         // TODO: Write to log.
         string error = get_error(future);
         cout << error << endl;
-        
+
         /*
         auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
         std::this_thread::sleep_for(*wait_time);
