@@ -270,12 +270,12 @@ namespace store::storage::cassandra {
           string environment = c1->environment,
             store = c1->store,
             dataType = c1->type,
-            purpose = purpose, // *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":purpose")), 
+            purpose = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":purpose")), 
             current = c1->current,
             id = c1->id,
             oid = c1->oid,
-            keyspace = keyspace, // *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":keyspace")),
-            caResourceProcessedTable = caResourceProcessedTable; // *(ioc::ServiceProvider->GetInstanceWithKey<string>("ca_resource_processed"));
+            keyspace = *(ioc::ServiceProvider->GetInstanceWithKey<string>(managerAddr + ":keyspace")),
+            caResourceProcessedTable = *(ioc::ServiceProvider->GetInstanceWithKey<string>("ca_resource_processed"));
 
           int64_t start_time = c1->start_time;
 
