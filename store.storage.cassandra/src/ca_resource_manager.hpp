@@ -36,7 +36,12 @@ namespace store::storage::cassandra {
 
   class CaResourceManager {
   public:
-    const string version = "0.1.3";
+    const string version = "0.1.4";
+
+    // Defines a function pointer type pointing to a void function which doesn't take any parameter.
+    typedef shared_ptr<ca_resource_modified> (*HandleCaResourceModifiedFuncHolder)(shared_ptr<ca_resource_modified>);
+
+    HandleCaResourceModifiedFuncHolder caResourceModifiedFunc;
 
     // copy constructor
     CaResourceManager(CaResourceManager const& other) {
@@ -79,6 +84,21 @@ namespace store::storage::cassandra {
     }
     // CaResourceManager() = default;
     // ~CaResourceManager() = delete;
+
+    void run() {
+      do {
+        // Recurse.
+        fetchNextTasks(std::forward<HandleCaResourceModifiedFunc>(caResourceModifiedFunc));
+
+        // auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
+        std::this_thread::sleep_for(wait_time);
+
+        #ifdef DEBUG
+        cout << "Waited ms: " << to_string(wait_time.count()) << endl;
+        #endif
+        
+      } while (true);
+    }
 
     // void fetchNextTasks(HandleCaResourceModifiedFunc& caResourceModifiedHandler, CaResourceManager* caResourceManager = NULL) {
     void fetchNextTasks(HandleCaResourceModifiedFunc&& caResourceModifiedHandler) {
@@ -332,6 +352,7 @@ namespace store::storage::cassandra {
       }
       */
 
+      /*
       // Recurse.
       auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
       std::this_thread::sleep_for(*wait_time);
@@ -342,6 +363,7 @@ namespace store::storage::cassandra {
 
       // caResourceManager->fetchNextTasks(caResourceModifiedHandler, caResourceManager);
       caResourceManager->fetchNextTasks(std::forward<HandleCaResourceModifiedFunc>(caResourceModifiedHandler));
+      */
     }
 
     void rowToCaResourceProcessedTapFunc(CassFuture* future, HandleCaResourceModifiedFunc& caResourceModifiedHandler, CaResourceManager* caResourceManager) {
