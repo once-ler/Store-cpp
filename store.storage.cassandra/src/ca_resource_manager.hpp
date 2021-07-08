@@ -375,12 +375,15 @@ namespace store::storage::cassandra {
       if (code != CASS_OK) {
         // TODO: Write to log.
         string error = get_error(future);
-
+        cout << error << endl;
+        
+        /*
         auto wait_time = ioc::ServiceProvider->GetInstanceWithKey<std::chrono::milliseconds>(managerAddr + ":wait_time");
         std::this_thread::sleep_for(*wait_time);
         
         // caResourceManager->fetchNextTasks(caResourceModifiedHandler, caResourceManager);
         caResourceManager->fetchNextTasks(std::forward<HandleCaResourceModifiedFunc>(caResourceModifiedHandler));
+        */
       } else {
         const CassResult* result = cass_future_get_result(future);
         
