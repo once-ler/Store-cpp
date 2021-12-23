@@ -1,78 +1,234 @@
-/* 
-  base64.cpp and base64.h
+// https://www.boost.org/doc/libs/1_66_0/boost/beast/core/detail/base64.hpp
+//
+// Copyright (c) 2016-2017 Vinnie Falco (vinnie dot falco at gmail dot com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+// Official repository: https://github.com/boostorg/beast
+//
 
-  base64 encoding and decoding with C++.
-  More information at
-    https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp
+/*
+   Portions from http://www.adp-gmbh.ch/cpp/common/base64.html
+   Copyright notice:
 
-  Version: 2.rc.08 (release candidate)
+   base64.cpp and base64.h
 
-  Copyright (C) 2004-2017, 2020, 2021 René Nyffenegger
+   Copyright (C) 2004-2008 Ren� Nyffenegger
 
-  This source code is provided 'as-is', without any express or implied
-  warranty. In no event will the author be held liable for any damages
-  arising from the use of this software.
+   This source code is provided 'as-is', without any express or implied
+   warranty. In no event will the author be held liable for any damages
+   arising from the use of this software.
 
-  Permission is granted to anyone to use this software for any purpose,
-  including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
+   Permission is granted to anyone to use this software for any purpose,
+   including commercial applications, and to alter it and redistribute it
+   freely, subject to the following restrictions:
 
-  1. The origin of this source code must not be misrepresented; you must not
-    claim that you wrote the original source code. If you use this source code
-    in a product, an acknowledgment in the product documentation would be
-    appreciated but is not required.
+   1. The origin of this source code must not be misrepresented; you must not
+      claim that you wrote the original source code. If you use this source code
+      in a product, an acknowledgment in the product documentation would be
+      appreciated but is not required.
 
-  2. Altered source versions must be plainly marked as such, and must not be
-    misrepresented as being the original source code.
+   2. Altered source versions must be plainly marked as such, and must not be
+      misrepresented as being the original source code.
 
-  3. This notice may not be removed or altered from any source distribution.
+   3. This notice may not be removed or altered from any source distribution.
 
-  René Nyffenegger rene.nyffenegger@adp-gmbh.ch
+   Ren� Nyffenegger rene.nyffenegger@adp-gmbh.ch
+
 */
 
-//#include "base64.h"
 #include <iostream>
 
 namespace store::common {
+  
+  namespace base64 {
+    inline
+    char const*
+    get_alphabet()
+    {
+        static char constexpr tab[] = {
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+        };
+        return &tab[0];
+    }
 
-  //
-  // Depending on the url parameter in base64_chars, one of
-  // two sets of base64 characters needs to be chosen.
-  // They differ in their last two characters.
-  //
-  static const char* base64_chars[2] = {
-              "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-              "abcdefghijklmnopqrstuvwxyz"
-              "0123456789"
-              "+/",
+    inline
+    signed char const*
+    get_inverse()
+    {
+        static signed char constexpr tab[] = {
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, //   0-15
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, //  16-31
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63, //  32-47
+            52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -1, -1, -1, //  48-63
+            -1,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, //  64-79
+            15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1, //  80-95
+            -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, //  96-111
+            41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1, // 112-127
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, // 128-143
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, // 144-159
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, // 160-175
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, // 176-191
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, // 192-207
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, // 208-223
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, // 224-239
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1  // 240-255
+        };
+        return &tab[0];
+    }
 
-              "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-              "abcdefghijklmnopqrstuvwxyz"
-              "0123456789"
-              "-_"};
 
-  static unsigned int pos_of_char(const unsigned char chr) {
-  //
-  // Return the position of chr within base64_encode()
-  //
+    /// Returns max chars needed to encode a base64 string
+    inline
+    std::size_t constexpr
+    encoded_size(std::size_t n)
+    {
+        return 4 * ((n + 2) / 3);
+    }
 
-    if      (chr >= 'A' && chr <= 'Z') return chr - 'A';
-    else if (chr >= 'a' && chr <= 'z') return chr - 'a' + ('Z' - 'A')               + 1;
-    else if (chr >= '0' && chr <= '9') return chr - '0' + ('Z' - 'A') + ('z' - 'a') + 2;
-    else if (chr == '+' || chr == '-') return 62; // Be liberal with input and accept both url ('-') and non-url ('+') base 64 characters (
-    else if (chr == '/' || chr == '_') return 63; // Ditto for '/' and '_'
-    else
-  //
-  // 2020-10-23: Throw std::exception rather than const char*
-  //(Pablo Martin-Gomez, https://github.com/Bouska)
-  //
-    throw std::runtime_error("Input is not valid base64-encoded data.");
+    /// Returns max bytes needed to decode a base64 string
+    inline
+    std::size_t constexpr
+    decoded_size(std::size_t n)
+    {
+        return n / 4 * 3; // requires n&3==0, smaller
+        //return 3 * n / 4;
+    }
+
+    /** Encode a series of octets as a padded, base64 string.
+
+        The resulting string will not be null terminated.
+
+        @par Requires
+
+        The memory pointed to by `out` points to valid memory
+        of at least `encoded_size(len)` bytes.
+
+        @return The number of characters written to `out`. This
+        will exclude any null termination.
+    */
+    template<class = void>
+    std::size_t
+    encode(void* dest, void const* src, std::size_t len)
+    {
+        char*      out = static_cast<char*>(dest);
+        char const* in = static_cast<char const*>(src);
+        auto const tab = base64::get_alphabet();
+
+        for(auto n = len / 3; n--;)
+        {
+            *out++ = tab[ (in[0] & 0xfc) >> 2];
+            *out++ = tab[((in[0] & 0x03) << 4) + ((in[1] & 0xf0) >> 4)];
+            *out++ = tab[((in[2] & 0xc0) >> 6) + ((in[1] & 0x0f) << 2)];
+            *out++ = tab[  in[2] & 0x3f];
+            in += 3;
+        }
+
+        switch(len % 3)
+        {
+        case 2:
+            *out++ = tab[ (in[0] & 0xfc) >> 2];
+            *out++ = tab[((in[0] & 0x03) << 4) + ((in[1] & 0xf0) >> 4)];
+            *out++ = tab[                         (in[1] & 0x0f) << 2];
+            *out++ = '=';
+            break;
+
+        case 1:
+            *out++ = tab[ (in[0] & 0xfc) >> 2];
+            *out++ = tab[((in[0] & 0x03) << 4)];
+            *out++ = '=';
+            *out++ = '=';
+            break;
+
+        case 0:
+            break;
+        }
+
+        return out - static_cast<char*>(dest);
+    }
+
+    /** Decode a padded base64 string into a series of octets.
+
+        @par Requires
+
+        The memory pointed to by `out` points to valid memory
+        of at least `decoded_size(len)` bytes.
+
+        @return The number of octets written to `out`, and
+        the number of characters read from the input string,
+        expressed as a pair.
+    */
+    template<class = void>
+    std::pair<std::size_t, std::size_t>
+    decode(void* dest, char const* src, std::size_t len)
+    {
+        char* out = static_cast<char*>(dest);
+        auto in = reinterpret_cast<unsigned char const*>(src);
+        unsigned char c3[3], c4[4];
+        int i = 0;
+        int j = 0;
+
+        auto const inverse = base64::get_inverse();
+
+        while(len-- && *in != '=')
+        {
+            auto const v = inverse[*in];
+            if(v == -1)
+                break;
+            ++in;
+            c4[i] = v;
+            if(++i == 4)
+            {
+                c3[0] =  (c4[0]        << 2) + ((c4[1] & 0x30) >> 4);
+                c3[1] = ((c4[1] & 0xf) << 4) + ((c4[2] & 0x3c) >> 2);
+                c3[2] = ((c4[2] & 0x3) << 6) +   c4[3];
+
+                for(i = 0; i < 3; i++)
+                    *out++ = c3[i];
+                i = 0;
+            }
+        }
+
+        if(i)
+        {
+            c3[0] = ( c4[0]        << 2) + ((c4[1] & 0x30) >> 4);
+            c3[1] = ((c4[1] & 0xf) << 4) + ((c4[2] & 0x3c) >> 2);
+            c3[2] = ((c4[2] & 0x3) << 6) +   c4[3];
+
+            for(j = 0; j < i - 1; j++)
+                *out++ = c3[j];
+        }
+
+        return {out - static_cast<char*>(dest),
+            in - reinterpret_cast<unsigned char const*>(src)};
+    }
+
+  } // base64
+
+  template<class = void>
+  std::string
+  base64_encode (std::uint8_t const* data,
+      std::size_t len)
+  {
+      std::string dest;
+      dest.resize(base64::encoded_size(len));
+      dest.resize(base64::encode(&dest[0], data, len));
+      return dest;
+  }
+
+  inline
+  std::string
+  base64_encode(std::string const& s)
+  {
+      return base64_encode (reinterpret_cast <
+          std::uint8_t const*> (s.data()), s.size());
   }
 
   static std::string insert_linebreaks(std::string str, size_t distance) {
-  //
-  // Provided by https://github.com/JomaCorpFX, adapted by me.
-  //
+    //
+    // Provided by https://github.com/JomaCorpFX, adapted by me.
+    //
     if (!str.length()) {
         return "";
     }
@@ -88,197 +244,31 @@ namespace store::common {
   }
 
   template <typename String, unsigned int line_length>
-  static std::string encode_with_line_breaks(String s) {
-    return insert_linebreaks(base64_encode(s, false), line_length);
+  static std::string base64_encode_with_line_breaks(String s) {
+    return insert_linebreaks(base64_encode(s), line_length);
   }
 
   template <typename String>
-  static std::string encode_pem(String s) {
-    return encode_with_line_breaks<String, 64>(s);
+  static std::string base64_encode_pem(String s) {
+    return base64_encode_with_line_breaks<String, 64>(s);
   }
 
   template <typename String>
-  static std::string encode_mime(String s) {
-    return encode_with_line_breaks<String, 76>(s);
+  static std::string base64_encode_mime(String s) {
+    return base64_encode_with_line_breaks<String, 76>(s);
   }
 
-  template <typename String>
-  static std::string encode(String s, bool url) {
-    return base64_encode(reinterpret_cast<const unsigned char*>(s.data()), s.length(), url);
+  template<class = void>
+  std::string
+  base64_decode(std::string const& data)
+  {
+      std::string dest;
+      dest.resize(base64::decoded_size(data.size()));
+      auto const result = base64::decode(
+          &dest[0], data.data(), data.size());
+      dest.resize(result.first);
+      return dest;
   }
-
-  std::string base64_encode(unsigned char const* bytes_to_encode, size_t in_len, bool url = false) {
-
-    size_t len_encoded = (in_len +2) / 3 * 4;
-
-    unsigned char trailing_char = url ? '.' : '=';
-
-  //
-  // Choose set of base64 characters. They differ
-  // for the last two positions, depending on the url
-  // parameter.
-  // A bool (as is the parameter url) is guaranteed
-  // to evaluate to either 0 or 1 in C++ therefore,
-  // the correct character set is chosen by subscripting
-  // base64_chars with url.
-  //
-    const char* base64_chars_ = base64_chars[url];
-
-    std::string ret;
-    ret.reserve(len_encoded);
-
-    unsigned int pos = 0;
-
-    while (pos < in_len) {
-        ret.push_back(base64_chars_[(bytes_to_encode[pos + 0] & 0xfc) >> 2]);
-
-        if (pos+1 < in_len) {
-            ret.push_back(base64_chars_[((bytes_to_encode[pos + 0] & 0x03) << 4) + ((bytes_to_encode[pos + 1] & 0xf0) >> 4)]);
-
-            if (pos+2 < in_len) {
-              ret.push_back(base64_chars_[((bytes_to_encode[pos + 1] & 0x0f) << 2) + ((bytes_to_encode[pos + 2] & 0xc0) >> 6)]);
-              ret.push_back(base64_chars_[  bytes_to_encode[pos + 2] & 0x3f]);
-            }
-            else {
-              ret.push_back(base64_chars_[(bytes_to_encode[pos + 1] & 0x0f) << 2]);
-              ret.push_back(trailing_char);
-            }
-        }
-        else {
-
-            ret.push_back(base64_chars_[(bytes_to_encode[pos + 0] & 0x03) << 4]);
-            ret.push_back(trailing_char);
-            ret.push_back(trailing_char);
-        }
-
-        pos += 3;
-    }
-
-
-    return ret;
-  }
-
-  template <typename String>
-  static std::string decode(String encoded_string, bool remove_linebreaks) {
-  //
-  // decode(…) is templated so that it can be used with String = const std::string&
-  // or std::string_view (requires at least C++17)
-  //
-
-    if (encoded_string.empty()) return std::string();
-
-    if (remove_linebreaks) {
-
-        std::string copy(encoded_string);
-
-        copy.erase(std::remove(copy.begin(), copy.end(), '\n'), copy.end());
-
-        return base64_decode(copy, false);
-    }
-
-    size_t length_of_string = encoded_string.length();
-    size_t pos = 0;
-
-  //
-  // The approximate length (bytes) of the decoded string might be one or
-  // two bytes smaller, depending on the amount of trailing equal signs
-  // in the encoded string. This approximation is needed to reserve
-  // enough space in the string to be returned.
-  //
-    size_t approx_length_of_decoded_string = length_of_string / 4 * 3;
-    std::string ret;
-    ret.reserve(approx_length_of_decoded_string);
-
-    while (pos < length_of_string) {
-    //
-    // Iterate over encoded input string in chunks. The size of all
-    // chunks except the last one is 4 bytes.
-    //
-    // The last chunk might be padded with equal signs or dots
-    // in order to make it 4 bytes in size as well, but this
-    // is not required as per RFC 2045.
-    //
-    // All chunks except the last one produce three output bytes.
-    //
-    // The last chunk produces at least one and up to three bytes.
-    //
-
-        size_t pos_of_char_1 = pos_of_char(encoded_string[pos+1] );
-
-    //
-    // Emit the first output byte that is produced in each chunk:
-    //
-        ret.push_back(static_cast<std::string::value_type>( ( (pos_of_char(encoded_string[pos+0]) ) << 2 ) + ( (pos_of_char_1 & 0x30 ) >> 4)));
-
-        if ( ( pos + 2 < length_of_string  )       &&  // Check for data that is not padded with equal signs (which is allowed by RFC 2045)
-              encoded_string[pos+2] != '='        &&
-              encoded_string[pos+2] != '.'            // accept URL-safe base 64 strings, too, so check for '.' also.
-          )
-        {
-        //
-        // Emit a chunk's second byte (which might not be produced in the last chunk).
-        //
-          unsigned int pos_of_char_2 = pos_of_char(encoded_string[pos+2] );
-          ret.push_back(static_cast<std::string::value_type>( (( pos_of_char_1 & 0x0f) << 4) + (( pos_of_char_2 & 0x3c) >> 2)));
-
-          if ( ( pos + 3 < length_of_string )     &&
-                  encoded_string[pos+3] != '='     &&
-                  encoded_string[pos+3] != '.'
-              )
-          {
-          //
-          // Emit a chunk's third byte (which might not be produced in the last chunk).
-          //
-              ret.push_back(static_cast<std::string::value_type>( ( (pos_of_char_2 & 0x03 ) << 6 ) + pos_of_char(encoded_string[pos+3])   ));
-          }
-        }
-
-        pos += 4;
-    }
-
-    return ret;
-  }
-
-  std::string base64_decode(std::string const& s, bool remove_linebreaks = false) {
-    return decode(s, remove_linebreaks);
-  }
-
-  std::string base64_encode(std::string const& s, bool url = false) {
-    return encode(s, url);
-  }
-
-  std::string base64_encode_pem (std::string const& s) {
-    return encode_pem(s);
-  }
-
-  std::string base64_encode_mime(std::string const& s) {
-    return encode_mime(s);
-  }
-
-  #if __cplusplus >= 201703L
-  //
-  // Interface with std::string_view rather than const std::string&
-  // Requires C++17
-  // Provided by Yannic Bonenberger (https://github.com/Yannic)
-  //
-
-  std::string base64_encode(std::string_view s, bool url = false) {
-    return encode(s, url);
-  }
-
-  std::string base64_encode_pem(std::string_view s) {
-    return encode_pem(s);
-  }
-
-  std::string base64_encode_mime(std::string_view s) {
-    return encode_mime(s);
-  }
-
-  std::string base64_decode(std::string_view s, bool remove_linebreaks = false) {
-    return decode(s, remove_linebreaks);
-  }
-
-  #endif  // __cplusplus >= 201703L
 
   /*
   static const std::string base64_chars = 
