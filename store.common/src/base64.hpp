@@ -1,3 +1,4 @@
+#pragma once
 // https://www.boost.org/doc/libs/1_66_0/boost/beast/core/detail/base64.hpp
 //
 // Copyright (c) 2016-2017 Vinnie Falco (vinnie dot falco at gmail dot com)
@@ -258,7 +259,7 @@ namespace store::common {
     return base64_encode_with_line_breaks<String, 76>(s);
   }
 
-  template<class = void>
+  // template<class = void>
   std::string
   base64_decode(std::string const& data)
   {
