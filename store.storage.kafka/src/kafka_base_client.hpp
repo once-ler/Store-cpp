@@ -81,6 +81,10 @@ namespace store::storage::kafka {
       createDispatcher(callback);
     }
 
+    static void signal_handler(int) {
+      on_signal();
+    }
+  
   private:
     shared_ptr<cppkafka::Configuration> config = nullptr;
     shared_ptr<cppkafka::Producer> producer = nullptr;
@@ -100,21 +104,16 @@ namespace store::storage::kafka {
       }
     }
 
-    static void signal_handler(int) {
-      on_signal();
-    }
-    
     void createDispatcher(OnMessageReceivedFunc func) {
       // Stop processing on SIGINT
       on_signal = [this]() {
         cout << "Dispatcher exiting.\n";
         dispatcher->stop();
-        
-        sleep(3000);
-        exit(0);
+        signal(SIGINT, SIG_DFL);
       };
       
-      signal(SIGINT, signal_handler);
+      // Should call this from main thread of a program using kafka client, not here.
+      // signal(SIGINT, store::storage::kafka::KafkaBaseClient::signal_handler);
 
       dispatcher->run(
         // Callback executed whenever a new message is consumed
