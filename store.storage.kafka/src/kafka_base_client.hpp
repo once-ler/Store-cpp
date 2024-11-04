@@ -109,6 +109,9 @@ namespace store::storage::kafka {
       on_signal = [this]() {
         cout << "Dispatcher exiting.\n";
         dispatcher->stop();
+        
+        sleep(3000);
+        exit(0);
       };
       
       signal(SIGINT, signal_handler);
